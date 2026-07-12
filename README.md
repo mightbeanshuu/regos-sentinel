@@ -91,6 +91,7 @@ The H.264 output is written to `regos-motion/out/RegOS_Sentinel_FinalPitch_112s.
 | `RegOSFinalPitch112` | 1920x1080, 60fps, 6720 frames | Current | 112-second final pitch film |
 | `RegOSIdeaDeck` | 1920x1080, 60fps, 6017 frames | Supporting | Animated ten-slide idea deck |
 | `RegOSDemoVideo` | 1920x1080, 30fps | Historical | 172-second product-demo storyboard |
+| `RegOSVectorGallery` | 1920x1080, 60fps, 300 frames | Development | Isolated code-native vector component review |
 
 ## Final-pitch beats
 

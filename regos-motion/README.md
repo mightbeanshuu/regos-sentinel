@@ -18,6 +18,7 @@ Open `http://localhost:3000` and select a composition.
 | `RegOSFinalPitch112` | 1920x1080, 60fps, 112s | Current final pitch film |
 | `RegOSIdeaDeck` | 1920x1080, 60fps, 6017 frames | Animated idea deck |
 | `RegOSDemoVideo` | 1920x1080, 30fps, 172s | Historical long-form demo storyboard |
+| `RegOSVectorGallery` | 1920x1080, 60fps, 5s | Development gallery for native SVG components |
 
 ## Commands
 

@@ -33,6 +33,14 @@ export const RemotionRoot: React.FC = () => {
         width={DEMO_VIDEO.width}
         height={DEMO_VIDEO.height}
       />
+      <Composition
+        id={GALLERY.id}
+        component={RegOSVectorGallery}
+        durationInFrames={GALLERY.durationInFrames}
+        fps={GALLERY.fps}
+        width={GALLERY.width}
+        height={GALLERY.height}
+      />
     </>
   );
 };

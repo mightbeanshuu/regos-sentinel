@@ -11,6 +11,7 @@ All notable repository-level changes are documented here.
 - GitHub Actions validation for TypeScript and Remotion bundling.
 - Dependabot configuration, issue forms, pull-request template, CODEOWNERS, security policy, contribution guide, and code of conduct.
 - Dedicated `render:pitch`, `typecheck`, and `check` scripts.
+- Registered `RegOSVectorGallery` development composition for isolated vector review.
 
 ### Changed
 
