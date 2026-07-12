@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible code, render, documentation, or motion defect.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Final pitch
+        - Idea deck
+        - Demo video
+        - Documentation
+        - CI or repository
+        - Asset pipeline
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include composition ID, frame number, commands, and environment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Attach a screenshot or short render that contains no private data.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, private data, and restricted regulatory-source copies.
+          required: true

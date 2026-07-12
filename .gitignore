@@ -1,0 +1,45 @@
+# Dependencies and build outputs
+node_modules/
+**/node_modules/
+out/
+**/out/
+dist/
+**/dist/
+build/
+**/build/
+.remotion/
+**/.remotion/
+coverage/
+
+# Local research and agent state
+.firecrawl/
+.claude/
+.impeccable/
+**/.impeccable/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Generated media and temporary exports
+*.log
+*.tmp
+*.temp
+*.mov
+*.wav
+*.aiff
+*.zip
+
+# Local submission-source copies; use the cited public sources instead
+SEBI PS/
+problem_explanation_*.pdf
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

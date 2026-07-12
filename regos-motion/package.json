@@ -1,0 +1,36 @@
+{
+  "name": "regos-sentinel",
+  "version": "1.0.0",
+  "description": "Code-native Remotion films for the RegOS Sentinel agentic-compliance concept",
+  "scripts": {
+    "dev": "remotion studio",
+    "typecheck": "tsc --noEmit",
+    "build": "remotion bundle",
+    "check": "npm run typecheck && npm run build",
+    "render:pitch": "remotion render RegOSFinalPitch112 out/RegOS_Sentinel_FinalPitch_112s.mp4 --codec h264",
+    "render:deck": "remotion render RegOSIdeaDeck out/RegOS_Sentinel_IdeaDeck.mp4 --codec h264",
+    "render:video": "remotion render RegOSDemoVideo out/RegOS_Sentinel_Demo_172s.mp4 --codec h264",
+    "upgrade": "remotion upgrade"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mightbeanshuu/regos-sentinel.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.487",
+    "@remotion/google-fonts": "4.0.487",
+    "@remotion/transitions": "4.0.487",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.487"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "typescript": "5.8.2"
+  },
+  "private": true
+}
