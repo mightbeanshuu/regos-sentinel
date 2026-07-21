@@ -2,7 +2,7 @@
 
 **Live prototype:** [regos-sentinel.vercel.app](https://regos-sentinel.vercel.app)
 
-**Live API health:** added after the first Render service is provisioned
+**Live API health:** [regos-sentinel-api-sebi.onrender.com/health](https://regos-sentinel-api-sebi.onrender.com/health)
 
 RegOS Sentinel is a working SEBI circular-to-action prototype. It fetches the official public
 CSCRF FAQ, verifies the full PDF and nine reviewed passages, checks the resulting rule against

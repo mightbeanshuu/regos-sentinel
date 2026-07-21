@@ -11,6 +11,7 @@ cd services/api
 uv run pytest -q
 uv run ruff check .
 uv run python scripts/verify_offline_fallback.py
+REGOS_OFFLINE=1 uv run python scripts/replay_build.py
 
 cd ../../web
 npm run typecheck
@@ -33,6 +34,9 @@ npm audit --audit-level=high
 - the committed golden manifest reproduces its digest byte-for-byte;
 - OSCAL output passes the vendored NIST 1.2.2 assessment-results schema; and
 - benchmark metrics are calculated from eight committed case outcomes.
+- separate signed browser sessions cannot observe or mutate each other's workspaces;
+- identical approved state produces byte-identical Compliance Build Report PDFs; and
+- the before/after PDF remains one page and excludes penalty, savings, and regulatory-outcome claims.
 
 ## Offline receipt
 
