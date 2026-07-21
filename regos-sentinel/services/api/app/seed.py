@@ -84,7 +84,7 @@ def initial_state() -> WorkspaceState:
     q16 = _span(
         "FAQ-Q16",
         "Q16 — VAPT reporting format",
-        "FAQ dated 11 June 2025 · PDF page 8 · Q16",
+        "FAQ dated 11 June 2025 · PDF pages 8–9 · Q16",
         "Please refer Section 4.3. ‘VAPT’ under ‘CSCRF Compliance, Audit Report Submission, "
         "and Timelines’ in CSCRF. It mentions VAPT related reporting, periodicity, and "
         "timelines. Further, the reporting format shall be as per CSCRF: Annexure-A.",
@@ -93,7 +93,7 @@ def initial_state() -> WorkspaceState:
     q17a = _span(
         "FAQ-Q17-A",
         "Q17(a) — High-severity missing-patch findings",
-        "FAQ dated 11 June 2025 · PDF page 8 · Q17(a)",
+        "FAQ dated 11 June 2025 · PDF page 9 · Q17(a)",
         "Vulnerabilities identified due to non-implementation of patches and falling under "
         "‘high’ severity would be validated for non-compliances against the patch management "
         "timelines (1 week; please refer standard PR.MA.S3 and the corresponding guidelines "
@@ -103,7 +103,7 @@ def initial_state() -> WorkspaceState:
     q17b = _span(
         "FAQ-Q17-B",
         "Q17(b) — Other VAPT observations",
-        "FAQ dated 11 June 2025 · PDF page 8 · Q17(b)",
+        "FAQ dated 11 June 2025 · PDF page 9 · Q17(b)",
         "Other vulnerabilities observations apart from implementation of patches shall be "
         "validated for non-closure against the VAPT observation closure timelines (3 months). "
         "However, even for the closure of such findings, graded approach (based on the "
@@ -129,7 +129,7 @@ def initial_state() -> WorkspaceState:
     q25 = _span(
         "FAQ-Q25",
         "Q25 — Registered but non-operational service",
-        "FAQ dated 11 June 2025 · PDF page 10 · Q25",
+        "FAQ dated 11 June 2025 · PDF page 11 · Q25",
         "The provisions of the circulars are applicable to all those intermediaries who "
         "are registered with SEBI in the capacity of intermediary. Whether the services "
         "of the intermediaries are operational or not it is their business decisions, "
@@ -141,9 +141,10 @@ def initial_state() -> WorkspaceState:
         "Preface — guidance status",
         "FAQ dated 11 June 2025 · PDF page 2 · Preface ¶4",
         "These FAQs are in the nature of providing guidance on the Cybersecurity and Cyber "
-        "Resilience Framework (CSCRF) for SEBI Regulated Entities (REs), and any explanation "
-        "or clarification provided herein should neither be regarded as an interpretation of "
-        "CSCRF nor be treated as a binding opinion or decision of SEBI.",
+        "Resilience Framework (CSCRF) for SEBI Regulated Entities (REs), and any explanation/"
+        "clarification provided herein should neither be regarded as an interpretation of "
+        "CSCRF nor be treated as a binding opinion/decision of the Securities and Exchange "
+        "Board of India.",
         False,
     )
     spans = [disclaimer, q14, q15, q16, q17a, q17b, q20, q24, q25]

@@ -46,6 +46,7 @@ __pycache__/
 # Local prototype runtime state (reset deterministically from seed data)
 regos-sentinel/services/api/data/workspace.json
 regos-sentinel/services/api/data/*.bak.json
+regos-sentinel/services/api/.python-version
 
 # Local prototype authoring guides
 regos-sentinel/AGENTS.md

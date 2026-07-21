@@ -1,34 +1,54 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { animate, stagger } from "animejs";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
 import type {
   BuildRun,
   CoverageEntry,
+  LiveSourceVerificationReceipt,
   Obligation,
   SourceSpan,
   WorkspaceState,
 } from "../lib/types";
+import { VerificationField } from "./VerificationField";
 
 const PIPELINE = ["INGEST", "COVERAGE", "COMPILE", "VERIFY", "APPLY", "OPERATE", "DIFF", "PROVE"];
+const PIPELINE_LABELS: Record<string, string> = {
+  INGEST: "Load source",
+  COVERAGE: "Check every clause",
+  COMPILE: "Draft duties",
+  VERIFY: "Test meaning",
+  APPLY: "Check entity",
+  OPERATE: "Create work",
+  DIFF: "Track change",
+  PROVE: "Export proof",
+};
 
 function shortHash(value: string): string {
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
 }
 
 function statusTone(value: string): string {
-  if (["APPROVED", "PASS", "CORRECT", "CURRENT", "COMPILED_OBLIGATION", "RESOLVED_HASHED", "APPLIES", "SCHEMA_VALIDATED"].includes(value)) return "success";
+  if (["APPROVED", "PASS", "CORRECT", "CURRENT", "COMPILED_OBLIGATION", "RESOLVED_HASHED", "APPLIES", "SCHEMA_VALIDATED", "LIVE_SOURCE_VERIFIED"].includes(value)) return "success";
   if (["FAILED", "FAIL", "INCORRECT", "NON_CONFORMING"].includes(value)) return "danger";
-  if (["BLOCK", "BLOCKED", "BLOCKED_AWAITING_HUMAN", "ABSTAINED_CORRECTLY", "ABSTAINED_UNNECESSARILY", "AMBIGUOUS_REVIEW_REQUIRED", "NEEDS_REVALIDATION", "OPEN", "RECOMMENDED", "ADVISORY_REVIEW"].includes(value)) return "warning";
+  if (["BLOCK", "BLOCKED", "BLOCKED_AWAITING_HUMAN", "ABSTAINED_CORRECTLY", "ABSTAINED_UNNECESSARILY", "AMBIGUOUS_REVIEW_REQUIRED", "NEEDS_REVALIDATION", "OPEN", "RECOMMENDED", "ADVISORY_REVIEW", "REVIEW_NEEDED", "SOURCE_CHANGED_REVIEW_REQUIRED", "PARTIAL_MATCH_REVIEW_REQUIRED"].includes(value)) return "warning";
   return "neutral";
 }
 
 function StatusPill({ value }: { value: string }) {
-  return <span className={`status-pill ${statusTone(value)}`}>{value.replaceAll("_", " ")}</span>;
+  return (
+    <span className={`status-pill ${statusTone(value)}`}>
+      <span className="status-dot" aria-hidden="true" />
+      {value.replaceAll("_", " ")}
+    </span>
+  );
 }
 
 function Pipeline({ latestBuild }: { latestBuild?: BuildRun }) {
+  const reducedMotion = useReducedMotion();
   return (
     <ol className="pipeline" aria-label="Compliance compilation pipeline">
       {PIPELINE.map((stage, index) => {
@@ -46,13 +66,120 @@ function Pipeline({ latestBuild }: { latestBuild?: BuildRun }) {
         }
         if (latestBuild?.status === "APPROVED") state = "done";
         return (
-          <li key={stage} className={state}>
+          <motion.li
+            key={stage}
+            className={state}
+            layout={!reducedMotion}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
             <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{stage}</strong>
-          </li>
+            <strong>{PIPELINE_LABELS[stage]}</strong>
+          </motion.li>
         );
       })}
     </ol>
+  );
+}
+
+function ProvenanceLegend() {
+  return (
+    <section className="provenance-legend" aria-label="Provenance value legend">
+      <strong>Where each value came from</strong>
+      <span><i className="source" />SOURCE_EXPLICIT <small>stated in source</small></span>
+      <span><i className="deterministic" />DETERMINISTIC <small>rule-computed</small></span>
+      <span><i className="suggested" />AI_SUGGESTED <small>candidate only</small></span>
+      <span><i className="human" />HUMAN_POLICY <small>authorized entity input</small></span>
+    </section>
+  );
+}
+
+function LiveWorkflow({
+  receipt,
+  latestBuild,
+  busy,
+  sourceBusy,
+  onVerify,
+  onRun,
+}: {
+  receipt: LiveSourceVerificationReceipt | null;
+  latestBuild?: BuildRun;
+  busy: boolean;
+  sourceBusy: boolean;
+  onVerify: () => Promise<void>;
+  onRun: () => Promise<void>;
+}) {
+  const buildDone = Boolean(latestBuild);
+  const reviewDone = latestBuild?.status === "APPROVED";
+  const sourceVerified = receipt?.status === "LIVE_SOURCE_VERIFIED";
+  const reducedMotion = useReducedMotion();
+  return (
+    <section className="live-workflow" id="live-workflow" aria-labelledby="live-workflow-heading">
+      <div className="live-workflow-heading">
+        <div>
+          <span className="live-badge"><i /> LIVE DEMO</span>
+          <h2 id="live-workflow-heading">Start with SEBI’s PDF. Finish with assigned work.</h2>
+          <p>These buttons call the live API. Each step shows the data it actually read or changed.</p>
+        </div>
+        <a href="https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf" target="_blank" rel="noreferrer" className="text-link">
+          Open the same SEBI PDF ↗
+        </a>
+      </div>
+      <ol className="journey-steps">
+        <li className={receipt ? "complete" : "active"}>
+          <span className="journey-number">1</span>
+          <div>
+            <strong>Fetch and verify the official source</strong>
+            <p>Download the live 23-page FAQ, hash the full file, and find the nine reviewed passages.</p>
+            <button className="secondary-button" disabled={sourceBusy || busy} onClick={() => void onVerify()} type="button">
+              {sourceBusy ? "Reading SEBI PDF…" : receipt ? "Verify source again" : "Fetch official SEBI PDF"}
+            </button>
+          </div>
+          <StatusPill value={receipt?.status ?? "READY"} />
+        </li>
+        <li className={buildDone ? "complete" : receipt ? "active" : ""}>
+          <span className="journey-number">2</span>
+          <div>
+            <strong>Run the compliance checks</strong>
+            <p>Test every reviewed passage against the current control and stop if a required fact is missing.</p>
+            {!buildDone && (
+              <button className="primary-button" disabled={busy || sourceBusy} onClick={() => void onRun()} type="button">
+                {busy ? "Checking source and rules…" : sourceVerified ? "Run checks on verified SEBI passages" : "Run checks using saved reviewed passages"}
+              </button>
+            )}
+          </div>
+          <StatusPill value={latestBuild?.status ?? "READY"} />
+        </li>
+        <li className={reviewDone ? "complete" : latestBuild?.status === "BLOCKED_AWAITING_HUMAN" ? "active" : ""}>
+          <span className="journey-number">3</span>
+          <div>
+            <strong>Let a compliance officer decide the missing fact</strong>
+            <p>The system shows the exact text, records the officer’s policy input, recalculates dates, and opens work.</p>
+            {latestBuild?.status === "BLOCKED_AWAITING_HUMAN" && (
+              <button
+                className="secondary-button"
+                onClick={() => document.getElementById("human-review")?.scrollIntoView({
+                  behavior: reducedMotion ? "auto" : "smooth",
+                  block: "start",
+                })}
+                type="button"
+              >
+                Open the human review
+              </button>
+            )}
+          </div>
+          <StatusPill value={reviewDone ? "APPROVED" : latestBuild?.status === "BLOCKED_AWAITING_HUMAN" ? "REVIEW_NEEDED" : "WAITING"} />
+        </li>
+      </ol>
+      {receipt && (
+        <div className="source-receipt" aria-live="polite">
+          <div><small>HTTP response</small><strong>{receipt.http_status} · {receipt.content_type}</strong></div>
+          <div><small>Live file</small><strong>{receipt.page_count} pages · {(receipt.byte_count / 1024).toFixed(1)} KB</strong></div>
+          <div><small>Passages found</small><strong>{receipt.matched_span_ids.length}/{receipt.checked_span_count}</strong></div>
+          <div><small>Full-PDF SHA-256</small><strong title={receipt.document_sha256}>{shortHash(receipt.document_sha256)}</strong></div>
+          <p>{receipt.note}</p>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -94,8 +221,8 @@ function SourceInspector({ state }: { state: WorkspaceState }) {
       <div className="panel coverage-panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Coverage Ledger</p>
-            <h2 id="source-heading">Every scoped span has a disposition</h2>
+            <p className="eyebrow">Source checklist</p>
+            <h2 id="source-heading">Every reviewed passage is accounted for</h2>
           </div>
           <span className="count-badge">{state.coverage.length} spans</span>
         </div>
@@ -119,7 +246,7 @@ function SourceInspector({ state }: { state: WorkspaceState }) {
       <article className="panel source-panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Exact source</p>
+            <p className="eyebrow">What SEBI says</p>
             <h2>{selected.question}</h2>
           </div>
           <a href={selected.source_url} target="_blank" rel="noreferrer" className="text-link">
@@ -163,8 +290,8 @@ function CorpusRegistry({ state }: { state: WorkspaceState }) {
     <section className="panel corpus-registry" aria-labelledby="corpus-heading">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">Versioned corpus packs</p>
-          <h2 id="corpus-heading">Source scope is explicit before compilation</h2>
+          <p className="eyebrow">Source registry</p>
+          <h2 id="corpus-heading">Exactly what this prototype has and has not processed</h2>
         </div>
         <span className="count-badge">{state.corpus_packs.length} packs</span>
       </div>
@@ -192,27 +319,52 @@ function CorpusRegistry({ state }: { state: WorkspaceState }) {
   );
 }
 
-function BuildConsole({ build }: { build?: BuildRun }) {
+function BuildConsole({ build, animateRun }: { build?: BuildRun; animateRun: boolean }) {
+  const testListRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!build || !animateRun || reducedMotion || !testListRef.current) return;
+    const rows = testListRef.current.querySelectorAll<HTMLElement>(".test-row");
+    const animation = animate(rows, {
+      opacity: { from: 0.45 },
+      y: { from: 7 },
+      delay: stagger(34),
+      duration: 320,
+      ease: "outQuart",
+    });
+    return () => {
+      animation.cancel();
+    };
+  }, [animateRun, build, reducedMotion]);
+
   if (!build) {
     return (
-      <section className="panel empty-console">
-        <p className="eyebrow">Build console</p>
-        <h2>Ready to test the current Compliance Twin</h2>
-        <p>The seeded candidate uses one generic three-month rule. Run the build to test it against every scoped source span.</p>
-      </section>
+      <motion.section className="panel empty-console" id="build-console" layout={!reducedMotion}>
+        <p className="eyebrow">Compliance check</p>
+        <h2>Ready to check the current rule</h2>
+        <p>The starting rule gives every VAPT finding three months. Run the checks to see whether the SEBI text supports that.</p>
+      </motion.section>
     );
   }
+  const displayStatus = build.status === "BLOCKED_AWAITING_HUMAN" ? "BLOCKED" : build.status;
   return (
-    <section className={`panel build-console ${build.status.toLowerCase()}`} aria-live="polite">
+    <motion.section
+      className={`panel build-console ${build.status.toLowerCase()}`}
+      id="build-console"
+      aria-live="polite"
+      aria-busy="false"
+      layout={!reducedMotion}
+    >
       <div className="build-title-row">
         <div>
           <p className="eyebrow">{build.id} · {build.stage}</p>
-          <h2>COMPLIANCE BUILD {build.status}</h2>
+          <h2>COMPLIANCE BUILD {displayStatus}</h2>
           <p className="build-headline">{build.headline}</p>
         </div>
         <StatusPill value={build.status} />
       </div>
-      <div className="test-list">
+      <div className="test-list" ref={testListRef}>
         {build.tests.map((test) => (
           <div className="test-row" key={test.id}>
             <span className={`test-icon ${test.status.toLowerCase()}`} aria-hidden="true">
@@ -226,7 +378,7 @@ function BuildConsole({ build }: { build?: BuildRun }) {
           </div>
         ))}
       </div>
-    </section>
+    </motion.section>
   );
 }
 
@@ -235,6 +387,8 @@ function ReviewPanel({
   onCommitReading,
   onResolveReference,
   referenceResolved,
+  references,
+  sourceSpans,
   committedReading,
   blockedDeadline,
   busy,
@@ -243,6 +397,8 @@ function ReviewPanel({
   onCommitReading: (reviewerName: string, independentReading: string, triggerPolicy: string) => Promise<void>;
   onResolveReference: () => Promise<void>;
   referenceResolved: boolean;
+  references: WorkspaceState["references"];
+  sourceSpans: SourceSpan[];
   committedReading?: WorkspaceState["reviewer_readings"][number];
   blockedDeadline?: WorkspaceState["deadline_computations"][number];
   busy: boolean;
@@ -258,17 +414,17 @@ function ReviewPanel({
   const activeReviewer = committedReading?.reviewer_name ?? reviewerName;
   const activePolicy = committedReading?.trigger_policy ?? triggerPolicy;
   return (
-    <section className="panel review-panel">
+    <section className="panel review-panel" id="human-review">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">Inspector Mode · commit before reveal</p>
-          <h2>{committedReading ? "System interpretation revealed" : "Record your independent reading"}</h2>
+          <p className="eyebrow">Human review · system answer hidden until you respond</p>
+          <h2>{committedReading ? "Compare your reading with the system" : "Read the source before seeing the system’s answer"}</h2>
         </div>
-        <StatusPill value="AMBIGUOUS_REVIEW_REQUIRED" />
+        <StatusPill value="REVIEW_NEEDED" />
       </div>
       <div className="reference-card">
         <span>
-          <small>Scoped dependency closure · 4 references</small>
+          <small>Four cited references must be checked</small>
           <strong>Q15 → Table 19 / Guideline 6 · Q16 → Annexure-A · Q17(a) → PR.MA.S3</strong>
           <em>{referenceResolved ? (committedReading ? "Hash-pinned dependencies were reviewed before the system suggestion was revealed." : "Hash-pinned dependencies are ready. Read them, then commit your own interpretation.") : "Build cannot pass while these explicit outbound references are unresolved."}</em>
         </span>
@@ -276,14 +432,40 @@ function ReviewPanel({
           <StatusPill value="RESOLVED_HASHED" />
         ) : (
           <button className="secondary-button" disabled={busy} onClick={() => void onResolveReference()} type="button">
-            Resolve & hash scoped references
+            Load the 4 cited sections
           </button>
         )}
       </div>
+      {referenceResolved && (
+        <details className="reference-evidence" open={!committedReading}>
+          <summary>
+            <span><strong>4 CSCRF sections loaded and hash-pinned</strong><small>Inspect the exact passages used by this demo</small></span>
+            <span aria-hidden="true">＋</span>
+          </summary>
+          <div className="reference-evidence-grid">
+            {references.map((reference) => {
+              const target = sourceSpans.find((span) => span.id === reference.target_span_id);
+              return (
+                <article key={reference.id}>
+                  <div>
+                    <strong>{target?.question ?? reference.target_locator}</strong>
+                    <StatusPill value={reference.status} />
+                  </div>
+                  <small>{reference.target_locator}</small>
+                  {target && <blockquote>{target.text}</blockquote>}
+                  <p>{reference.resolution_note}</p>
+                  {reference.target_hash && <code title={reference.target_hash}>Excerpt SHA-256 · {shortHash(reference.target_hash)}</code>}
+                  {target && <a className="text-link" href={target.source_url} target="_blank" rel="noreferrer">Open governing CSCRF PDF ↗</a>}
+                </article>
+              );
+            })}
+          </div>
+        </details>
+      )}
       {!committedReading ? (
         <div className="independent-review-stage">
           <div className="review-question">
-            <small>Question for the reviewer</small>
+            <small>Your decision</small>
             <strong>What rule does Q17(a) support, and what event starts its one-week clock?</strong>
             <span>The system candidate is deliberately hidden until you commit.</span>
           </div>
@@ -301,14 +483,27 @@ function ReviewPanel({
           </label>
           <div className="button-row">
             <button
+              className="secondary-button"
+              disabled={busy}
+              onClick={() => {
+                setIndependentReading(
+                  "Q17(a) supports a one-week maximum for high-severity findings caused by missing patches. It does not state which event starts that clock.",
+                );
+                setTriggerPolicy("Date the finding is recorded in the entity vulnerability register");
+              }}
+              type="button"
+            >
+              Fill synthetic demo response
+            </button>
+            <button
               className="primary-button"
               type="button"
               disabled={busy || !referenceResolved || reviewerName.trim().length < 2 || independentReading.trim().length < 8 || triggerPolicy.trim().length < 8}
               onClick={() => void onCommitReading(reviewerName.trim(), independentReading.trim(), triggerPolicy.trim())}
             >
-              {busy ? "Committing reading…" : "Commit reading & reveal system view"}
+              {busy ? "Saving your reading…" : "Save my reading, then show the system view"}
             </button>
-            <span>This record is immutable in the demo audit trail.</span>
+            <span>Your answer is time-stamped and cannot be rewritten later in this demo.</span>
           </div>
         </div>
       ) : (
@@ -320,13 +515,13 @@ function ReviewPanel({
           </div>
           <div className="interpretation-diff">
             <div>
-              <small>Unsafe candidate</small>
+              <small>Rule currently in the control register</small>
               <strong>All VAPT findings → 3 months</strong>
               <span>Derived from Q15 alone</span>
             </div>
             <div className="arrow" aria-hidden="true">→</div>
             <div>
-              <small>System suggestion</small>
+              <small>System’s source-backed suggestion</small>
               <strong>{committedReading.revealed_system_suggestion}</strong>
               <span>System view revealed after {committedReading.committed_at}</span>
             </div>
@@ -366,7 +561,7 @@ function ReviewPanel({
               disabled={busy || reason.trim().length < 8 || !triggerDate || !agreement}
               onClick={() => void onApprove(activeReviewer, reason.trim(), activePolicy, triggerDate, agreement === "AGREE")}
             >
-              {busy ? "Compiling approved split…" : "Approve decision & rebuild"}
+            {busy ? "Applying the decision…" : "Approve, recalculate, and create work"}
             </button>
             <span>Independent reading, reveal, agreement, reason, and reviewer are persisted.</span>
           </div>
@@ -400,14 +595,17 @@ function ApprovedWorkspace({
   onBenchmark,
   onToggleQsb,
   onSetApplicability,
+  animateRun,
   busy,
 }: {
   state: WorkspaceState;
   onBenchmark: () => Promise<void>;
   onToggleQsb: (value: boolean) => Promise<void>;
   onSetApplicability: (hasSecondRegistration: boolean, hasDormantLicense: boolean) => Promise<void>;
+  animateRun: boolean;
   busy: boolean;
 }) {
+  const reducedMotion = useReducedMotion();
   const activeObligations = state.obligations.filter((item) => item.status === "ACTIVE");
   const build = state.builds.at(-1)!;
   const control = state.controls[0];
@@ -418,12 +616,18 @@ function ApprovedWorkspace({
   );
   return (
     <>
-      <section className="impact-strip" aria-label="Build impact summary">
+      <motion.section
+        className="impact-strip"
+        aria-label="Build impact summary"
+        initial={reducedMotion || !animateRun ? false : { opacity: 0.7, clipPath: "inset(0 100% 0 0)" }}
+        animate={{ opacity: 1, clipPath: "inset(0 0% 0 0)" }}
+        transition={{ duration: reducedMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+      >
         <div><strong>{build.impact.controls_changed}</strong><span>control changed</span></div>
         <div><strong>{build.impact.vendor_sla_advisories}</strong><span>vendor SLA advisory</span></div>
         <div><strong>{build.impact.evidence_revalidation}</strong><span>evidence needs revalidation</span></div>
         <div><strong>{build.impact.tasks_created}</strong><span>remediation tasks opened</span></div>
-      </section>
+      </motion.section>
 
       <section className="section-block">
         <div className="section-heading">
@@ -494,6 +698,12 @@ function ApprovedWorkspace({
         </article>
       </section>
 
+      <details className="advanced-evidence">
+        <summary>
+          <span><strong>Advanced evidence and edge cases</strong><small>QSB dates · applicability receipts · manifest · OSCAL · benchmark</small></span>
+          <span aria-hidden="true">＋</span>
+        </summary>
+        <div className="advanced-evidence-body">
       <section className="operations-grid">
         <article className="panel">
           <div className="panel-heading">
@@ -620,6 +830,8 @@ function ApprovedWorkspace({
           </div>
         </section>
       )}
+        </div>
+      </details>
     </>
   );
 }
@@ -627,7 +839,10 @@ function ApprovedWorkspace({
 export default function Home() {
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sourceBusy, setSourceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionRevision, setActionRevision] = useState(0);
+  const [sourceReceipt, setSourceReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -640,11 +855,23 @@ export default function Home() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const act = useCallback(async (operation: () => Promise<WorkspaceState>) => {
+  const act = useCallback(async (
+    operation: () => Promise<WorkspaceState>,
+    focusTarget?: string,
+  ) => {
     setBusy(true);
     setError(null);
     try {
       setState(await operation());
+      setActionRevision((value) => value + 1);
+      if (focusTarget) {
+        window.requestAnimationFrame(() => {
+          document.getElementById(focusTarget)?.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "start",
+          });
+        });
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Operation failed");
     } finally {
@@ -654,12 +881,24 @@ export default function Home() {
 
   const latestBuild = useMemo(() => state?.builds.at(-1), [state]);
 
+  const verifyLiveSource = useCallback(async () => {
+    setSourceBusy(true);
+    setError(null);
+    try {
+      setSourceReceipt(await regosApi.verifyLiveSource());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to verify the live SEBI source");
+    } finally {
+      setSourceBusy(false);
+    }
+  }, []);
+
   if (!state) {
     return (
       <main className="loading-shell">
         <p className="eyebrow">RegOS Sentinel</p>
-        <h1>{error ? "API connection required" : "Loading Compliance Twin…"}</h1>
-        <p>{error ?? "Connecting to the local, persisted prototype workspace."}</p>
+        <h1>{error ? "API connection required" : "Loading the demo workspace…"}</h1>
+        <p>{error ?? "Connecting to the saved prototype state."}</p>
         {error && <button className="primary-button" onClick={() => void load()} type="button">Retry</button>}
       </main>
     );
@@ -667,54 +906,81 @@ export default function Home() {
 
   return (
     <main>
-      <header className="topbar">
+      <header className="topbar" id="top">
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true">R</span>
-          <span><strong>RegOS Sentinel</strong><small>Human-supervised regulatory compiler</small></span>
+          <span><strong>RegOS Sentinel</strong><small>SEBI rules-to-work prototype</small></span>
         </div>
         <div className="truth-labels" aria-label="Prototype data labels">
           <span>LIVE PROTOTYPE</span><span>PUBLIC SEBI SOURCE</span><span>SYNTHETIC ENTITY & EVIDENCE</span>
         </div>
-        <button className="reset-button" disabled={busy} onClick={() => void act(regosApi.reset)} type="button">Reset demo</button>
+        <button
+          className="reset-button"
+          disabled={busy || sourceBusy}
+          onClick={() => {
+            setSourceReceipt(null);
+            void act(regosApi.reset, "top");
+          }}
+          type="button"
+        >
+          Reset demo
+        </button>
       </header>
 
       <div className="page-shell">
         <section className="intro-row">
           <div>
-            <p className="eyebrow">CSCRF FAQ · Q14–Q17 golden path</p>
-            <h1>Compile regulatory text into reviewable operational change.</h1>
-            <p>One real SEBI clarification. One deliberately unsafe candidate. One human-approved, replayable correction.</p>
+            <p className="eyebrow">SEBI CSCRF FAQ · live compliance workflow</p>
+            <h1>Turn SEBI guidance into dated, owned work.</h1>
+            <p>Load the official PDF, catch an unsafe deadline, record the compliance officer’s decision, and watch the tasks and evidence update.</p>
           </div>
-          <div className="entity-chip">
-            <small>Active profile</small>
-            <strong>{state.entity_profile.legal_name}</strong>
-            <span>{state.entity_profile.cscrf_category} · {state.entity_profile.is_qsb ? "QSB" : "NON-QSB"} · SYNTHETIC</span>
+          <div className={`entity-chip ${latestBuild ? statusTone(latestBuild.status) : "neutral"}`}>
+            <VerificationField status={latestBuild?.status ?? "IDLE"} />
+            <div className="entity-content">
+              <small>Active profile</small>
+              <strong>{state.entity_profile.legal_name}</strong>
+              <span>{state.entity_profile.cscrf_category} · {state.entity_profile.is_qsb ? "QSB" : "NON-QSB"} · SYNTHETIC</span>
+              <em>{latestBuild ? latestBuild.status.replaceAll("_", " ") : "READY FOR BUILD"}</em>
+            </div>
           </div>
         </section>
 
         <Pipeline latestBuild={latestBuild} />
+        <ProvenanceLegend />
         {error && <div className="error-banner" role="alert">{error}</div>}
 
-        <section className="action-bar">
-          <div>
-            <span className="action-state">{latestBuild ? latestBuild.id : "NO BUILD YET"}</span>
-            <p>{latestBuild ? latestBuild.headline : "The candidate control is ready for deterministic tests."}</p>
-          </div>
-          {!latestBuild && (
-            <button className="primary-button" disabled={busy} onClick={() => void act(regosApi.runBuild)} type="button">
-              {busy ? "Running gates…" : "Run compliance build"}
-            </button>
-          )}
-        </section>
+        <LiveWorkflow
+          receipt={sourceReceipt}
+          latestBuild={latestBuild}
+          busy={busy}
+          sourceBusy={sourceBusy}
+          onVerify={verifyLiveSource}
+          onRun={() => act(regosApi.runBuild, "build-console")}
+        />
+
+        <AnimatePresence initial={false} mode="wait">
+          <BuildConsole key={latestBuild?.id ?? "empty-build"} build={latestBuild} animateRun={actionRevision > 0} />
+        </AnimatePresence>
+
+        {latestBuild?.status === "APPROVED" && (
+          <ApprovedWorkspace
+            state={state}
+            busy={busy}
+            animateRun={actionRevision > 0}
+            onBenchmark={() => act(regosApi.runBenchmark)}
+            onToggleQsb={(value) => act(() => regosApi.setQsb(value, "Aditi Rao"))}
+            onSetApplicability={(hasSecond, hasDormant) => act(() => regosApi.setApplicabilityScenario(hasSecond, hasDormant, "Aditi Rao"))}
+          />
+        )}
 
         <SourceInspector state={state} />
-        <CorpusRegistry state={state} />
-        <BuildConsole build={latestBuild} />
 
         {latestBuild?.status === "BLOCKED_AWAITING_HUMAN" && (
           <ReviewPanel
             busy={busy}
             referenceResolved={state.references.every((item) => item.status === "RESOLVED_HASHED")}
+            references={state.references}
+            sourceSpans={state.source_spans}
             committedReading={state.reviewer_readings.find((item) => item.span_id === "FAQ-Q17-A")}
             blockedDeadline={state.deadline_computations.find((item) => item.finding_id === "FND-PATCH-001" && !item.computable)}
             onResolveReference={() => act(regosApi.resolveScopedReferences)}
@@ -731,19 +997,17 @@ export default function Home() {
               trigger_policy: triggerPolicy,
               trigger_date: triggerDate,
               agrees_with_system_suggestion: agrees,
-            }))}
+            }), "build-console")}
           />
         )}
 
-        {latestBuild?.status === "APPROVED" && (
-          <ApprovedWorkspace
-            state={state}
-            busy={busy}
-            onBenchmark={() => act(regosApi.runBenchmark)}
-            onToggleQsb={(value) => act(() => regosApi.setQsb(value, "Aditi Rao"))}
-            onSetApplicability={(hasSecond, hasDormant) => act(() => regosApi.setApplicabilityScenario(hasSecond, hasDormant, "Aditi Rao"))}
-          />
-        )}
+        <details className="advanced-evidence source-registry-drawer">
+          <summary>
+            <span><strong>Source registry and scope limits</strong><small>See which documents are active, registered, or not processed</small></span>
+            <span aria-hidden="true">＋</span>
+          </summary>
+          <div className="advanced-evidence-body"><CorpusRegistry state={state} /></div>
+        </details>
 
         <footer>
           Decision support · no legal advice · no automated filing · no production write access · exact FAQ guidance must be read with governing SEBI instruments.

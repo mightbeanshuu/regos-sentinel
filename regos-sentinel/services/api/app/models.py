@@ -57,6 +57,12 @@ class EvidenceStatus(str, Enum):
     NEEDS_REVALIDATION = "NEEDS_REVALIDATION"
 
 
+class LiveSourceStatus(str, Enum):
+    VERIFIED = "LIVE_SOURCE_VERIFIED"
+    CHANGED = "SOURCE_CHANGED_REVIEW_REQUIRED"
+    PARTIAL = "PARTIAL_MATCH_REVIEW_REQUIRED"
+
+
 class Citation(StrictModel):
     document_id: str
     span_id: str
@@ -87,6 +93,25 @@ class SourceSpan(StrictModel):
     text: str
     normative_signal: bool
     source_url: str
+
+
+class LiveSourceVerificationReceipt(StrictModel):
+    status: LiveSourceStatus
+    source_url: str
+    checked_at: str
+    http_status: int
+    content_type: str
+    document_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    expected_document_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    hash_matches_expected: bool
+    hash_scope: str
+    byte_count: int = Field(ge=1)
+    page_count: int = Field(ge=1)
+    checked_span_count: int = Field(ge=1)
+    matched_span_ids: List[str]
+    missing_span_ids: List[str]
+    build_input: str
+    note: str
 
 
 class CoverageEntry(StrictModel):

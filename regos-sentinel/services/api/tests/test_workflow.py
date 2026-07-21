@@ -9,11 +9,22 @@ from app.canonical import verify_embedded_sha256
 from app.main import create_app
 from app.models import DeadlineComputation
 from app.seed import initial_state
+from app.source_verification import SPAN_ANCHORS, match_scoped_spans
 from app.store import StateStore
 
 
 def client_for(tmp_path: Path) -> TestClient:
     return TestClient(create_app(tmp_path / "workspace.json"))
+
+
+def test_live_source_matcher_covers_every_pinned_demo_span() -> None:
+    state = initial_state()
+    extracted_text = "\n".join(span.text for span in state.source_spans)
+
+    matched, missing = match_scoped_spans(extracted_text, state.source_spans)
+
+    assert set(matched) == set(SPAN_ANCHORS)
+    assert missing == []
 
 
 def test_json_demo_store_archives_a_prior_schema_before_reseeding(tmp_path: Path) -> None:

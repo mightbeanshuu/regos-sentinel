@@ -21,12 +21,14 @@ from .engine import (
 from .models import (
     ApplicabilityScenarioPatch,
     EntityProfilePatch,
+    LiveSourceVerificationReceipt,
     ReferenceStatus,
     ReviewerReadingRequest,
     ReviewRequest,
     WorkspaceState,
 )
 from .oscal import generate_assessment_results, validate_assessment_results
+from .source_verification import SourceVerificationUnavailable, verify_official_source
 from .store import create_store
 
 
@@ -61,6 +63,23 @@ def create_app(state_path: Optional[Path] = None) -> FastAPI:
     @application.get("/api/v1/workspace", response_model=WorkspaceState)
     def workspace() -> WorkspaceState:
         return store.load()
+
+    @application.post(
+        "/api/v1/sources/verify-live",
+        response_model=LiveSourceVerificationReceipt,
+    )
+    def verify_live_source() -> LiveSourceVerificationReceipt:
+        state = store.load()
+        try:
+            return verify_official_source(state.source_spans)
+        except SourceVerificationUnavailable as error:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Live SEBI source verification is temporarily unavailable. "
+                    "The pinned reviewed corpus remains available for the offline demo."
+                ),
+            ) from error
 
     @application.post("/api/v1/demo/reset", response_model=WorkspaceState)
     def reset_demo() -> WorkspaceState:

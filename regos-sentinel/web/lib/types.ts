@@ -32,6 +32,25 @@ export interface SourceSpan {
   source_url: string;
 }
 
+export interface LiveSourceVerificationReceipt {
+  status: "LIVE_SOURCE_VERIFIED" | "SOURCE_CHANGED_REVIEW_REQUIRED" | "PARTIAL_MATCH_REVIEW_REQUIRED";
+  source_url: string;
+  checked_at: string;
+  http_status: number;
+  content_type: string;
+  document_sha256: string;
+  expected_document_sha256: string;
+  hash_matches_expected: boolean;
+  hash_scope: string;
+  byte_count: number;
+  page_count: number;
+  checked_span_count: number;
+  matched_span_ids: string[];
+  missing_span_ids: string[];
+  build_input: string;
+  note: string;
+}
+
 export interface CoverageEntry {
   id: string;
   span_id: string;

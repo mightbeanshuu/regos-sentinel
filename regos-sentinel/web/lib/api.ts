@@ -1,10 +1,10 @@
-import type { WorkspaceState } from "./types";
+import type { LiveSourceVerificationReceipt, WorkspaceState } from "./types";
 
 interface ApiErrorPayload {
   detail?: string;
 }
 
-async function request(path: string, init?: RequestInit): Promise<WorkspaceState> {
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     ...init,
     headers: {
@@ -16,11 +16,17 @@ async function request(path: string, init?: RequestInit): Promise<WorkspaceState
     const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
     throw new Error(payload.detail ?? `Request failed with status ${response.status}`);
   }
-  return (await response.json()) as WorkspaceState;
+  return (await response.json()) as T;
 }
+
+const request = (path: string, init?: RequestInit) => requestJson<WorkspaceState>(path, init);
 
 export const regosApi = {
   workspace: () => request("/workspace", { cache: "no-store" }),
+  verifyLiveSource: () => requestJson<LiveSourceVerificationReceipt>(
+    "/sources/verify-live",
+    { method: "POST" },
+  ),
   runBuild: () => request("/builds/run", { method: "POST" }),
   reset: () => request("/demo/reset", { method: "POST" }),
   approveQ17: (body: {

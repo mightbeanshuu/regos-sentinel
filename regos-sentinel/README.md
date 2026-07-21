@@ -1,9 +1,12 @@
 # RegOS Sentinel
 
-RegOS Sentinel is a human-supervised regulatory compiler prototype for SEBI-regulated
-intermediaries. It converts a version-pinned source scope into cited obligation candidates,
-deterministic build gates, human decisions, downstream control/evidence changes, and a
-replayable Compliance Build Manifest.
+**Live prototype:** [regos-sentinel.vercel.app](https://regos-sentinel.vercel.app)
+
+RegOS Sentinel is a working SEBI circular-to-action prototype. It fetches the official public
+CSCRF FAQ, verifies the full PDF and nine reviewed passages, checks the resulting rule against
+a synthetic intermediary's current control, and stops when the source does not support a safe
+due date. A compliance officer can then record the missing entity policy, approve the change,
+and see the recalculated dates, assigned work, vendor advisory, and evidence impact.
 
 The jury path demonstrates a deliberately unsafe interpretation of the SEBI CSCRF FAQ. The
 source states a one-week duration for a high-severity missing-patch branch but does not state
@@ -24,6 +27,7 @@ is never counted as a control failure because FAQ Q15 uses recommendation langua
 - Next.js/React/TypeScript cockpit
 - FastAPI/Pydantic domain API
 - PostgreSQL JSONB storage with `pgvector`, plus an atomic JSON demo adapter
+- live official-PDF verification with full-file SHA-256 and scoped passage matching
 - four-value provenance model: `SOURCE_EXPLICIT`, `DETERMINISTIC`, `AI_SUGGESTED`,
   `HUMAN_POLICY`
 - canonical manifest hashing and online/offline verification
@@ -75,3 +79,7 @@ explicit dependencies are pinned from the governing CSCRF: Table 19, PR.MA Guide
 Annexure-A, and PR.MA.S3. A versioned 17 June 2025 Stock Broker Master Circular pack is
 registered as the next source target with zero indexed spans and zero compiled candidates, so
 the interface never implies work that was not performed.
+
+`POST /api/v1/sources/verify-live` performs the public-source check. The compliance build uses
+the reviewed pinned passages that were matched against that live PDF; it does not treat
+unconstrained PDF extraction as an approved legal interpretation.
