@@ -5,7 +5,7 @@ interface ApiErrorPayload {
 }
 
 async function request(path: string, init?: RequestInit): Promise<WorkspaceState> {
-  const response = await fetch(`/api/regos${path}`, {
+  const response = await fetch(`/api/v1${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",

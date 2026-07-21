@@ -1,13 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "npm --prefix web ci",
-  "buildCommand": "npm --prefix web run build",
-  "outputDirectory": "web/.next",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{services/api/tests/**,services/api/scripts/**,demo/**,docs/**}"
+  "services": {
+    "frontend": {
+      "root": "web/",
+      "framework": "nextjs"
+    },
+    "backend": {
+      "root": "services/api/",
+      "framework": "fastapi",
+      "entrypoint": "app.main:app"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/health", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
 }

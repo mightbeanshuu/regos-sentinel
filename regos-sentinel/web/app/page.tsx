@@ -529,15 +529,15 @@ function ApprovedWorkspace({
           <p>Source, schema, ruleset, reviewer, tests, evidence state, audit history, and replay input are versioned together.</p>
           <code>{state.latest_manifest ? shortHash(state.latest_manifest.manifest_sha256) : "manifest unavailable"}</code>
           <div className="button-row compact">
-            <a className="primary-button link-button" href="/api/regos/manifests/latest?download=true">Export manifest</a>
-            <a className="secondary-button link-button" href="/api/regos/exports/oscal/assessment-results?download=true">Export OSCAL 1.2.2</a>
+            <a className="primary-button link-button" href="/api/v1/manifests/latest?download=true">Export manifest</a>
+            <a className="secondary-button link-button" href="/api/v1/exports/oscal/assessment-results?download=true">Export OSCAL 1.2.2</a>
             <button className="secondary-button" disabled={busy} onClick={() => void onBenchmark()} type="button">
               {busy ? "Running…" : "Run golden-set benchmark"}
             </button>
           </div>
           <p className="oscal-proof">
             <StatusPill value="SCHEMA_VALIDATED" />
-            <a href="/api/regos/exports/oscal/validation" target="_blank">Open pinned NIST-schema validation receipt ↗</a>
+            <a href="/api/v1/exports/oscal/validation" target="_blank">Open pinned NIST-schema validation receipt ↗</a>
           </p>
         </article>
       </section>
