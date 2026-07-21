@@ -1,20 +1,22 @@
 import json
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from pypdf import PdfReader
 
 from app.canonical import verify_embedded_sha256
 from app.main import create_app
 from app.models import DeadlineComputation
 from app.seed import initial_state
 from app.source_verification import SPAN_ANCHORS, match_scoped_spans
-from app.store import StateStore
 
 
 def client_for(tmp_path: Path) -> TestClient:
-    return TestClient(create_app(tmp_path / "workspace.json"))
+    del tmp_path
+    return TestClient(create_app("test-session-secret-that-is-longer-than-thirty-two-bytes"))
 
 
 def test_live_source_matcher_covers_every_pinned_demo_span() -> None:
@@ -27,18 +29,27 @@ def test_live_source_matcher_covers_every_pinned_demo_span() -> None:
     assert missing == []
 
 
-def test_json_demo_store_archives_a_prior_schema_before_reseeding(tmp_path: Path) -> None:
-    path = tmp_path / "workspace.json"
-    payload = initial_state().model_dump(mode="json")
-    payload["schema_version"] = "obligation-schema/0.9.0"
-    path.write_text(json.dumps(payload))
+def test_browser_sessions_are_isolated_and_tamper_evident() -> None:
+    app = create_app("test-session-secret-that-is-longer-than-thirty-two-bytes")
+    judge_one = TestClient(app)
+    judge_two = TestClient(app)
 
-    store = StateStore(path)
+    first_response = judge_one.post("/api/v1/builds/run")
+    second_response = judge_two.get("/api/v1/workspace")
 
-    assert store.load().schema_version == "obligation-schema/1.1.0"
-    backup = tmp_path / "workspace.schema-obligation-schema-0.9.0.bak.json"
-    assert backup.exists()
-    assert json.loads(backup.read_text())["schema_version"] == "obligation-schema/0.9.0"
+    assert len(first_response.json()["builds"]) == 1
+    assert second_response.json()["builds"] == []
+    first_token = first_response.headers["X-RegOS-Session"]
+    second_token = second_response.headers["X-RegOS-Session"]
+    assert first_token != second_token
+
+    tampered = TestClient(app).get(
+        "/api/v1/workspace",
+        headers={"X-RegOS-Session": f"{first_token}tampered"},
+    )
+    assert tampered.status_code == 200
+    assert tampered.json()["builds"] == []
+    assert tampered.headers["X-RegOS-Session"] != first_token
 
 
 def approved_state(client: TestClient) -> dict:
@@ -85,7 +96,7 @@ def test_build_fails_closed_before_human_review(tmp_path: Path) -> None:
     assert "TEST-REFERENCE-CLOSURE-001" in blocked_ids
     assert "TEST-DEADLINE-TRACE-001" in blocked_ids
     patch_computation = next(
-        item for item in state["deadline_computations"] if item["finding_id"] == "FND-PATCH-001"
+        item for item in state["deadline_computations"] if item["finding_id"] == "F-001"
     )
     assert patch_computation["computable"] is False
     assert patch_computation["due_date"] is None
@@ -179,7 +190,7 @@ def test_review_persists_split_and_propagates_impact(tmp_path: Path) -> None:
     assert build["impact"] == {
         "controls_changed": 1,
         "vendor_sla_advisories": 1,
-        "evidence_revalidation": 1,
+        "evidence_revalidation": 3,
         "tasks_created": 2,
     }
 
@@ -187,15 +198,15 @@ def test_review_persists_split_and_propagates_impact(tmp_path: Path) -> None:
     assert active["OBL-PATCH-HIGH-001"]["deadline"]["duration"] == 1
     assert active["OBL-PATCH-HIGH-001"]["deadline"]["unit"] == "week"
     assert active["OBL-VAPT-OTHER-001"]["deadline"]["duration"] == 3
-    assert state["vendor_slas"][0]["status"] == "ADVISORY_REVIEW"
-    assert state["evidence"][0]["status"] == "NEEDS_REVALIDATION"
+    assert state["vendor_slas"][0]["status"] == "ADVISORY_GAP"
+    assert all(item["status"] == "NEEDS_REVALIDATION" for item in state["evidence"])
     due_dates = {item["finding_id"]: item["due_date"] for item in state["deadline_computations"]}
     assert due_dates == {
-        "FND-PATCH-001": "2026-07-29",
-        "FND-CONFIG-001": "2026-10-20",
+        "F-001": "2026-07-29",
+        "F-002": "2026-10-20",
     }
     patch_trace = next(
-        item for item in state["deadline_computations"] if item["finding_id"] == "FND-PATCH-001"
+        item for item in state["deadline_computations"] if item["finding_id"] == "F-001"
     )
     assert patch_trace["trigger_provenance"] == "HUMAN_POLICY"
     assert patch_trace["trigger_label"] == (
@@ -212,9 +223,8 @@ def test_review_persists_split_and_propagates_impact(tmp_path: Path) -> None:
     assert len(state["reviewer_readings"]) == 1
     assert state["reviews"][0]["independent_reading_id"] == "READ-Q17-001"
     assert state["reviews"][0]["reviewer_agreement"] is True
-    assert state["latest_manifest"]["reproducibility"]["model_provider"] == (
-        "NONE_FOR_DETERMINISTIC_DEMO_PATH"
-    )
+    assert state["latest_manifest"]["reproducibility"]["model_provider"] == "OpenRouter"
+    assert state["latest_manifest"]["reproducibility"]["model_cache_hit"] is True
 
 
 def test_manifest_is_unavailable_until_build_approved(tmp_path: Path) -> None:
@@ -298,6 +308,61 @@ def test_manifest_is_unavailable_until_build_approved(tmp_path: Path) -> None:
     artifact = oscal.json()["assessment-results"]
     assert artifact["metadata"]["oscal-version"] == "1.2.2"
     assert len(artifact["results"][0]["observations"]) == 11
+
+
+def test_compliance_report_is_state_derived_and_byte_identical(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    assert client.get("/api/v1/builds/BUILD-0001/report.pdf").status_code == 404
+    state = approved_state(client)
+    build_id = state["builds"][-1]["id"]
+
+    first = client.get(f"/api/v1/builds/{build_id}/report.pdf")
+    second = client.get(f"/api/v1/builds/{build_id}/report.pdf")
+
+    assert first.status_code == 200
+    assert first.headers["content-type"] == "application/pdf"
+    assert first.content == second.content
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(first.content)).pages)
+    compact_text = " ".join(text.split())
+    for section in [
+        "2. What changed",
+        "3. Obligations compiled",
+        "4. The blocked item",
+        "5. Not converted to obligations",
+        "6. Applicability receipt",
+        "7. Tests executed",
+        "8. Evidence state changes",
+        "9. Tasks raised",
+        "10. Reproducibility",
+        "11. Limitations",
+    ]:
+        assert section in text
+    assert "Aster Securities Pvt Ltd · SYNTHETIC" in compact_text
+    assert "NOT STATED IN SOURCE" in compact_text
+    assert "NOT COMPUTED BY REGOS" in compact_text
+    assert "HUMAN_POLICY" in compact_text
+    assert "No mandatory task created from this statement" in compact_text
+    assert "vapt_register_q1.csv · SYNTHETIC" in compact_text
+    assert "REGOS_OFFLINE=1 uv run python scripts/replay_build.py" in compact_text
+
+
+def test_before_after_pdf_is_one_page_and_claim_disciplined(tmp_path: Path) -> None:
+    client = client_for(tmp_path)
+    state = approved_state(client)
+    build_id = state["builds"][-1]["id"]
+
+    response = client.get(f"/api/v1/builds/{build_id}/before-after.pdf")
+
+    assert response.status_code == 200
+    reader = PdfReader(BytesIO(response.content))
+    assert len(reader.pages) == 1
+    text = reader.pages[0].extract_text() or ""
+    assert "Single three-month control" in text
+    assert "High-severity missing-patch branch" in text
+    assert "ADVISORY GAP only" in text
+    lowered = text.lower()
+    for prohibited in ["penalty avoided", "money saved", "regulatory outcome", "rupee"]:
+        assert prohibited not in lowered
 
 
 def test_benchmark_reports_measured_small_golden_set(tmp_path: Path) -> None:

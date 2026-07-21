@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
+from .model_cache import load_model_cache
 from .models import (
     ApplicabilityReceipt,
     ApplicabilityScenarioReceipt,
@@ -93,7 +94,7 @@ def initial_state() -> WorkspaceState:
     q17a = _span(
         "FAQ-Q17-A",
         "Q17(a) — High-severity missing-patch findings",
-        "FAQ dated 11 June 2025 · PDF page 9 · Q17(a)",
+        "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
         "Vulnerabilities identified due to non-implementation of patches and falling under "
         "‘high’ severity would be validated for non-compliances against the patch management "
         "timelines (1 week; please refer standard PR.MA.S3 and the corresponding guidelines "
@@ -103,7 +104,7 @@ def initial_state() -> WorkspaceState:
     q17b = _span(
         "FAQ-Q17-B",
         "Q17(b) — Other VAPT observations",
-        "FAQ dated 11 June 2025 · PDF page 9 · Q17(b)",
+        "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
         "Other vulnerabilities observations apart from implementation of patches shall be "
         "validated for non-closure against the VAPT observation closure timelines (3 months). "
         "However, even for the closure of such findings, graded approach (based on the "
@@ -148,6 +149,7 @@ def initial_state() -> WorkspaceState:
         False,
     )
     spans = [disclaimer, q14, q15, q16, q17a, q17b, q20, q24, q25]
+    model_run_receipt, _ = load_model_cache(spans)
     excerpt_hash = hashlib.sha256("\n".join(span.text for span in spans).encode()).hexdigest()
 
     document = SourceDocument(
@@ -196,13 +198,21 @@ def initial_state() -> WorkspaceState:
             computable=True,
             citation=q15_citation,
         ),
-        control_id="CTRL-VAPT-CLOSURE",
+        control_id="CTRL-VAPT-07",
         evidence_requirements=["VAPT report", "Closure proof"],
         field_citations={
             "actor": q15_citation,
             "action": q15_citation,
             "object": q15_citation,
             "deadline": q15_citation,
+        },
+        field_provenance={
+            "actor": Provenance.SOURCE_EXPLICIT,
+            "action": Provenance.SOURCE_EXPLICIT,
+            "object": Provenance.SOURCE_EXPLICIT,
+            "condition": Provenance.DETERMINISTIC,
+            "trigger": Provenance.SOURCE_EXPLICIT,
+            "duration": Provenance.SOURCE_EXPLICIT,
         },
         applicability=base_applicability,
         status="ACTIVE — SUPERSEDED AFTER REVIEW",
@@ -237,7 +247,7 @@ def initial_state() -> WorkspaceState:
             blocked_reason="trigger not stated in source",
             citation=q17_citation,
         ),
-        control_id="CTRL-VAPT-CLOSURE",
+        control_id="CTRL-VAPT-07",
         evidence_requirements=[],
         field_citations={
             "actor": q17_citation,
@@ -245,6 +255,13 @@ def initial_state() -> WorkspaceState:
             "object": q17_citation,
             "condition": q17_citation,
             "deadline": q17_citation,
+        },
+        field_provenance={
+            "actor": Provenance.SOURCE_EXPLICIT,
+            "action": Provenance.SOURCE_EXPLICIT,
+            "object": Provenance.SOURCE_EXPLICIT,
+            "condition": Provenance.DETERMINISTIC,
+            "duration": Provenance.SOURCE_EXPLICIT,
         },
         applicability=blocked_patch_applicability,
         status="BLOCKED_INCOMPLETE_RULE",
@@ -258,7 +275,7 @@ def initial_state() -> WorkspaceState:
         source_version="cscrf-faq/2025-06-11-excerpt-v1",
         entity_profile=EntityProfile(
             id="ENT-ASTER-001",
-            legal_name="Aster Securities Private Limited",
+            legal_name="Aster Securities Pvt Ltd",
             entity_type="STOCK_BROKER",
             cscrf_category="SMALL-SIZE RE",
             is_qsb=False,
@@ -527,7 +544,7 @@ def initial_state() -> WorkspaceState:
         ],
         findings=[
             Finding(
-                id="FND-PATCH-001",
+                id="F-001",
                 title="API gateway OEM security patch not implemented",
                 severity="HIGH",
                 caused_by_missing_patch=True,
@@ -536,7 +553,7 @@ def initial_state() -> WorkspaceState:
                 system="Internet-facing API gateway",
             ),
             Finding(
-                id="FND-CONFIG-001",
+                id="F-002",
                 title="Administrative console security misconfiguration",
                 severity="HIGH",
                 caused_by_missing_patch=False,
@@ -549,7 +566,7 @@ def initial_state() -> WorkspaceState:
         deadline_computations=[
             DeadlineComputation(
                 id="DLC-PATCH-001",
-                finding_id="FND-PATCH-001",
+                finding_id="F-001",
                 obligation_id=blocked_patch_obligation.id,
                 duration_label="1 week",
                 calculation_trace=[
@@ -597,7 +614,7 @@ def initial_state() -> WorkspaceState:
         ],
         controls=[
             Control(
-                id="CTRL-VAPT-CLOSURE",
+                id="CTRL-VAPT-07",
                 version=1,
                 name="VAPT finding closure",
                 owner="Cybersecurity Lead",
@@ -617,10 +634,26 @@ def initial_state() -> WorkspaceState:
         ],
         evidence=[
             EvidenceItem(
+                id="EVD-VAPT-REGISTER-001",
+                name="vapt_register_q1.csv",
+                kind="Synthetic VAPT finding register metadata",
+                control_id="CTRL-VAPT-07",
+                status=EvidenceStatus.CURRENT,
+                collected_at="2026-07-20T10:00:00Z",
+            ),
+            EvidenceItem(
+                id="EVD-VENDOR-SLA-001",
+                name="vendor_sla.pdf",
+                kind="Synthetic vendor SLA metadata",
+                control_id="CTRL-VAPT-07",
+                status=EvidenceStatus.CURRENT,
+                collected_at="2026-07-10T08:15:00Z",
+            ),
+            EvidenceItem(
                 id="EVD-PATCH-POLICY-001",
                 name="patch_policy_v1.pdf",
                 kind="Approved policy metadata",
-                control_id="CTRL-VAPT-CLOSURE",
+                control_id="CTRL-VAPT-07",
                 status=EvidenceStatus.CURRENT,
                 collected_at="2026-07-15T09:30:00Z",
             )
@@ -641,4 +674,5 @@ def initial_state() -> WorkspaceState:
                 },
             )
         ],
+        model_run_receipt=model_run_receipt,
     )

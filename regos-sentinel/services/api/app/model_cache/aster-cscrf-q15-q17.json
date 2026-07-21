@@ -1,0 +1,51 @@
+{
+  "provider": "OpenRouter",
+  "model_id": "google/gemma-4-26b-a4b-it:free",
+  "prompt_version": "regos-extraction/q15-q17-v1",
+  "generated_at": "2026-07-22T00:00:00Z",
+  "output_token_limit": 900,
+  "candidates": [
+    {
+      "candidate_id": "FAQ-Q15",
+      "source_span_id": "FAQ-Q15",
+      "actor": "REs",
+      "action": "closure of vulnerabilities identified (irrespective of third-party applications or in-house) during VAPT activity",
+      "object": "vulnerabilities",
+      "condition": "within three (3) months of submission of VAPT report",
+      "duration": 3,
+      "unit": "months",
+      "trigger": "submission of VAPT report",
+      "computable": true,
+      "blocked_reason": null,
+      "exact_quote": "The timeline for closure of vulnerabilities identified (irrespective of third-party applications or in-house) during VAPT activity is within three (3) months of submission of VAPT report."
+    },
+    {
+      "candidate_id": "FAQ-Q17-A",
+      "source_span_id": "FAQ-Q17-A",
+      "actor": "REs",
+      "action": "implementation of patches",
+      "object": "patches",
+      "condition": "falling under ‘high’ severity",
+      "duration": 1,
+      "unit": "week",
+      "trigger": null,
+      "computable": false,
+      "blocked_reason": "no clock-start provided",
+      "exact_quote": "Vulnerabilities identified due to non-implementation of patches and falling under ‘high’ severity would be validated for non-compliances against the patch management timelines (1 week; please refer standard PR.MA.S3 and the corresponding guidelines specified under PR.MA: Guidelines in Part II of CSCRF)."
+    },
+    {
+      "candidate_id": "FAQ-Q17-B",
+      "source_span_id": "FAQ-Q17-B",
+      "actor": "REs",
+      "action": "closure of such findings",
+      "object": "vulnerabilities observations apart from implementation of patches",
+      "condition": "graded approach (based on the criticality) shall be followed",
+      "duration": 3,
+      "unit": "months",
+      "trigger": null,
+      "computable": false,
+      "blocked_reason": "no clock-start provided",
+      "exact_quote": "Other vulnerabilities observations apart from implementation of patches shall be validated for non-closure against the VAPT observation closure timelines (3 months). However, even for the closure of such findings, graded approach (based on the criticality) shall be followed."
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 **Live prototype:** [regos-sentinel.vercel.app](https://regos-sentinel.vercel.app)
 
+**Live API health:** added after the first Render service is provisioned
+
 RegOS Sentinel is a working SEBI circular-to-action prototype. It fetches the official public
 CSCRF FAQ, verifies the full PDF and nine reviewed passages, checks the resulting rule against
 a synthetic intermediary's current control, and stops when the source does not support a safe
@@ -18,15 +20,17 @@ the event that starts that clock. RegOS keeps the due date `null`, marks the bui
 3. records an entity policy for the missing clock-start; and
 4. approves the corrected branch with a written reason.
 
-The resulting build changes one control, creates two synthetic remediation tasks, marks one
-synthetic evidence item for revalidation, and records one vendor-SLA advisory. The SLA signal
-is never counted as a control failure because FAQ Q15 uses recommendation language.
+The resulting build changes one control, creates two synthetic mandatory-branch remediation
+tasks, marks three synthetic evidence artifacts for revalidation, and records one vendor-SLA
+advisory gap. The SLA signal is never counted as a control failure and never creates mandatory
+work because FAQ Q15 uses recommendation language.
 
 ## What runs
 
 - Next.js/React/TypeScript cockpit
 - FastAPI/Pydantic domain API
-- PostgreSQL JSONB storage with `pgvector`, plus an atomic JSON demo adapter
+- bounded, signed, per-browser in-memory workspaces with no database or shared mutable state
+- committed OpenRouter extraction cache; the jury path runs with `REGOS_OFFLINE=1`
 - live official-PDF verification with full-file SHA-256 and scoped passage matching
 - four-value provenance model: `SOURCE_EXPLICIT`, `DETERMINISTIC`, `AI_SUGGESTED`,
   `HUMAN_POLICY`
@@ -34,18 +38,21 @@ is never counted as a control failure because FAQ Q15 uses recommendation langua
 - OSCAL 1.2.2 `assessment-results` export validated against a vendored NIST schema
 - measured eight-case abstention benchmark with three operating points
 - QSB financial-year periodicity and Q24/Q25 applicability receipts
+- byte-identical Compliance Build Report and one-page before/after PDFs generated from build state
 
 All entity, finding, vendor, task, and evidence records are marked `synthetic: true` in API
 data. The prototype is decision support: it does not provide legal advice, submit filings, or
 write to regulated production systems.
 
-## Run the stack
+## Three-line local quickstart
 
 ```bash
 docker-compose up --build
+open http://localhost:3000
+curl http://localhost:8000/health
 ```
 
-Open `http://localhost:3000`. The API health endpoint is `http://localhost:8000/health`.
+No database or model credential is required for this offline path.
 
 ## Validate
 
@@ -55,6 +62,7 @@ uv sync --dev
 uv run pytest -q
 uv run ruff check .
 uv run python scripts/verify_offline_fallback.py
+REGOS_OFFLINE=1 uv run python scripts/replay_build.py
 
 cd ../../web
 npm ci
@@ -62,7 +70,9 @@ npm run typecheck
 npm run build
 ```
 
-The benchmark can be rerun through `POST /api/v1/benchmarks/run`. Manifest verification is
+The benchmark can be rerun through `POST /api/v1/benchmarks/run`. Approved reports are exposed
+at `GET /api/v1/builds/{build_id}/report.pdf` and
+`GET /api/v1/builds/{build_id}/before-after.pdf`. Manifest verification is
 available through `POST /api/v1/manifest/verify` or:
 
 ```bash

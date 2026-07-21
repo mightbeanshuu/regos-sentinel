@@ -4,16 +4,9 @@
     "frontend": {
       "root": "web/",
       "framework": "nextjs"
-    },
-    "backend": {
-      "root": "services/api/",
-      "framework": "fastapi",
-      "entrypoint": "app.main:app"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/health", "destination": { "service": "backend" } },
     { "source": "/(.*)", "destination": { "service": "frontend" } }
   ]
 }

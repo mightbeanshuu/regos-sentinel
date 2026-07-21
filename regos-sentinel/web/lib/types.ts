@@ -89,6 +89,7 @@ export interface Obligation {
   control_id: string;
   evidence_requirements: string[];
   field_citations: Record<string, Citation>;
+  field_provenance: Record<string, "SOURCE_EXPLICIT" | "DETERMINISTIC" | "AI_SUGGESTED" | "HUMAN_POLICY">;
   applicability: {
     id: string;
     applies: boolean;
@@ -123,6 +124,7 @@ export interface BuildTest {
 
 export interface BuildRun {
   id: string;
+  run_id: string;
   sequence: number;
   status: "BLOCKED_AWAITING_HUMAN" | "FAILED" | "APPROVED";
   started_at: string;
@@ -257,7 +259,7 @@ export interface WorkspaceState {
     vendor: string;
     service: string;
     committed_days: number;
-    required_days: number | null;
+    advisory_reference_days: number | null;
     status: string;
     synthetic: boolean;
   }>;
@@ -314,6 +316,18 @@ export interface WorkspaceState {
     created_at: string;
     details: Record<string, unknown>;
   }>;
+  model_run_receipt: {
+    provider: string;
+    model_id: string;
+    prompt_version: string;
+    cache_key: string;
+    input_sha256: string;
+    output_sha256: string;
+    cache_hit: boolean;
+    output_token_limit: number;
+    generated_at: string;
+    extraction_scope: string;
+  };
   latest_manifest: {
     build_id: string;
     manifest_sha256: string;

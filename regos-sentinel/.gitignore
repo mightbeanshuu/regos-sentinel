@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+.vercel/
+services/api/.venv/
+services/api/.pytest_cache/
+services/api/.ruff_cache/
+services/api/app/__pycache__/
+services/api/tests/__pycache__/
+services/api/artifacts/

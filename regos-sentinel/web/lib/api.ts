@@ -1,25 +1,71 @@
 import type { LiveSourceVerificationReceipt, WorkspaceState } from "./types";
 
 interface ApiErrorPayload {
-  detail?: string;
+  detail?: string | { message?: string };
+}
+
+const apiOrigin = (process.env.NEXT_PUBLIC_REGOS_API_ORIGIN ?? "").replace(/\/$/, "");
+const sessionStorageKey = "regos.session.v1";
+
+function sessionToken(): string | null {
+  return typeof window === "undefined" ? null : window.localStorage.getItem(sessionStorageKey);
+}
+
+function persistSession(response: Response): void {
+  const token = response.headers.get("X-RegOS-Session");
+  if (token && typeof window !== "undefined") window.localStorage.setItem(sessionStorageKey, token);
+}
+
+function errorMessage(payload: ApiErrorPayload, status: number): string {
+  if (typeof payload.detail === "string") return payload.detail;
+  if (payload.detail?.message) return payload.detail.message;
+  return `Request failed with status ${status}`;
+}
+
+function requestHeaders(init?: RequestInit): HeadersInit {
+  const token = sessionToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "X-RegOS-Session": token } : {}),
+    ...init?.headers,
+  };
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await fetch(`${apiOrigin}/api/v1${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    credentials: "include",
+    headers: requestHeaders(init),
   });
+  persistSession(response);
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
-    throw new Error(payload.detail ?? `Request failed with status ${response.status}`);
+    throw new Error(errorMessage(payload, response.status));
   }
   return (await response.json()) as T;
 }
 
 const request = (path: string, init?: RequestInit) => requestJson<WorkspaceState>(path, init);
+
+async function downloadPdf(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${apiOrigin}/api/v1${path}`, {
+    credentials: "include",
+    headers: requestHeaders(),
+  });
+  persistSession(response);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
+    throw new Error(errorMessage(payload, response.status));
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 export const regosApi = {
   workspace: () => request("/workspace", { cache: "no-store" }),
@@ -65,4 +111,12 @@ export const regosApi = {
       }),
     }),
   runBenchmark: () => request("/benchmarks/run", { method: "POST" }),
+  downloadBuildReport: (buildId: string) => downloadPdf(
+    `/builds/${buildId}/report.pdf`,
+    `${buildId.toLowerCase()}-compliance-build-report.pdf`,
+  ),
+  downloadBeforeAfter: (buildId: string) => downloadPdf(
+    `/builds/${buildId}/before-after.pdf`,
+    `${buildId.toLowerCase()}-before-after.pdf`,
+  ),
 };

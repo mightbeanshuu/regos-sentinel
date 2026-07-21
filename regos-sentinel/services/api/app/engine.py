@@ -141,8 +141,8 @@ def _compile_deadline_traces(
     other_obligation: Obligation,
     review_decision: ReviewDecision,
 ) -> List[DeadlineComputation]:
-    patch_finding = next(item for item in state.findings if item.id == "FND-PATCH-001")
-    other_finding = next(item for item in state.findings if item.id == "FND-CONFIG-001")
+    patch_finding = next(item for item in state.findings if item.id == "F-001")
+    other_finding = next(item for item in state.findings if item.id == "F-002")
     patch_trigger = date.fromisoformat(review_decision.policy_inputs["trigger_date"])
     patch_due = patch_trigger + timedelta(weeks=patch_obligation.deadline.duration)
     other_trigger = date.fromisoformat(other_finding.vapt_report_submitted_at)
@@ -238,7 +238,7 @@ def _build_tests(state: WorkspaceState) -> List[BuildTest]:
         and q25_receipt.activated == state.entity_profile.has_dormant_license
     )
     impact_passed = not review_passed or (
-        any(item.status == "ADVISORY_REVIEW" for item in state.vendor_slas)
+        any(item.status == "ADVISORY_GAP" for item in state.vendor_slas)
         and any(item.status == EvidenceStatus.NEEDS_REVALIDATION for item in state.evidence)
         and len(state.tasks) >= 2
     )
@@ -393,7 +393,7 @@ def run_build(state: WorkspaceState, actor: str = "system") -> WorkspaceState:
     review = state.reviews[-1] if state.reviews else None
     impact = BuildImpact(
         controls_changed=1 if review else 0,
-        vendor_sla_advisories=sum(item.status == "ADVISORY_REVIEW" for item in state.vendor_slas),
+        vendor_sla_advisories=sum(item.status == "ADVISORY_GAP" for item in state.vendor_slas),
         evidence_revalidation=sum(
             item.status == EvidenceStatus.NEEDS_REVALIDATION for item in state.evidence
         ),
@@ -401,6 +401,7 @@ def run_build(state: WorkspaceState, actor: str = "system") -> WorkspaceState:
     )
     build = BuildRun(
         id=f"BUILD-{sequence:04d}",
+        run_id=f"RUN-{sequence:04d}",
         sequence=sequence,
         status=status,
         started_at=started_at,
@@ -699,7 +700,7 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             computable=True,
             citation=q17a,
         ),
-        control_id="CTRL-VAPT-CLOSURE",
+        control_id="CTRL-VAPT-07",
         evidence_requirements=[
             "OEM advisory or discovery record",
             "Non-production patch test result",
@@ -713,9 +714,17 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             "condition": q17a,
             "deadline": q17a,
         },
+        field_provenance={
+            "actor": Provenance.SOURCE_EXPLICIT,
+            "action": Provenance.SOURCE_EXPLICIT,
+            "object": Provenance.SOURCE_EXPLICIT,
+            "condition": Provenance.DETERMINISTIC,
+            "trigger": Provenance.HUMAN_POLICY,
+            "duration": Provenance.SOURCE_EXPLICIT,
+        },
         applicability=patch_applicability,
         status="ACTIVE",
-        provenance=Provenance.HUMAN_POLICY,
+        provenance=Provenance.AI_SUGGESTED,
     )
     other_applicability = ApplicabilityReceipt(
         id="APR-VAPT-OTHER-001",
@@ -745,7 +754,7 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             computable=True,
             citation=q17b,
         ),
-        control_id="CTRL-VAPT-CLOSURE",
+        control_id="CTRL-VAPT-07",
         evidence_requirements=["VAPT report", "Risk-graded remediation record", "Closure proof"],
         field_citations={
             "actor": q17b,
@@ -754,9 +763,17 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             "condition": q17b,
             "deadline": q17b,
         },
+        field_provenance={
+            "actor": Provenance.SOURCE_EXPLICIT,
+            "action": Provenance.SOURCE_EXPLICIT,
+            "object": Provenance.SOURCE_EXPLICIT,
+            "condition": Provenance.DETERMINISTIC,
+            "trigger": Provenance.SOURCE_EXPLICIT,
+            "duration": Provenance.SOURCE_EXPLICIT,
+        },
         applicability=other_applicability,
         status="ACTIVE",
-        provenance=Provenance.HUMAN_POLICY,
+        provenance=Provenance.AI_SUGGESTED,
     )
 
     for obligation in state.obligations:
@@ -804,23 +821,35 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
         status="ACTIVE — REMEDIATION ACTIONS OPEN",
         source_obligation_ids=[patch_obligation.id, other_obligation.id],
     )
-    state.vendor_slas[0].required_days = 7
-    state.vendor_slas[0].status = "ADVISORY_REVIEW"
-    state.evidence[0].status = EvidenceStatus.NEEDS_REVALIDATION
-    state.evidence[0].reason = (
-        "The approved control changed from a single three-month rule to a conditional "
-        "one-week branch."
-    )
+    state.vendor_slas[0].advisory_reference_days = 7
+    state.vendor_slas[0].status = "ADVISORY_GAP"
+    evidence_reasons = {
+        "EVD-VAPT-REGISTER-001": (
+            "Finding classifications must be revalidated against the new patch and "
+            "non-patch branches."
+        ),
+        "EVD-VENDOR-SLA-001": (
+            "The 30-day vendor commitment is retained as an advisory gap under Q15; "
+            "no failed control is created."
+        ),
+        "EVD-PATCH-POLICY-001": (
+            "The approved control changed from a single three-month rule to a conditional "
+            "one-week branch."
+        ),
+    }
+    for evidence in state.evidence:
+        evidence.status = EvidenceStatus.NEEDS_REVALIDATION
+        evidence.reason = evidence_reasons[evidence.id]
     state.tasks = [
         RemediationTask(
-            id="TASK-SLA-001",
-            title="Renegotiate critical patch SLA from 30 days to 7 days",
-            owner="Vendor Risk Lead",
-            priority="MEDIUM",
+            id="TASK-PATCH-001",
+            title="Remediate F-001 under the approved one-week patch branch",
+            owner="Cybersecurity Lead",
+            priority="HIGH",
             status="OPEN",
             due_days=7,
             source_obligation_id=patch_obligation.id,
-            work_type="ADVISORY — Q15 ENCOURAGES SLA ALIGNMENT",
+            work_type="MANDATORY PATCH REMEDIATION",
         ),
         RemediationTask(
             id="TASK-EVIDENCE-001",
@@ -849,7 +878,10 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             },
         )
     )
-    return run_build(state, actor=request.reviewer_name)
+    state = run_build(state, actor=request.reviewer_name)
+    state = run_benchmark(state)
+    state.latest_manifest = create_manifest(state)
+    return state
 
 
 def set_qsb_status(state: WorkspaceState, is_qsb: bool, reviewer_name: str) -> WorkspaceState:
@@ -1043,8 +1075,15 @@ def create_manifest(state: WorkspaceState) -> Manifest:
         "schema_version": state.schema_version,
         "ruleset_version": state.ruleset_version,
         "extraction_mode": "HUMAN_VERIFIED_SEEDED_EXCERPTS",
-        "model_provider": "NONE_FOR_DETERMINISTIC_DEMO_PATH",
-        "state_store": "STORAGE_ABSTRACTION_JSON_OR_POSTGRESQL_JSONB",
+        "model_provider": state.model_run_receipt.provider,
+        "model_id": state.model_run_receipt.model_id,
+        "prompt_version": state.model_run_receipt.prompt_version,
+        "model_input_sha256": state.model_run_receipt.input_sha256,
+        "model_output_sha256": state.model_run_receipt.output_sha256,
+        "model_cache_hit": state.model_run_receipt.cache_hit,
+        "model_output_token_limit": state.model_run_receipt.output_token_limit,
+        "state_store": "BOUNDED_SIGNED_IN_MEMORY_SESSION",
+        "offline_replay_command": "REGOS_OFFLINE=1 uv run python scripts/replay_build.py",
     }
     replay_payload = {
         "source": source_payload,
@@ -1168,7 +1207,7 @@ def run_benchmark(state: WorkspaceState) -> WorkspaceState:
         "BM-PATCH-DUE-DATE",
         "Human-confirmed patch trigger plus one week",
         "2026-07-29",
-        due_dates.get("FND-PATCH-001", "not calculated"),
+        due_dates.get("F-001", "not calculated"),
         "FAQ-Q17-A",
         answerable_without_human_policy=False,
     )
@@ -1176,13 +1215,13 @@ def run_benchmark(state: WorkspaceState) -> WorkspaceState:
         "BM-OTHER-DUE-DATE",
         "VAPT report submission plus three calendar months",
         "2026-10-20",
-        due_dates.get("FND-CONFIG-001", "not calculated"),
+        due_dates.get("F-002", "not calculated"),
         "FAQ-Q17-B",
     )
     add(
         "BM-SLA-DEONTIC",
         "Encouraged vendor SLA language cannot create a compliance failure",
-        "ADVISORY_REVIEW",
+        "ADVISORY_GAP",
         state.vendor_slas[0].status,
         "FAQ-Q17-A",
     )

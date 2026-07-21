@@ -311,6 +311,7 @@ class Obligation(StrictModel):
     control_id: str
     evidence_requirements: List[str]
     field_citations: Dict[str, Citation]
+    field_provenance: Dict[str, Provenance]
     applicability: ApplicabilityReceipt
     status: str
     provenance: Provenance
@@ -332,7 +333,7 @@ class VendorSLA(StrictModel):
     vendor: str
     service: str
     committed_days: int
-    required_days: Optional[int] = None
+    advisory_reference_days: Optional[int] = None
     status: str
     synthetic: bool = True
 
@@ -377,6 +378,7 @@ class BuildImpact(StrictModel):
 
 class BuildRun(StrictModel):
     id: str
+    run_id: str
     sequence: int
     status: BuildStatus
     started_at: str
@@ -389,6 +391,19 @@ class BuildRun(StrictModel):
     schema_version: str
     ruleset_version: str
     reviewer: Optional[str] = None
+
+
+class ModelRunReceipt(StrictModel):
+    provider: str
+    model_id: str
+    prompt_version: str
+    cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
+    input_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    output_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    cache_hit: bool
+    output_token_limit: int = Field(ge=1, le=4096)
+    generated_at: str
+    extraction_scope: str
 
 
 class ReviewDecision(StrictModel):
@@ -514,6 +529,7 @@ class WorkspaceState(StrictModel):
     reviewer_readings: List[ReviewerReading] = Field(default_factory=list)
     reviews: List[ReviewDecision]
     audit_events: List[AuditEvent]
+    model_run_receipt: ModelRunReceipt
     latest_manifest: Optional[Manifest] = None
     latest_benchmark: Optional[BenchmarkResult] = None
 

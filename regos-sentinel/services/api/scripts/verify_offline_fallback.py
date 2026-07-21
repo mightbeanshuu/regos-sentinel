@@ -17,7 +17,6 @@ def replay() -> dict[str, object]:
         approve_q17,
         commit_q17_reading,
         resolve_scoped_references,
-        run_benchmark,
         run_build,
     )
     from app.models import ReviewerReadingRequest, ReviewRequest
@@ -51,7 +50,6 @@ def replay() -> dict[str, object]:
             agrees_with_system_suggestion=True,
         ),
     )
-    state = run_benchmark(state)
     manifest = state.latest_manifest
     benchmark = state.latest_benchmark
     if manifest is None or benchmark is None:

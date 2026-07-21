@@ -34,7 +34,7 @@ function shortHash(value: string): string {
 function statusTone(value: string): string {
   if (["APPROVED", "PASS", "CORRECT", "CURRENT", "COMPILED_OBLIGATION", "RESOLVED_HASHED", "APPLIES", "SCHEMA_VALIDATED", "LIVE_SOURCE_VERIFIED"].includes(value)) return "success";
   if (["FAILED", "FAIL", "INCORRECT", "NON_CONFORMING"].includes(value)) return "danger";
-  if (["BLOCK", "BLOCKED", "BLOCKED_AWAITING_HUMAN", "ABSTAINED_CORRECTLY", "ABSTAINED_UNNECESSARILY", "AMBIGUOUS_REVIEW_REQUIRED", "NEEDS_REVALIDATION", "OPEN", "RECOMMENDED", "ADVISORY_REVIEW", "REVIEW_NEEDED", "SOURCE_CHANGED_REVIEW_REQUIRED", "PARTIAL_MATCH_REVIEW_REQUIRED"].includes(value)) return "warning";
+  if (["BLOCK", "BLOCKED", "BLOCKED_AWAITING_HUMAN", "ABSTAINED_CORRECTLY", "ABSTAINED_UNNECESSARILY", "AMBIGUOUS_REVIEW_REQUIRED", "NEEDS_REVALIDATION", "OPEN", "RECOMMENDED", "ADVISORY_GAP", "REVIEW_NEEDED", "SOURCE_CHANGED_REVIEW_REQUIRED", "PARTIAL_MATCH_REVIEW_REQUIRED"].includes(value)) return "warning";
   return "neutral";
 }
 
@@ -595,6 +595,8 @@ function ApprovedWorkspace({
   onBenchmark,
   onToggleQsb,
   onSetApplicability,
+  onDownloadReport,
+  onDownloadBeforeAfter,
   animateRun,
   busy,
 }: {
@@ -602,6 +604,8 @@ function ApprovedWorkspace({
   onBenchmark: () => Promise<void>;
   onToggleQsb: (value: boolean) => Promise<void>;
   onSetApplicability: (hasSecondRegistration: boolean, hasDormantLicense: boolean) => Promise<void>;
+  onDownloadReport: () => Promise<void>;
+  onDownloadBeforeAfter: () => Promise<void>;
   animateRun: boolean;
   busy: boolean;
 }) {
@@ -610,7 +614,6 @@ function ApprovedWorkspace({
   const build = state.builds.at(-1)!;
   const control = state.controls[0];
   const sla = state.vendor_slas[0];
-  const evidence = state.evidence[0];
   const hasSecondRegistration = state.entity_profile.registrations.some(
     (item) => item.registration_type === "DEPOSITORY_PARTICIPANT",
   );
@@ -628,6 +631,22 @@ function ApprovedWorkspace({
         <div><strong>{build.impact.evidence_revalidation}</strong><span>evidence needs revalidation</span></div>
         <div><strong>{build.impact.tasks_created}</strong><span>remediation tasks opened</span></div>
       </motion.section>
+
+      <section className="report-callout" aria-label="Approved build exports">
+        <div>
+          <p className="eyebrow">Sealed decision artifact</p>
+          <h2>Take the complete build state into the jury room.</h2>
+          <p>Exact clauses, the blocked trigger, the human decision, declined advisory work, tests, evidence changes, tasks, and replay hashes.</p>
+        </div>
+        <div className="report-actions">
+          <button className="primary-button" disabled={busy} onClick={() => void onDownloadReport()} type="button">
+            Download Compliance Build Report
+          </button>
+          <button className="secondary-button" disabled={busy} onClick={() => void onDownloadBeforeAfter()} type="button">
+            Download one-page before / after
+          </button>
+        </div>
+      </section>
 
       <section className="section-block">
         <div className="section-heading">
@@ -682,13 +701,15 @@ function ApprovedWorkspace({
         <article className="panel">
           <p className="eyebrow">Operational consequences</p>
           <div className="consequence-row">
-            <span><strong>{sla.vendor}</strong><small>{sla.committed_days} days committed · {sla.required_days} required</small></span>
+            <span><strong>{sla.vendor}</strong><small>{sla.committed_days} days committed · {sla.advisory_reference_days}-day advisory comparison · no failed control</small></span>
             <StatusPill value={sla.status} />
           </div>
-          <div className="consequence-row">
-            <span><strong>{evidence.name}</strong><small>{evidence.reason}</small></span>
-            <StatusPill value={evidence.status} />
-          </div>
+          {state.evidence.map((evidence) => (
+            <div className="consequence-row" key={evidence.id}>
+              <span><strong>{evidence.name} · SYNTHETIC</strong><small>{evidence.reason}</small></span>
+              <StatusPill value={evidence.status} />
+            </div>
+          ))}
           {state.tasks.map((task) => (
             <div className="consequence-row" key={task.id}>
               <span><strong>{task.title}</strong><small>{task.work_type} · {task.owner} · due in {task.due_days} days · synthetic</small></span>
@@ -893,6 +914,18 @@ export default function Home() {
     }
   }, []);
 
+  const download = useCallback(async (operation: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await operation();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to download the report");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
   if (!state) {
     return (
       <main className="loading-shell">
@@ -970,6 +1003,8 @@ export default function Home() {
             onBenchmark={() => act(regosApi.runBenchmark)}
             onToggleQsb={(value) => act(() => regosApi.setQsb(value, "Aditi Rao"))}
             onSetApplicability={(hasSecond, hasDormant) => act(() => regosApi.setApplicabilityScenario(hasSecond, hasDormant, "Aditi Rao"))}
+            onDownloadReport={() => download(() => regosApi.downloadBuildReport(latestBuild.id))}
+            onDownloadBeforeAfter={() => download(() => regosApi.downloadBeforeAfter(latestBuild.id))}
           />
         )}
 
@@ -982,7 +1017,7 @@ export default function Home() {
             references={state.references}
             sourceSpans={state.source_spans}
             committedReading={state.reviewer_readings.find((item) => item.span_id === "FAQ-Q17-A")}
-            blockedDeadline={state.deadline_computations.find((item) => item.finding_id === "FND-PATCH-001" && !item.computable)}
+            blockedDeadline={state.deadline_computations.find((item) => item.finding_id === "F-001" && !item.computable)}
             onResolveReference={() => act(regosApi.resolveScopedReferences)}
             onCommitReading={(reviewerName, independentReading, triggerPolicy) => act(() => regosApi.commitQ17Reading({
               reviewer_name: reviewerName,

@@ -1,70 +1,18 @@
 from __future__ import annotations
 
-import asyncio
-import json
+import base64
+import hashlib
+import hmac
 import os
-import shutil
+import secrets
 import threading
-from pathlib import Path
-from typing import Callable, Optional, Protocol
-
-from psycopg import connect
-from psycopg.rows import dict_row
-from psycopg.types.json import Jsonb
+import time
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from typing import Callable, Deque, Dict, Optional, Protocol
 
 from .models import WorkspaceState
-from .seed import SCHEMA_VERSION, initial_state
-
-
-class StateStore:
-    """Small, atomic JSON store for a demo that must survive browser refreshes.
-
-    The domain layer is storage-agnostic. A PostgreSQL adapter can replace this
-    store without changing the API or engine; JSON is the reliable local default.
-    """
-
-    def __init__(self, path: Path) -> None:
-        self.backend = "atomic-json-demo"
-        self.path = path
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.RLock()
-        if not self.path.exists():
-            self.save(initial_state())
-        else:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-            stored_version = payload.get("schema_version", "unknown")
-            if stored_version != SCHEMA_VERSION:
-                safe_version = str(stored_version).replace("/", "-")
-                backup = self.path.with_name(
-                    f"{self.path.stem}.schema-{safe_version}.bak{self.path.suffix}"
-                )
-                if not backup.exists():
-                    shutil.copy2(self.path, backup)
-                self.save(initial_state())
-
-    def load(self) -> WorkspaceState:
-        with self._lock:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-            return WorkspaceState.model_validate(payload)
-
-    def save(self, state: WorkspaceState) -> WorkspaceState:
-        with self._lock:
-            temporary = self.path.with_suffix(".tmp")
-            temporary.write_text(
-                state.model_dump_json(indent=2),
-                encoding="utf-8",
-            )
-            temporary.replace(self.path)
-            return state
-
-    def mutate(self, operation: Callable[[WorkspaceState], WorkspaceState]) -> WorkspaceState:
-        with self._lock:
-            state = self.load()
-            updated = operation(state)
-            return self.save(updated)
-
-    def reset(self) -> WorkspaceState:
-        return self.save(initial_state())
+from .seed import initial_state
 
 
 class WorkspaceStore(Protocol):
@@ -79,221 +27,162 @@ class WorkspaceStore(Protocol):
     def reset(self) -> WorkspaceState: ...
 
 
-class PostgresStateStore:
-    """PostgreSQL JSONB adapter for the same validated workspace contract.
+class MemoryStateStore:
+    """One isolated, validated workspace held only for a single browser session."""
 
-    A single-row document keeps the prototype deterministic while still proving
-    transactional persistence on the submitted PostgreSQL/pgvector stack. The
-    domain can later be normalized without changing the public API.
-    """
+    backend = "bounded-signed-memory-session"
 
-    def __init__(self, database_url: str) -> None:
-        self.backend = "postgresql-jsonb-pgvector"
-        self.database_url = database_url
-        self._ensure_schema()
-
-    def _ensure_schema(self) -> None:
-        with connect(self.database_url) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS regos_workspace (
-                        workspace_id TEXT PRIMARY KEY,
-                        state JSONB NOT NULL,
-                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                    )
-                    """
-                )
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS regos_workspace_history (
-                        history_id BIGSERIAL PRIMARY KEY,
-                        workspace_id TEXT NOT NULL,
-                        state JSONB NOT NULL,
-                        archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        reason TEXT NOT NULL
-                    )
-                    """
-                )
-                cursor.execute(
-                    """
-                    INSERT INTO regos_workspace (workspace_id, state)
-                    VALUES ('demo', %s)
-                    ON CONFLICT (workspace_id) DO NOTHING
-                    """,
-                    (Jsonb(initial_state().model_dump(mode="json")),),
-                )
-                cursor.execute(
-                    "SELECT state FROM regos_workspace WHERE workspace_id = 'demo' FOR UPDATE"
-                )
-                row = cursor.fetchone()
-                if row is None:
-                    raise RuntimeError("RegOS demo workspace is missing after initialization")
-                stored_state = row[0]
-                stored_version = stored_state.get("schema_version", "unknown")
-                if stored_version != SCHEMA_VERSION:
-                    cursor.execute(
-                        """
-                        INSERT INTO regos_workspace_history (workspace_id, state, reason)
-                        VALUES ('demo', %s, %s)
-                        """,
-                        (
-                            Jsonb(stored_state),
-                            f"schema transition {stored_version} -> {SCHEMA_VERSION}",
-                        ),
-                    )
-                    cursor.execute(
-                        """
-                        UPDATE regos_workspace
-                        SET state = %s, updated_at = NOW()
-                        WHERE workspace_id = 'demo'
-                        """,
-                        (Jsonb(initial_state().model_dump(mode="json")),),
-                    )
-
-    def load(self) -> WorkspaceState:
-        with connect(self.database_url, row_factory=dict_row) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT state FROM regos_workspace WHERE workspace_id = 'demo'")
-                row = cursor.fetchone()
-                if row is None:
-                    raise RuntimeError("RegOS demo workspace is missing")
-                return WorkspaceState.model_validate(row["state"])
-
-    def save(self, state: WorkspaceState) -> WorkspaceState:
-        with connect(self.database_url) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO regos_workspace (workspace_id, state, updated_at)
-                    VALUES ('demo', %s, NOW())
-                    ON CONFLICT (workspace_id) DO UPDATE
-                    SET state = EXCLUDED.state, updated_at = NOW()
-                    """,
-                    (Jsonb(state.model_dump(mode="json")),),
-                )
-        return state
-
-    def mutate(self, operation: Callable[[WorkspaceState], WorkspaceState]) -> WorkspaceState:
-        with connect(self.database_url, row_factory=dict_row) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT state FROM regos_workspace WHERE workspace_id = 'demo' FOR UPDATE"
-                )
-                row = cursor.fetchone()
-                if row is None:
-                    raise RuntimeError("RegOS demo workspace is missing")
-                updated = operation(WorkspaceState.model_validate(row["state"]))
-                cursor.execute(
-                    """
-                    UPDATE regos_workspace
-                    SET state = %s, updated_at = NOW()
-                    WHERE workspace_id = 'demo'
-                    """,
-                    (Jsonb(updated.model_dump(mode="json")),),
-                )
-        return updated
-
-    def reset(self) -> WorkspaceState:
-        return self.save(initial_state())
-
-
-class VercelBlobStateStore:
-    """Private Blob-backed state for the single-session hosted jury demo.
-
-    PostgreSQL remains the transactional deployment path. This adapter gives the Vercel
-    deployment durable private JSON storage and forces uncached reads so function cold starts
-    do not discard reviewer decisions.
-    """
-
-    def __init__(self, pathname: str) -> None:
-        self.backend = "vercel-blob-private-json"
-        self.pathname = pathname
+    def __init__(self) -> None:
         self._lock = threading.RLock()
-        payload = self._run(self._read_payload())
-        if payload is None:
-            self.save(initial_state())
-            return
-        stored_version = payload.get("schema_version", "unknown")
-        if stored_version != SCHEMA_VERSION:
-            safe_version = str(stored_version).replace("/", "-")
-            history_path = f"regos-sentinel/history/workspace-{safe_version}.json"
-            self._run(self._write_payload(history_path, payload))
-            self.save(initial_state())
+        self._state = initial_state()
 
     @staticmethod
-    def _run(coroutine):
-        return asyncio.run(coroutine)
-
-    @staticmethod
-    async def _write_payload(pathname: str, payload: dict) -> None:
-        from vercel.blob import AsyncBlobClient
-
-        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        async with AsyncBlobClient() as client:
-            await client.put(
-                pathname,
-                body,
-                access="private",
-                content_type="application/json",
-                overwrite=True,
-                cache_control_max_age=60,
-            )
-
-    async def _read_payload(self) -> Optional[dict]:
-        from vercel.blob import AsyncBlobClient, BlobNotFoundError
-
-        async with AsyncBlobClient() as client:
-            try:
-                result = await client.get(self.pathname, access="private", use_cache=False)
-            except BlobNotFoundError:
-                return None
-            if result is None or result.content is None:
-                return None
-            content = result.content
-        return json.loads(content.decode("utf-8"))
+    def _copy(state: WorkspaceState) -> WorkspaceState:
+        return WorkspaceState.model_validate(state.model_dump(mode="json"))
 
     def load(self) -> WorkspaceState:
         with self._lock:
-            payload = self._run(self._read_payload())
-            if payload is None:
-                return self.save(initial_state())
-            return WorkspaceState.model_validate(payload)
+            return self._copy(self._state)
 
     def save(self, state: WorkspaceState) -> WorkspaceState:
         with self._lock:
-            payload = state.model_dump(mode="json")
-            self._run(self._write_payload(self.pathname, payload))
-            return state
+            self._state = self._copy(state)
+            return self._copy(self._state)
 
     def mutate(self, operation: Callable[[WorkspaceState], WorkspaceState]) -> WorkspaceState:
         with self._lock:
-            state = self.load()
-            updated = operation(state)
-            return self.save(updated)
+            working = self._copy(self._state)
+            updated = operation(working)
+            self._state = self._copy(updated)
+            return self._copy(self._state)
 
     def reset(self) -> WorkspaceState:
         return self.save(initial_state())
 
 
-def default_state_path() -> Path:
-    configured = os.environ.get("REGOS_STATE_PATH")
-    if configured:
-        return Path(configured).expanduser().resolve()
-    return Path(__file__).resolve().parent.parent / "data" / "workspace.json"
+@dataclass
+class SessionRecord:
+    store: MemoryStateStore
+    created_at: float
+    last_accessed_at: float
+    rate_windows: Dict[str, Deque[float]] = field(
+        default_factory=lambda: defaultdict(deque)
+    )
 
 
-def create_store(state_path: Optional[Path] = None) -> WorkspaceStore:
-    if state_path is not None:
-        return StateStore(state_path)
-    database_url = os.environ.get("REGOS_DATABASE_URL")
-    if database_url:
-        return PostgresStateStore(database_url)
-    if os.environ.get("BLOB_READ_WRITE_TOKEN"):
-        pathname = os.environ.get(
-            "REGOS_BLOB_PATH",
-            "regos-sentinel/demo-workspace.json",
-        )
-        return VercelBlobStateStore(pathname)
-    return StateStore(default_state_path())
+class SessionManager:
+    """Bounded in-memory sessions addressed by tamper-evident opaque tokens.
+
+    A process restart intentionally discards every session. That is the desired demo
+    behaviour: the next request receives a fresh seeded synthetic workspace.
+    """
+
+    backend = "bounded-signed-memory-sessions"
+
+    def __init__(
+        self,
+        secret: str,
+        ttl_seconds: int = 7_200,
+        max_sessions: int = 250,
+    ) -> None:
+        if len(secret.encode("utf-8")) < 32:
+            raise ValueError("REGOS_SESSION_SECRET must contain at least 32 bytes.")
+        if ttl_seconds < 60:
+            raise ValueError("Session TTL must be at least 60 seconds.")
+        if max_sessions < 1:
+            raise ValueError("Session capacity must be positive.")
+        self._secret = secret.encode("utf-8")
+        self.ttl_seconds = ttl_seconds
+        self.max_sessions = max_sessions
+        self._sessions: Dict[str, SessionRecord] = {}
+        self._lock = threading.RLock()
+
+    @property
+    def active_sessions(self) -> int:
+        with self._lock:
+            self._expire(time.monotonic())
+            return len(self._sessions)
+
+    def _signature(self, session_id: str) -> str:
+        digest = hmac.new(self._secret, session_id.encode("ascii"), hashlib.sha256).digest()
+        return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+    def _token(self, session_id: str) -> str:
+        return f"{session_id}.{self._signature(session_id)}"
+
+    def _verified_session_id(self, token: Optional[str]) -> Optional[str]:
+        if not token or token.count(".") != 1:
+            return None
+        session_id, supplied_signature = token.split(".", 1)
+        if len(session_id) < 20 or len(session_id) > 80:
+            return None
+        expected_signature = self._signature(session_id)
+        if not hmac.compare_digest(supplied_signature, expected_signature):
+            return None
+        return session_id
+
+    def _expire(self, now: float) -> None:
+        expired = [
+            session_id
+            for session_id, record in self._sessions.items()
+            if now - record.last_accessed_at > self.ttl_seconds
+        ]
+        for session_id in expired:
+            self._sessions.pop(session_id, None)
+
+    def _evict_if_full(self) -> None:
+        while len(self._sessions) >= self.max_sessions:
+            oldest = min(
+                self._sessions,
+                key=lambda session_id: self._sessions[session_id].last_accessed_at,
+            )
+            self._sessions.pop(oldest, None)
+
+    def acquire(self, token: Optional[str]) -> tuple[str, MemoryStateStore]:
+        with self._lock:
+            now = time.monotonic()
+            self._expire(now)
+            session_id = self._verified_session_id(token)
+            record = self._sessions.get(session_id) if session_id else None
+            if record is None:
+                self._evict_if_full()
+                session_id = secrets.token_urlsafe(24)
+                record = SessionRecord(
+                    store=MemoryStateStore(),
+                    created_at=now,
+                    last_accessed_at=now,
+                )
+                self._sessions[session_id] = record
+            else:
+                record.last_accessed_at = now
+            return self._token(session_id), record.store
+
+    def allow(self, token: str, scope: str, limit: int, window_seconds: int) -> bool:
+        with self._lock:
+            session_id = self._verified_session_id(token)
+            record = self._sessions.get(session_id) if session_id else None
+            if record is None:
+                return False
+            now = time.monotonic()
+            window = record.rate_windows[scope]
+            while window and now - window[0] >= window_seconds:
+                window.popleft()
+            if len(window) >= limit:
+                return False
+            window.append(now)
+            return True
+
+
+def create_session_manager(secret: Optional[str] = None) -> SessionManager:
+    configured_secret = secret or os.environ.get("REGOS_SESSION_SECRET")
+    if not configured_secret:
+        if os.environ.get("REGOS_ENV") == "production":
+            raise RuntimeError("REGOS_SESSION_SECRET is required in production.")
+        configured_secret = secrets.token_hex(32)
+    ttl_seconds = int(os.environ.get("REGOS_SESSION_TTL_SECONDS", "7200"))
+    max_sessions = int(os.environ.get("REGOS_SESSION_MAX_COUNT", "250"))
+    return SessionManager(
+        configured_secret,
+        ttl_seconds=ttl_seconds,
+        max_sessions=max_sessions,
+    )
