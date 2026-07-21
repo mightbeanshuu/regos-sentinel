@@ -1,0 +1,33 @@
+[project]
+name = "regos-sentinel-api"
+version = "0.1.0"
+description = "Human-supervised regulatory compiler prototype for the SEBI TechSprint"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.116.0,<1.0.0",
+  "jsonschema-rs>=0.48.0,<1.0.0",
+  "psycopg[binary]>=3.2.0,<4.0.0",
+  "pydantic>=2.11.0,<3.0.0",
+  "uvicorn[standard]>=0.35.0,<1.0.0",
+  "vercel>=0.7.2",
+]
+
+[dependency-groups]
+dev = [
+  "httpx2>=2.7.0,<3.0.0",
+  "pytest>=8.4.0,<9.0.0",
+  "ruff>=0.12.0,<1.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["UP006", "UP035", "UP045"]

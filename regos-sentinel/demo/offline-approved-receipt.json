@@ -1,0 +1,14 @@
+{
+  "fixture_version": "offline-approved-receipt/1.0.0",
+  "scenario": "CSCRF FAQ Q15-Q17 human-approved split",
+  "recorded_on": "2026-07-22",
+  "build_id": "BUILD-0003",
+  "build_status": "APPROVED",
+  "manifest_sha256": "0fa7a70d576a3738f10c216893606adfa70eecd157e17a30733c5b2091d76f4f",
+  "replay_input_sha256": "2d3efdcfe6f6f61b43d575cdfed805f4e4af2d5063021ca64d2fc40df7b646bc",
+  "scoped_reference_set_sha256": "e1478e1e396c7e6af4898554e645d9a4d6ebf45e53d638815950bc0aac966b5a",
+  "benchmark_run_id": "BENCH-0003-08",
+  "benchmark_passed": 8,
+  "benchmark_failed": 0,
+  "scope_note": "Deterministic, network-free evidence replay for the committed prototype scenario; not a production corpus result."
+}

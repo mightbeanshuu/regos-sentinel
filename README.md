@@ -1,11 +1,11 @@
 # RegOS Sentinel
 
-**RegOS Sentinel** is a human-supervised agentic compliance concept for the SEBI Securities Market TechSprint 2026, Problem Statement 2: **Agentic Compliance - From Regulatory Text to Operational Action**.
+**RegOS Sentinel** is a human-supervised regulatory compiler prototype for the SEBI Securities Market TechSprint 2026, Problem Statement 2: **Agentic Compliance - From Regulatory Text to Operational Action**.
 
 The project explores how a regulated intermediary could transform regulatory text into clause-cited, applicability-aware operational obligations and maintain the resulting owners, controls, evidence, amendments, and approvals in a living **Compliance Twin**.
 
 > [!IMPORTANT]
-> This repository currently contains the product specification, research package, pitch deck, and code-native Remotion films. It is a prototype visualization and design system, not a deployed compliance engine, legal opinion, autonomous filing system, or production integration.
+> This repository contains a working Next.js/FastAPI/PostgreSQL prototype under `regos-sentinel/`, alongside the research package, pitch deck, and code-native Remotion films. It is decision support, not a legal opinion, automated filing system, or production integration.
 
 ## Product in one minute
 
@@ -29,6 +29,7 @@ INGEST -> COMPILE -> VERIFY -> APPLY -> DIFF -> PROVE
 ```text
 .
 ├── regos-motion/       # Remotion 4 application: final pitch, idea deck, demo film
+├── regos-sentinel/     # Working cockpit, API, PostgreSQL stack, tests, and offline verifier
 ├── phase1/             # Prompt pack, storyboards, research, and submission planning
 ├── docs/               # Curated architecture, motion system, roadmap, and asset guidance
 ├── .github/            # CI, Dependabot, templates, and ownership rules
@@ -41,13 +42,25 @@ The root contains working and historical research notes. Start with the curated 
 
 ## Start here
 
-1. [Product scope](docs/PRODUCT_SCOPE.md)
-2. [System architecture](docs/ARCHITECTURE.md)
-3. [Motion system](docs/MOTION_SYSTEM.md)
-4. [Assets and provenance](docs/ASSETS.md)
-5. [Validation and claim discipline](docs/VALIDATION.md)
-6. [Roadmap](docs/ROADMAP.md)
-7. [Final prompt and strategy pack](phase1/FINAL_CANVA_AND_REMOTION_PROMPT_PACK.md)
+1. [Working prototype](regos-sentinel/README.md)
+2. [Prototype validation evidence](regos-sentinel/docs/VALIDATION.md)
+3. [Product scope](docs/PRODUCT_SCOPE.md)
+4. [System architecture](docs/ARCHITECTURE.md)
+5. [Motion system](docs/MOTION_SYSTEM.md)
+6. [Assets and provenance](docs/ASSETS.md)
+7. [Validation and claim discipline](docs/VALIDATION.md)
+8. [Roadmap](docs/ROADMAP.md)
+
+## Working prototype quick start
+
+```bash
+cd regos-sentinel
+docker-compose up --build
+```
+
+Open `http://localhost:3000`. The stack runs the interactive blocked → review → approved
+workflow with PostgreSQL persistence. Local API/web test commands and the network-free replay
+verifier are documented in [the prototype README](regos-sentinel/README.md).
 
 ## Remotion quick start
 
@@ -114,7 +127,7 @@ The H.264 output is written to `regos-motion/out/RegOS_Sentinel_FinalPitch_112s.
 | Royal blue | `#1B3FB8` | Primary brand and active structure |
 | Deep blue | `#16349A` | Secondary surfaces |
 | Off-white | `#F4F4F0` | Inspection and evidence surfaces |
-| Teal | `#2DD4BF` | Verified state only |
+| Teal | `#2DD4BF` | Verified state |
 | Near-black | `#070B1A` | Cinematic stage |
 | Amber | `#FBBF24` | Ambiguity, review, or stale evidence |
 
@@ -140,14 +153,14 @@ See [Validation](docs/VALIDATION.md) before changing product claims or on-screen
 5. Verify that no claim, metric, or integration is presented as implemented unless it is demonstrable.
 6. Open a pull request using the repository template.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow.
 
 ## Repository status
 
 - Round-01 product and pitch strategy: documented
 - 112-second Remotion pitch: implemented
-- Compliance backend and connectors: not implemented in this repository
-- Benchmark results and domain validation: planned, not claimed
+- Compliance API, PostgreSQL persistence, and cockpit: implemented under `regos-sentinel/`
+- Eight-case scoped benchmark and deterministic replay validation: implemented and test-derived
 - Remote GitHub repository: intended to remain private during competition development
 
 ## License

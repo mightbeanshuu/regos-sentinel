@@ -1,0 +1,10 @@
+{
+  "manifest_version": "golden/1",
+  "build_id": "BUILD-GOLDEN",
+  "generated_at": "2026-07-22T00:00:00Z",
+  "source": {
+    "title": "CSCRF – FAQ",
+    "synthetic": false
+  },
+  "manifest_sha256": "767a935da9310726222f325d42dc7fb06517339119a0fa364dcb0a5664be8f74"
+}

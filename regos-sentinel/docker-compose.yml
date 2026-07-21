@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: regos
+      POSTGRES_USER: regos
+      POSTGRES_PASSWORD: regos_demo_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U regos -d regos"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5433:5432"
+    volumes:
+      - regos-postgres:/var/lib/postgresql/data
+
+  api:
+    build: ./services/api
+    environment:
+      REGOS_DATABASE_URL: postgresql://regos:regos_demo_only@postgres:5432/regos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ./web
+      args:
+        REGOS_API_ORIGIN: http://api:8000
+    environment:
+      REGOS_API_ORIGIN: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  regos-postgres:

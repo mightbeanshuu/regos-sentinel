@@ -1,0 +1,5 @@
+fastapi>=0.116.0,<1.0.0
+jsonschema-rs>=0.48.0,<1.0.0
+psycopg[binary]>=3.2.0,<4.0.0
+pydantic>=2.11.0,<3.0.0
+vercel>=0.7.2,<1.0.0

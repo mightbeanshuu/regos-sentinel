@@ -10,6 +10,17 @@ build/
 .remotion/
 **/.remotion/
 coverage/
+.next/
+**/.next/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+**/.pytest_cache/
+.ruff_cache/
+**/.ruff_cache/
+*.tsbuildinfo
 
 # Local research and agent state
 .firecrawl/
@@ -31,6 +42,14 @@ coverage/
 *.wav
 *.aiff
 *.zip
+
+# Local prototype runtime state (reset deterministically from seed data)
+regos-sentinel/services/api/data/workspace.json
+regos-sentinel/services/api/data/*.bak.json
+
+# Local prototype authoring guides
+regos-sentinel/AGENTS.md
+regos-sentinel/web/CURSOR_*
 
 # Local submission-source copies; use the cited public sources instead
 SEBI PS/

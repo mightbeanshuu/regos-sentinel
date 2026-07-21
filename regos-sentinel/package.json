@@ -1,0 +1,8 @@
+{
+  "name": "regos-sentinel-deployment",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix web run build"
+  }
+}
