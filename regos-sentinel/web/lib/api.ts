@@ -34,7 +34,6 @@ function requestHeaders(init?: RequestInit): HeadersInit {
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
     ...init,
-    credentials: "include",
     headers: requestHeaders(init),
   });
   persistSession(response);
@@ -49,7 +48,6 @@ const request = (path: string, init?: RequestInit) => requestJson<WorkspaceState
 
 async function downloadPdf(path: string, filename: string): Promise<void> {
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
-    credentials: "include",
     headers: requestHeaders(),
   });
   persistSession(response);
