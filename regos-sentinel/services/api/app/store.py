@@ -242,14 +242,17 @@ class VercelBlobStateStore:
             )
 
     async def _read_payload(self) -> Optional[dict]:
-        from vercel.blob import AsyncBlobClient
+        from vercel.blob import AsyncBlobClient, BlobNotFoundError
 
         async with AsyncBlobClient() as client:
-            result = await client.get(self.pathname, access="private", use_cache=False)
-            if result is None or result.stream is None:
+            try:
+                result = await client.get(self.pathname, access="private", use_cache=False)
+            except BlobNotFoundError:
                 return None
-            chunks = [chunk async for chunk in result.stream]
-        return json.loads(b"".join(chunks).decode("utf-8"))
+            if result is None or result.content is None:
+                return None
+            content = result.content
+        return json.loads(content.decode("utf-8"))
 
     def load(self) -> WorkspaceState:
         with self._lock:

@@ -60,5 +60,7 @@ problem_explanation_*.pdf
 Thumbs.db
 .idea/
 .vscode/
+.vercel/
+**/.vercel/
 *.swp
 *.swo
