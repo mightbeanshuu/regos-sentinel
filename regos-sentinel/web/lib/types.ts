@@ -1,5 +1,12 @@
 export type BuildStatus = "READY" | "BLOCKED_AWAITING_HUMAN" | "FAILED" | "APPROVED";
 
+/** The four-value provenance vocabulary. Never a compound string. */
+export type Provenance =
+  | "SOURCE_EXPLICIT"
+  | "DETERMINISTIC"
+  | "AI_SUGGESTED"
+  | "HUMAN_POLICY";
+
 export interface Citation {
   document_id: string;
   span_id: string;
@@ -363,4 +370,99 @@ export interface WorkspaceState {
       deferred_pct: number;
     }>;
   } | null;
+}
+
+// --------------------------------------------------------------------------
+// Review your document — a bounded, session-private lane for a user PDF.
+// --------------------------------------------------------------------------
+
+export type PassageClass =
+  | "POSSIBLE_REQUIREMENT"
+  | "RECOMMENDATION"
+  | "PERMISSION"
+  | "BACKGROUND"
+  | "DUPLICATE_OR_SUPERSEDED"
+  | "NEEDS_REVIEW";
+
+export type DocumentState =
+  | "ADDED"
+  | "READING_DOCUMENT"
+  | "READY_FOR_REVIEW"
+  | "NEEDS_REVIEW"
+  | "READY_FOR_APPROVAL"
+  | "APPROVED"
+  | "COULD_NOT_READ_DOCUMENT";
+
+export interface ExtractedPassage {
+  id: string;
+  page: number;
+  ordinal: number;
+  locator: string;
+  text: string;
+  classification: PassageClass;
+  classification_provenance: Provenance;
+  matched_cues: string[];
+  rationale: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
+export interface DraftRequirement {
+  id: string;
+  passage_id: string;
+  locator: string;
+  quote: string;
+  actor: string;
+  action: string;
+  obligation_object: string;
+  duration_value: number | null;
+  duration_unit: string | null;
+  trigger: string | null;
+  trigger_provenance: Provenance | null;
+  computable: boolean;
+  blocked_reason: string | null;
+  reviewer_name: string;
+  reviewer_role: string;
+  reason: string;
+  approved_at: string;
+  provenance: Provenance;
+}
+
+export interface DocumentScope {
+  page_count: number;
+  pages_read: number;
+  pages_unreadable: number[];
+  passages_reviewed: number;
+  possible_requirements: number;
+  recommendations_not_converted: number;
+  permissions_not_converted: number;
+  background: number;
+  duplicates: number;
+  passages_needing_review: number;
+}
+
+export interface UploadedDocument {
+  id: string;
+  filename: string;
+  uploaded_at: string;
+  byte_count: number;
+  sha256: string;
+  state: DocumentState;
+  authority_label: string;
+  authority_provenance: string;
+  extraction_mode: string;
+  passages: ExtractedPassage[];
+  requirements: DraftRequirement[];
+  scope: DocumentScope;
+  limitations: string[];
+  disclaimer: string;
+}
+
+export interface DocumentLimits {
+  accepted_types: string[];
+  max_bytes: number;
+  max_pages: number;
+  ocr_available: boolean;
+  model_extraction_available: boolean;
+  retention: string;
 }

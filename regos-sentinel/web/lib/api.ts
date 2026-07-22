@@ -1,4 +1,10 @@
-import type { LiveSourceVerificationReceipt, WorkspaceState } from "./types";
+import type {
+  DocumentLimits,
+  LiveSourceVerificationReceipt,
+  PassageClass,
+  UploadedDocument,
+  WorkspaceState,
+} from "./types";
 
 interface ApiErrorPayload {
   detail?: string | { message?: string };
@@ -109,6 +115,80 @@ export const regosApi = {
       }),
     }),
   runBenchmark: () => request("/benchmarks/run", { method: "POST" }),
+
+  // ---- Review your document ------------------------------------------
+  documentLimits: () => requestJson<DocumentLimits>("/documents/limits", { cache: "no-store" }),
+  listDocuments: () => requestJson<UploadedDocument[]>("/documents", { cache: "no-store" }),
+  uploadDocument: async (file: File, authority: string): Promise<UploadedDocument> => {
+    const query = new URLSearchParams({ filename: file.name, authority });
+    const token = sessionToken();
+    const response = await fetch(`${apiOrigin}/api/v1/documents?${query.toString()}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/pdf",
+        ...(token ? { "X-RegOS-Session": token } : {}),
+      },
+      body: file,
+    });
+    persistSession(response);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
+      throw new Error(errorMessage(payload, response.status));
+    }
+    return (await response.json()) as UploadedDocument;
+  },
+  deleteDocument: async (documentId: string): Promise<void> => {
+    const response = await fetch(`${apiOrigin}/api/v1/documents/${documentId}`, {
+      method: "DELETE",
+      headers: requestHeaders(),
+    });
+    persistSession(response);
+    if (!response.ok && response.status !== 204) {
+      const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
+      throw new Error(errorMessage(payload, response.status));
+    }
+  },
+  reviewPassage: (
+    documentId: string,
+    passageId: string,
+    body: {
+      classification: PassageClass;
+      reviewer_name: string;
+      reviewer_role: string;
+      rationale: string;
+    },
+  ) =>
+    requestJson<UploadedDocument>(`/documents/${documentId}/passages/${passageId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  approveDocumentRequirement: (
+    documentId: string,
+    body: {
+      passage_id: string;
+      actor: string;
+      action: string;
+      obligation_object: string;
+      duration_value?: number | null;
+      duration_unit?: string | null;
+      trigger?: string | null;
+      reviewer_name: string;
+      reviewer_role: string;
+      reason: string;
+    },
+  ) =>
+    requestJson<UploadedDocument>(`/documents/${documentId}/requirements`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  downloadReviewPacket: (documentId: string) => downloadPdf(
+    `/documents/${documentId}/review-packet.pdf`,
+    `${documentId.toLowerCase()}-draft-review-packet.pdf`,
+  ),
+  downloadDocumentReport: (documentId: string) => downloadPdf(
+    `/documents/${documentId}/report.pdf`,
+    `${documentId.toLowerCase()}-compliance-build-report.pdf`,
+  ),
   downloadBuildReport: (buildId: string) => downloadPdf(
     `/builds/${buildId}/report.pdf`,
     `${buildId.toLowerCase()}-compliance-build-report.pdf`,

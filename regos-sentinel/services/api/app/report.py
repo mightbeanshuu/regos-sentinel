@@ -20,6 +20,12 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from .documents import (
+    NO_TASK_CLASSES,
+    DocumentState,
+    PassageClass,
+    UploadedDocument,
+)
 from .models import BuildRun, BuildStatus, DeonticForce, WorkspaceState
 
 DISCLAIMER = "Decision support. Not legal advice. Not a SEBI determination."
@@ -43,6 +49,21 @@ class _InvariantCanvas(canvas.Canvas):
         self.setAuthor("RegOS Sentinel")
         self.setSubject("Synthetic compliance build decision-support artifact")
         self.setCreator("RegOS Sentinel deterministic report renderer")
+
+
+class _DraftCanvas(_InvariantCanvas):
+    """Identical deterministic canvas, plus an unmissable DRAFT watermark on every page."""
+
+    def showPage(self) -> None:  # noqa: N802 - reportlab's API casing
+        self.saveState()
+        width, height = self._pagesize
+        self.setFont("Helvetica-Bold", 58)
+        self.setFillColor(colors.Color(0.72, 0.42, 0.0, alpha=0.11))
+        self.translate(width / 2, height / 2)
+        self.rotate(38)
+        self.drawCentredString(0, 0, "DRAFT — NOT APPROVED")
+        self.restoreState()
+        super().showPage()
 
 
 def _styles() -> dict[str, ParagraphStyle]:
@@ -487,6 +508,265 @@ def render_compliance_report(state: WorkspaceState, build_id: str) -> bytes:
         onLaterPages=_page_header_footer,
     )
     return output.getvalue()
+
+
+PASSAGE_LABELS: dict[PassageClass, str] = {
+    PassageClass.POSSIBLE_REQUIREMENT: "Possible requirement",
+    PassageClass.RECOMMENDATION: "Recommended — no mandatory task",
+    PassageClass.PERMISSION: "Optional — no mandatory task",
+    PassageClass.BACKGROUND: "Background only",
+    PassageClass.DUPLICATE_OR_SUPERSEDED: "Duplicate or superseded",
+    PassageClass.NEEDS_REVIEW: "Needs interpretation",
+}
+
+DOCUMENT_STATE_LABELS: dict[DocumentState, str] = {
+    DocumentState.ADDED: "Added",
+    DocumentState.READING: "Reading document",
+    DocumentState.READY_FOR_REVIEW: "Ready for review",
+    DocumentState.NEEDS_REVIEW: "Needs review",
+    DocumentState.READY_FOR_APPROVAL: "Ready for approval",
+    DocumentState.APPROVED: "Approved",
+    DocumentState.UNREADABLE: "Could not read document",
+}
+
+
+def _document_story(
+    document: UploadedDocument,
+    styles: dict[str, ParagraphStyle],
+    approved: bool,
+) -> List[object]:
+    """One conditional story shared by the draft packet and the approved report.
+
+    A section is emitted only when the document actually holds that data. Nothing is
+    padded with plausible filler.
+    """
+    scope = document.scope
+    story: List[object] = [
+        Spacer(1, 14 * mm),
+        _p(
+            "COMPLIANCE BUILD REPORT" if approved else "DRAFT REVIEW PACKET",
+            styles["title"],
+        ),
+        _p(
+            "Approved review of a user-supplied document"
+            if approved
+            else "Work in progress — this is not an approved Compliance Build Report",
+            styles["subtitle"],
+        ),
+        Spacer(1, 6 * mm),
+        _table(
+            [
+                ["Document", document.filename],
+                ["Source status", "User-uploaded · not validated by SEBI"],
+                ["Authority (as entered)", f"{document.authority_label} · user-provided metadata"],
+                ["Uploaded at", document.uploaded_at],
+                ["File SHA-256", document.sha256],
+                ["File size", f"{document.byte_count:,} bytes"],
+                ["State", DOCUMENT_STATE_LABELS[document.state]],
+                ["Extraction", "Deterministic text extraction · no model call · no OCR"],
+            ],
+            [40 * mm, 120 * mm],
+            styles,
+        ),
+        Spacer(1, 8 * mm),
+        _p(DISCLAIMER, styles["hero"]),
+    ]
+
+    _new_page(story, "1. What was and was not read", styles)
+    story.append(
+        _p(
+            "These counts are read from this document's actual processed state. Nothing outside "
+            "the rows below was reviewed.",
+            styles["body"],
+        )
+    )
+    story.append(
+        _table(
+            [
+                ["Measure", "Count"],
+                ["Pages in document", str(scope.page_count)],
+                ["Pages read", str(scope.pages_read)],
+                [
+                    "Pages with no extractable text",
+                    ", ".join(str(page) for page in scope.pages_unreadable) or "none",
+                ],
+                ["Passages reviewed", str(scope.passages_reviewed)],
+                ["Possible requirements", str(scope.possible_requirements)],
+                ["Recommendations not converted", str(scope.recommendations_not_converted)],
+                ["Permissions not converted", str(scope.permissions_not_converted)],
+                ["Background passages", str(scope.background)],
+                ["Duplicate or superseded", str(scope.duplicates)],
+                ["Passages still needing review", str(scope.passages_needing_review)],
+            ],
+            [110 * mm, 50 * mm],
+            styles,
+        )
+    )
+
+    unresolved = [
+        item for item in document.passages if item.classification == PassageClass.NEEDS_REVIEW
+    ]
+    if unresolved:
+        _new_page(story, "2. Passages still needing a human reading", styles)
+        story.append(
+            _p(
+                "No requirement was drafted from any passage below. Each carries more than one "
+                "requirement strength, or a person set it aside.",
+                styles["body"],
+            )
+        )
+        rows: List[Sequence[object]] = [["Locator", "Passage", "Why it is unresolved"]]
+        for passage in unresolved[:40]:
+            rows.append([passage.locator, passage.text[:400], passage.rationale])
+        story.append(_table(rows, [26 * mm, 84 * mm, 50 * mm], styles))
+
+    if document.requirements:
+        _new_page(
+            story,
+            "3. Requirements approved by a person" if approved else "3. Draft requirements",
+            styles,
+        )
+        for requirement in document.requirements:
+            deadline = (
+                f"{requirement.duration_value} {requirement.duration_unit}"
+                if requirement.duration_value is not None
+                else "no duration recorded"
+            )
+            trigger = requirement.trigger or "NOT RECORDED — no due date was calculated"
+            story.append(
+                KeepTogether(
+                    [
+                        _p(
+                            f"{requirement.id} · {requirement.action} "
+                            f"{requirement.obligation_object}",
+                            styles["h2"],
+                        ),
+                        _p(f'“{requirement.quote}”', styles["quote"]),
+                        _p(f"Locator: {requirement.locator}", styles["small"]),
+                        _table(
+                            [
+                                ["Actor", requirement.actor],
+                                ["Duration", deadline],
+                                ["Starts from", trigger],
+                                [
+                                    "Due date",
+                                    "Calculated only from the recorded start event"
+                                    if requirement.computable
+                                    else "NOT CALCULATED",
+                                ],
+                                ["Blocked reason", requirement.blocked_reason or "—"],
+                                [
+                                    "Recorded by",
+                                    f"{requirement.reviewer_name} · {requirement.reviewer_role}",
+                                ],
+                                ["Recorded at", requirement.approved_at],
+                                ["Written reason", requirement.reason],
+                                ["Provenance", "HUMAN_POLICY — confirmed by a named reviewer"],
+                            ],
+                            [34 * mm, 126 * mm],
+                            styles,
+                        ),
+                    ]
+                )
+            )
+            story.append(Spacer(1, 4 * mm))
+
+    not_converted = [
+        item for item in document.passages if item.classification in NO_TASK_CLASSES
+    ]
+    if not_converted:
+        _new_page(story, "4. Not converted into requirements", styles)
+        story.append(
+            _p(
+                "These statements were retained without creating mandatory work, because their "
+                "language does not require it.",
+                styles["body"],
+            )
+        )
+        rows = [["Classification", "Locator", "Exact wording", "Operational result"]]
+        for passage in not_converted[:60]:
+            rows.append(
+                [
+                    PASSAGE_LABELS[passage.classification],
+                    passage.locator,
+                    f'“{passage.text[:300]}”',
+                    "No mandatory task was created from this statement.",
+                ]
+            )
+        story.append(_table(rows, [30 * mm, 24 * mm, 70 * mm, 36 * mm], styles))
+
+    reviewed = [item for item in document.passages if item.reviewed_by]
+    if reviewed:
+        _new_page(story, "5. Human decisions on this document", styles)
+        rows = [["Locator", "Reading recorded", "Reviewer", "Recorded at"]]
+        for passage in reviewed:
+            rows.append(
+                [
+                    passage.locator,
+                    f"{PASSAGE_LABELS[passage.classification]} — {passage.rationale}",
+                    passage.reviewed_by or "",
+                    passage.reviewed_at or "",
+                ]
+            )
+        story.append(_table(rows, [24 * mm, 76 * mm, 34 * mm, 26 * mm], styles))
+
+    _new_page(story, "6. Limitations", styles)
+    for line in document.limitations:
+        story.append(_rich(f"• {escape(line)}", styles["body"]))
+    if not approved:
+        story.append(Spacer(1, 4 * mm))
+        story.append(
+            _p(
+                "This packet is a draft. It records what was read and what remains open. It is "
+                "not an approved Compliance Build Report.",
+                styles["hero"],
+            )
+        )
+    return story
+
+
+def _render_document_pdf(
+    document: UploadedDocument,
+    approved: bool,
+) -> bytes:
+    styles = _styles()
+    story = _document_story(document, styles, approved)
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=16 * mm,
+        bottomMargin=18 * mm,
+        title=(
+            "RegOS Sentinel Compliance Build Report"
+            if approved
+            else "RegOS Sentinel Draft Review Packet"
+        ),
+        author="RegOS Sentinel",
+    )
+    doc.build(
+        story,
+        canvasmaker=_InvariantCanvas if approved else _DraftCanvas,
+        onFirstPage=_page_header_footer,
+        onLaterPages=_page_header_footer,
+    )
+    return output.getvalue()
+
+
+def render_review_packet(document: UploadedDocument) -> bytes:
+    """Pre-approval export. Always watermarked, always honest about being incomplete."""
+    return _render_document_pdf(document, approved=False)
+
+
+def render_document_report(document: UploadedDocument) -> bytes:
+    if document.state != DocumentState.APPROVED:
+        raise ValueError(
+            "A Compliance Build Report is available only after a person approves at least one "
+            "structured requirement."
+        )
+    return _render_document_pdf(document, approved=True)
 
 
 def render_before_after_report(state: WorkspaceState, build_id: str) -> bytes:

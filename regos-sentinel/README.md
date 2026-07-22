@@ -25,6 +25,25 @@ tasks, marks three synthetic evidence artifacts for revalidation, and records on
 advisory gap. The SLA signal is never counted as a control failure and never creates mandatory
 work because FAQ Q15 uses recommendation language.
 
+## How the interface is organised
+
+Three in-app tabs, in the order a reviewer needs them:
+
+1. **Guided review** — the jury path. Five steps: verify the source, compare it against the
+   broker's existing control, record the human decision the source does not supply, see what
+   changed operationally, export the approved record.
+2. **Review your document** — upload a public or sandbox PDF into a session-private lane. RegOS
+   fingerprints it, extracts text page by page, segments passages, classifies them by their own
+   language, and routes everything uncertain to a person. It never converts an uploaded PDF into
+   an approved legal interpretation, and it performs no OCR and no model call.
+3. **Audit trail** — the technical record: sources, coverage, requirement strength, decisions and
+   reviewers, checks, evidence history, reproducibility, and the measured benchmark.
+
+Backend enums are unchanged and precise. A single frontend module (`web/lib/presentation.ts`)
+maps them to plain language, so `BLOCKED_AWAITING_HUMAN` reads as "Needs review" on screen while
+staying exact in the API and the manifest. Amber always means a human decision is expected; red
+is reserved for a check that actually failed.
+
 ## What runs
 
 - Next.js/React/TypeScript cockpit
@@ -39,6 +58,10 @@ work because FAQ Q15 uses recommendation language.
 - measured eight-case abstention benchmark with three operating points
 - QSB financial-year periodicity and Q24/Q25 applicability receipts
 - byte-identical Compliance Build Report and one-page before/after PDFs generated from build state
+- a session-private uploaded-document lane: PDF validation, SHA-256, page-by-page extraction,
+  sentence-level passage segmentation, deterministic requirement-strength classification, human
+  reclassification and approval, a watermarked `DRAFT — NOT APPROVED` review packet before
+  approval, and a Compliance Build Report only after it
 
 All entity, finding, vendor, task, and evidence records are marked `synthetic: true` in API
 data. The prototype is decision support: it does not provide legal advice, submit filings, or

@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Callable, Deque, Dict, Optional, Protocol
 
+from .documents import DocumentWorkspace
 from .models import WorkspaceState
 from .seed import initial_state
 
@@ -63,6 +64,7 @@ class MemoryStateStore:
 @dataclass
 class SessionRecord:
     store: MemoryStateStore
+    documents: DocumentWorkspace
     created_at: float
     last_accessed_at: float
     rate_windows: Dict[str, Deque[float]] = field(
@@ -138,7 +140,7 @@ class SessionManager:
             )
             self._sessions.pop(oldest, None)
 
-    def acquire(self, token: Optional[str]) -> tuple[str, MemoryStateStore]:
+    def acquire(self, token: Optional[str]) -> tuple[str, SessionRecord]:
         with self._lock:
             now = time.monotonic()
             self._expire(now)
@@ -149,13 +151,14 @@ class SessionManager:
                 session_id = secrets.token_urlsafe(24)
                 record = SessionRecord(
                     store=MemoryStateStore(),
+                    documents=DocumentWorkspace(),
                     created_at=now,
                     last_accessed_at=now,
                 )
                 self._sessions[session_id] = record
             else:
                 record.last_accessed_at = now
-            return self._token(session_id), record.store
+            return self._token(session_id), record
 
     def allow(self, token: str, scope: str, limit: int, window_seconds: int) -> bool:
         with self._lock:

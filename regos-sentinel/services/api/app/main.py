@@ -9,6 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .canonical import verify_embedded_sha256
+from .documents import (
+    MAX_PAGE_COUNT,
+    MAX_UPLOAD_BYTES,
+    DocumentRejected,
+    DocumentState,
+    PassageReviewRequest,
+    RequirementApprovalRequest,
+    UploadedDocument,
+    apply_passage_review,
+    approve_requirement,
+)
 from .engine import (
     approve_q17,
     commit_q17_reading,
@@ -28,10 +39,15 @@ from .models import (
     WorkspaceState,
 )
 from .oscal import generate_assessment_results, validate_assessment_results
-from .report import render_before_after_report, render_compliance_report
+from .report import (
+    render_before_after_report,
+    render_compliance_report,
+    render_document_report,
+    render_review_packet,
+)
 from .seed import SCHEMA_VERSION
 from .source_verification import SourceVerificationUnavailable, verify_official_source
-from .store import MemoryStateStore, create_session_manager
+from .store import DocumentWorkspace, MemoryStateStore, create_session_manager
 
 SESSION_HEADER = "X-RegOS-Session"
 SESSION_COOKIE = "regos_session"
@@ -72,9 +88,10 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         supplied_token = request.headers.get(SESSION_HEADER) or request.cookies.get(
             SESSION_COOKIE
         )
-        token, store = sessions.acquire(supplied_token)
+        token, record = sessions.acquire(supplied_token)
         request.state.regos_session_token = token
-        request.state.regos_store = store
+        request.state.regos_store = record.store
+        request.state.regos_documents = record.documents
         response = await call_next(request)
         response.headers[SESSION_HEADER] = token
         response.set_cookie(
@@ -89,6 +106,9 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
 
     def store_for(request: Request) -> MemoryStateStore:
         return request.state.regos_store
+
+    def documents_for(request: Request) -> DocumentWorkspace:
+        return request.state.regos_documents
 
     def enforce_rate_limit(
         request: Request,
@@ -138,7 +158,141 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
 
     @application.post("/api/v1/demo/reset", response_model=WorkspaceState)
     def reset_demo(request: Request) -> WorkspaceState:
+        documents_for(request).clear()
         return store_for(request).reset()
+
+    # ------------------------------------------------------------------ #
+    # Review your document — a bounded, session-private lane for a PDF
+    # the visitor supplies. Deterministic only: no model call, no OCR, no
+    # claim that an uploaded file carries official status.
+    # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/documents/limits")
+    def document_limits() -> dict:
+        return {
+            "accepted_types": ["application/pdf"],
+            "max_bytes": MAX_UPLOAD_BYTES,
+            "max_pages": MAX_PAGE_COUNT,
+            "ocr_available": False,
+            "model_extraction_available": False,
+            "retention": "This browser session only. Uploads are never written to disk.",
+        }
+
+    @application.get("/api/v1/documents", response_model=list[UploadedDocument])
+    def list_documents(request: Request) -> list[UploadedDocument]:
+        return documents_for(request).list()
+
+    @application.post("/api/v1/documents", response_model=UploadedDocument, status_code=201)
+    async def upload_document(
+        request: Request,
+        filename: str = "document.pdf",
+        authority: str = "Not stated by the uploader",
+    ) -> UploadedDocument:
+        enforce_rate_limit(request, "document-upload", limit=6)
+        payload = await request.body()
+        if len(payload) > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"That file is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit "
+                    "for this demo. Choose a smaller PDF or an extract of it."
+                ),
+            )
+        safe_name = os.path.basename(filename).strip()[:120] or "document.pdf"
+        try:
+            return documents_for(request).add(safe_name, payload, authority.strip()[:120])
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.get("/api/v1/documents/{document_id}", response_model=UploadedDocument)
+    def read_document(request: Request, document_id: str) -> UploadedDocument:
+        try:
+            return documents_for(request).get(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.delete("/api/v1/documents/{document_id}", status_code=204)
+    def delete_document(request: Request, document_id: str) -> Response:
+        try:
+            documents_for(request).remove(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        return Response(status_code=204)
+
+    @application.patch(
+        "/api/v1/documents/{document_id}/passages/{passage_id}",
+        response_model=UploadedDocument,
+    )
+    def review_passage(
+        request: Request,
+        document_id: str,
+        passage_id: str,
+        payload: PassageReviewRequest,
+    ) -> UploadedDocument:
+        try:
+            return documents_for(request).update(
+                document_id,
+                lambda document, now: apply_passage_review(document, passage_id, payload, now),
+            )
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.post(
+        "/api/v1/documents/{document_id}/requirements",
+        response_model=UploadedDocument,
+    )
+    def approve_document_requirement(
+        request: Request,
+        document_id: str,
+        payload: RequirementApprovalRequest,
+    ) -> UploadedDocument:
+        try:
+            return documents_for(request).update(
+                document_id,
+                lambda document, now: approve_requirement(document, payload, now),
+            )
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    def document_pdf(request: Request, document_id: str, renderer, suffix: str) -> Response:
+        try:
+            document = documents_for(request).get(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        try:
+            content = renderer(document)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{document_id.lower()}-{suffix}.pdf"'
+                ),
+                "Cache-Control": "private, no-store",
+            },
+        )
+
+    @application.get("/api/v1/documents/{document_id}/review-packet.pdf")
+    def document_review_packet(request: Request, document_id: str) -> Response:
+        return document_pdf(request, document_id, render_review_packet, "draft-review-packet")
+
+    @application.get("/api/v1/documents/{document_id}/report.pdf")
+    def document_compliance_report(request: Request, document_id: str) -> Response:
+        try:
+            document = documents_for(request).get(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        if document.state != DocumentState.APPROVED:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Approve at least one structured requirement before downloading the "
+                    "Compliance Build Report. The draft review packet is available now."
+                ),
+            )
+        return document_pdf(request, document_id, render_document_report, "compliance-build-report")
 
     @application.post("/api/v1/builds/run", response_model=WorkspaceState)
     def build(request: Request) -> WorkspaceState:
