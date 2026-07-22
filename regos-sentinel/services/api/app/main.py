@@ -18,8 +18,10 @@ from .agents.orchestrator import (
     run_agent,
     run_all_agents,
 )
+from .answers import ask
 from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
+from .cci import compute_cci
 from .corpus import corpus_reports
 from .documents import (
     MAX_PAGE_COUNT,
@@ -48,6 +50,9 @@ from .models import (
     AgentRun,
     AiAssuranceReport,
     ApplicabilityScenarioPatch,
+    AssistantAnswer,
+    AssistantQuestion,
+    CciReport,
     CorpusPackReport,
     EntityProfilePatch,
     LiveSourceVerificationReceipt,
@@ -243,6 +248,20 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     # Agents. They read; deterministic rules decide; a person judges.
     # Every run is recorded as a hash-chained trace.
     # ------------------------------------------------------------------ #
+
+    # ------------------------------------------------------------------ #
+    # The index SEBI actually scores an entity on, and an assistant that
+    # may only quote the source or decline.
+    # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/cci", response_model=CciReport)
+    def cyber_capability_index(request: Request) -> CciReport:
+        return compute_cci(store_for(request).load())
+
+    @application.post("/api/v1/ask", response_model=AssistantAnswer)
+    def ask_assistant(request: Request, body: AssistantQuestion) -> AssistantAnswer:
+        enforce_rate_limit(request, "ask", limit=40)
+        return ask(body.question, store_for(request).load())
 
     @application.get("/api/v1/agents", response_model=list[AgentCatalogueEntry])
     def agent_catalogue() -> list[AgentCatalogueEntry]:

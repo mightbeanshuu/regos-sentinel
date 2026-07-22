@@ -953,3 +953,148 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   grid-column: 2;
   font-size: 0.8125rem; line-height: 1.5; color: var(--ink-3); max-width: 70ch;
 }
+
+/* ==========================================================================
+   Control centre
+   ========================================================================== */
+
+/* ---------- "What this is doing", three steps ----------------------------- */
+
+.how {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s3);
+}
+.how-step {
+  position: relative;
+  padding: var(--s4);
+  border-radius: var(--radius-lg);
+  border: 1px solid oklch(1 0 0 / 0.6);
+  background: linear-gradient(168deg, oklch(1 0 0 / 0.9), oklch(0.98 0.006 258 / 0.65));
+  box-shadow: var(--shadow-2), inset 0 1px 0 oklch(1 0 0 / 0.85);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .how-step { backdrop-filter: blur(12px) saturate(130%); }
+}
+.how-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 0.8125rem; font-weight: 600;
+  margin-bottom: var(--s3);
+}
+.how-title { font-weight: 600; color: var(--ink); margin-bottom: var(--s2); }
+.how-body  { font-size: 0.875rem; line-height: 1.55; color: var(--ink-3); }
+
+/* ---------- Cyber Capability Index --------------------------------------- */
+
+.cci-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: var(--s5);
+  align-items: center;
+}
+@media (max-width: 720px) { .cci-layout { grid-template-columns: 1fr; } }
+
+.cci { display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
+.cci-dial { position: relative; width: 100%; max-width: 240px; }
+.cci-dial svg { width: 100%; height: auto; transform: rotate(135deg); }
+
+.cci-track {
+  fill: none; stroke: var(--line); stroke-width: 14; stroke-linecap: round;
+}
+.cci-arc {
+  fill: none; stroke-width: 14; stroke-linecap: round;
+  transition: stroke var(--t-base) var(--ease);
+}
+.cci-arc--ok     { stroke: var(--ok); }
+.cci-arc--review { stroke: var(--review); }
+.cci-arc--fail   { stroke: var(--fail); }
+
+.cci-centre {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; pointer-events: none;
+}
+.cci-score {
+  font-size: 3rem; font-weight: 650; letter-spacing: -0.03em; color: var(--ink);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.cci-of { font-size: 0.75rem; color: var(--ink-3); }
+
+.cci-read { text-align: center; }
+.cci-band { font-size: 1.125rem; font-weight: 650; color: var(--ink); }
+.cci-meaning { font-size: 0.875rem; color: var(--ink-2); margin-top: var(--s1); }
+.cci-coverage {
+  font-size: 0.8125rem; color: var(--ink-3); margin-top: var(--s2); max-width: 34ch;
+}
+
+.cci-row {
+  display: grid; grid-template-columns: 1fr 120px 34px;
+  align-items: center; gap: var(--s3);
+  padding: var(--s2) 0; border-bottom: 1px solid var(--line);
+}
+.cci-row:last-child { border-bottom: 0; }
+.cci-row-title { font-size: 0.875rem; color: var(--ink-2); }
+.cci-row-score {
+  font-size: 0.8125rem; color: var(--ink-3); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cci-bar {
+  display: block; height: 6px; border-radius: 3px;
+  background: var(--line); overflow: hidden;
+}
+.cci-bar-fill {
+  display: block; height: 100%; border-radius: 3px;
+  transition: width var(--t-enter) var(--ease);
+}
+.cci-bar-fill--ok     { background: var(--ok); }
+.cci-bar-fill--review { background: var(--review); }
+.cci-bar-fill--fail   { background: var(--fail); }
+
+/* ---------- Ask ----------------------------------------------------------- */
+
+.ask-form { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.ask-input {
+  flex: 1 1 320px; min-width: 0;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink);
+  font-family: var(--sans); font-size: 0.9375rem;
+}
+.ask-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.ask-chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
+.ask-chip {
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--bg-2); color: var(--ink-2);
+  font-size: 0.8125rem; cursor: pointer;
+  transition: border-color var(--t-micro) var(--ease), color var(--t-micro) var(--ease);
+}
+.ask-chip:hover:not(:disabled) { border-color: var(--accent-line); color: var(--accent); }
+.ask-chip:disabled { opacity: 0.5; cursor: default; }
+
+.ask-answer { margin-top: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+
+/* ---------- Agent strip --------------------------------------------------- */
+
+.agent-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+.agent-chip {
+  padding: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.agent-chip-name { font-weight: 600; font-size: 0.875rem; color: var(--ink); }
+.agent-chip-does {
+  font-size: 0.8125rem; line-height: 1.45; color: var(--ink-3); margin-top: var(--s1);
+}
+.agent-chip-state {
+  font-size: 0.75rem; color: var(--ink-3); margin-top: var(--s2);
+  font-variant-numeric: tabular-nums;
+}

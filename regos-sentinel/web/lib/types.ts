@@ -778,3 +778,49 @@ export interface AgentChallenges {
   autonomy: Record<string, string>;
   note: string;
 }
+
+/* ---------------------------------------------------------------------------
+ * Cyber Capability Index — the score SEBI actually asks MIIs and Qualified REs
+ * for. Partial by design: parameters without evidence are abstained, not zeroed.
+ * ------------------------------------------------------------------------- */
+
+export interface CciParameter {
+  id: string;
+  title: string;
+  meaning: string;
+  weight: number;
+  assessed: boolean;
+  score: number | null;
+  evidence: string;
+}
+
+export interface CciReport {
+  score: number;
+  band: string;
+  band_meaning: string;
+  parameters_assessed: number;
+  parameters_total: number;
+  parameters: CciParameter[];
+  bands: Array<{ name: string; floor: string; meaning: string }>;
+  limitation: string;
+  obligation: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * The assistant. It quotes the source, reports state, or declines.
+ * ------------------------------------------------------------------------- */
+
+export interface AssistantCitation {
+  span_id: string;
+  locator: string;
+  source_url: string;
+}
+
+export interface AssistantAnswer {
+  answer: string;
+  kind: "QUOTED" | "COMPUTED" | "REFUSED";
+  citations: AssistantCitation[];
+  /** A model's plainer restatement of the quotation. Never the authority. */
+  plain: string | null;
+  note: string;
+}

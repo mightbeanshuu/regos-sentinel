@@ -28,11 +28,51 @@ interface Line {
 }
 
 const AGENT_NAMES: Record<AgentId, string> = {
-  REFERENCE_RESOLVER: "reference-resolver",
-  SOURCE_SCOUT: "source-scout",
-  ADVERSARY: "adversary",
-  EXTRACTOR: "extractor",
+  REFERENCE_RESOLVER: "reference-finder",
+  SOURCE_SCOUT: "change-watcher",
+  ADVERSARY: "challenger",
+  EXTRACTOR: "deadline-reader",
 };
+
+/**
+ * The console shows the machine's own vocabulary — that is what a console is for, and
+ * a compliance officer watching one expects to see the machinery. But a verdict like
+ * `PERIOD_WITHOUT_TRIGGER` is the single most important thing this product ever says,
+ * and shouting it in an enum wastes it. Tool names and verdicts get a plain gloss on
+ * the line beneath; everything else is left exactly as the system recorded it.
+ */
+const TOOL_PLAIN: Record<string, string> = {
+  list_unresolved_references: "list the pointers that lead nowhere yet",
+  search_corpus: "search the pinned SEBI excerpts",
+  fetch_span: "open one pinned excerpt and fingerprint it",
+  verify_quote: "check a quotation really appears in the passage",
+  read_span: "read one passage of the source in full",
+  analyse_span_timing: "judge whether that passage supports a real deadline",
+  analyse_timing: "judge whether wording supports a real deadline",
+  list_active_obligations: "list the requirements that would reach a person",
+  read_entity_facts: "read the facts about this firm",
+  list_statements: "list the requirements pulled out of the source",
+  list_known_sources: "list the SEBI documents registered here",
+  compare_registered_sources: "compare the reviewed document against the newer one",
+  compare_span_sets: "compare two sets of passages",
+};
+
+const VERDICT_PLAIN: Record<string, string> = {
+  PERIOD_AND_TRIGGER_STATED: "a date can be worked out — SEBI gives both the period and its start",
+  PERIOD_WITHOUT_TRIGGER: "no date possible — SEBI gives the period but never says what starts it",
+  URGENCY_WITHOUT_PERIOD: "no date possible — urgent-sounding words, no measurable period",
+  NO_TIMING_LANGUAGE: "no timing in this passage at all",
+  READ_IN_CONJUNCTION_WITH: "the newer document adds to the old one rather than replacing it",
+  SUPERSEDES: "the newer document replaces the old one",
+};
+
+/** Add a plain gloss for any machine vocabulary present in a console line. */
+function glossFor(text: string): string | null {
+  for (const [term, plain] of Object.entries(VERDICT_PLAIN)) {
+    if (text.includes(term)) return plain;
+  }
+  return null;
+}
 
 function clockOf(): string {
   return new Date().toLocaleTimeString("en-GB", { hour12: false });
@@ -98,7 +138,7 @@ export function AgentConsole({
       });
 
       source.addEventListener("thinking", () => {
-        push("meta", "… asking the model which tool to call next");
+        push("meta", "… asking the AI what to look at next");
       });
 
       source.addEventListener("call", (event) => {
@@ -107,13 +147,17 @@ export function AgentConsole({
           ? JSON.stringify(data.input)
           : "";
         push("call", `→ ${data.tool}(${args})`);
-        if (data.rationale) push("meta", `   why: ${data.rationale}`);
+        const plain = TOOL_PLAIN[String(data.tool)];
+        if (plain) push("meta", `   ${plain}`);
       });
 
       source.addEventListener("result", (event) => {
         const data = JSON.parse((event as MessageEvent).data);
         const kind: LineKind = data.status === "OK" ? "result" : "error";
-        push(kind, `← ${data.status}  ${data.summary}`);
+        const summary = String(data.summary ?? "");
+        push(kind, `← ${data.status}  ${summary}`);
+        const gloss = glossFor(summary);
+        if (gloss) push("meta", `   → ${gloss}`);
         push("meta", `   step ${String(data.step_sha256).slice(0, 16)}…`);
       });
 
@@ -122,14 +166,17 @@ export function AgentConsole({
       });
 
       source.addEventListener("gate", () => {
-        push("meta", "── applying the gates ──────────────────");
+        push("meta", "── now the fixed rules decide what this means ──");
       });
 
       source.addEventListener("finding", (event) => {
         const data = JSON.parse((event as MessageEvent).data);
         const mark = data.accepted ? "✓" : "✕";
-        push(data.requires_human_review ? "review" : "finding", `${mark} ${data.summary}`);
-        push("meta", `   gate: ${data.gate_reason}`);
+        const summary = String(data.summary ?? "");
+        push(data.requires_human_review ? "review" : "finding", `${mark} ${summary}`);
+        const gloss = glossFor(summary);
+        if (gloss) push("meta", `   → ${gloss}`);
+        push("meta", `   rule: ${data.gate_reason}`);
       });
 
       source.addEventListener("error", (event) => {

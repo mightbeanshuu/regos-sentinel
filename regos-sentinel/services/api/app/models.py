@@ -804,6 +804,58 @@ class AgentRun(StrictModel):
     limitation: str
 
 
+class AssistantCitation(StrictModel):
+    span_id: str
+    locator: str
+    source_url: str
+
+
+class AssistantAnswer(StrictModel):
+    """An answer, and what kind of thing it is.
+
+    ``QUOTED`` is SEBI's own wording. ``COMPUTED`` is read from this workspace's state.
+    ``REFUSED`` is the assistant declining, which is a valid and frequent outcome.
+    """
+
+    answer: str
+    kind: str
+    citations: List[AssistantCitation] = Field(default_factory=list)
+    #: A model's plainer restatement of ``answer``, when one was obtainable. Never the
+    #: authority — the quotation is. Absent whenever the model is offline or disabled,
+    #: and the answer stays complete without it.
+    plain: Optional[str] = None
+    note: str = ""
+
+
+class AssistantQuestion(StrictModel):
+    question: str = Field(min_length=1, max_length=400)
+
+
+class CciParameter(StrictModel):
+    """One parameter of the Cyber Capability Index, scored or explicitly abstained."""
+
+    id: str
+    title: str
+    meaning: str
+    weight: int
+    assessed: bool
+    #: 0–100, or ``None`` when nothing evidences this parameter. Never defaulted to 0.
+    score: Optional[int] = None
+    evidence: str
+
+
+class CciReport(StrictModel):
+    score: int = Field(ge=0, le=100)
+    band: str
+    band_meaning: str
+    parameters_assessed: int = Field(ge=0)
+    parameters_total: int = Field(ge=1)
+    parameters: List[CciParameter]
+    bands: List[Dict[str, str]]
+    limitation: str
+    obligation: str
+
+
 class AgentCatalogueEntry(StrictModel):
     id: AgentId
     name: str

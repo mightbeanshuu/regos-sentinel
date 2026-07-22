@@ -284,6 +284,7 @@ export default function Home() {
               onVerifySource={verifySource}
               onDownloadReport={() =>
                 void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
+              onRefresh={() => void load()}
             />
           )}
         </div>

@@ -1,8 +1,10 @@
 import type {
   AgentCatalogueEntry,
+  AssistantAnswer,
   AgentChallenges,
   AgentId,
   AiAssuranceReport,
+  CciReport,
   CorpusPackReport,
   DocumentLimits,
   LiveSourceVerificationReceipt,
@@ -153,6 +155,14 @@ export const regosApi = {
     request(`/agents/${id}/run?planner=${planner}`, { method: "POST" }),
   runAllAgents: (planner: PlannerKind) =>
     request(`/agents/run-all?planner=${planner}`, { method: "POST" }),
+
+  // ---- The index SEBI scores an entity on, and the assistant ----------
+  cci: () => requestJson<CciReport>("/cci", { cache: "no-store" }),
+  ask: (question: string) =>
+    requestJson<AssistantAnswer>("/ask", {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
 
   // ---- Technical detail for the audit trail ---------------------------
   corpusPacks: () => requestJson<CorpusPackReport[]>("/corpus/packs", { cache: "no-store" }),
