@@ -11,6 +11,8 @@ import type {
   WorkspaceState,
 } from "../lib/types";
 import { Callout, Counts, DataRow, Field, Hash, Panel, Quote, StateLabel, Tag } from "./ui";
+import { IncidentReportingClock } from "./IncidentReportingClock";
+import { RegulationMap } from "./impact/RegulationMap";
 
 const STEPS = [
   "Source",
@@ -136,6 +138,7 @@ export function GuidedReview(props: GuidedReviewProps) {
 
       {build && (
         <StepCompare
+          state={state}
           build={build}
           control={control}
           q15={q15}
@@ -341,6 +344,7 @@ function StepSource({
  * ------------------------------------------------------------------------- */
 
 function StepCompare({
+  state,
   build,
   control,
   q15,
@@ -350,6 +354,7 @@ function StepCompare({
   reviewNeededTests,
   approved,
 }: {
+  state: WorkspaceState;
   build: BuildRun;
   control: WorkspaceState["controls"][number];
   q15?: WorkspaceState["source_spans"][number];
@@ -420,6 +425,13 @@ function StepCompare({
               </DataRow>
             </dl>
           </Callout>
+        )}
+
+        {state.findings.length > 0 && (
+          <div className="stack-s" style={{ marginTop: "16px" }}>
+            <p className="sub-title">Reporting clocks for each finding</p>
+            <IncidentReportingClock state={state} compact />
+          </div>
         )}
 
         {approved && (
@@ -889,6 +901,14 @@ function StepImpact({
             { value: build.impact.evidence_revalidation, label: "evidence items need review" },
           ]}
         />
+
+        <Panel
+          title="Regulation map"
+          description="Blast radius from the approved change — source spans through controls, evidence, and tasks. Every node is a live workspace object."
+          tight
+        >
+          <RegulationMap state={state} />
+        </Panel>
 
         <div className="outcome" ref={listRef}>
           <div className="outcome-item">

@@ -14,6 +14,7 @@ import type {
 import { AgentConsole } from "./AgentConsole";
 import { AskPanel } from "./AskPanel";
 import { CciDial } from "./CciDial";
+import { IncidentReportingClock } from "./IncidentReportingClock";
 import { Callout, Counts, Disclosure, Panel, StateLabel } from "./ui";
 
 /**
@@ -293,6 +294,15 @@ export function Dashboard({
       </Panel>
 
       {/* ---- Deadlines --------------------------------------------------- */}
+      {state.findings.length > 0 && (
+        <Panel
+          title="Incident reporting clocks"
+          description="Each VAPT finding gets a reporting clock only when the workspace has enough to calculate it. Where SEBI does not state when the clock starts, the face stays empty."
+        >
+          <IncidentReportingClock state={state} />
+        </Panel>
+      )}
+
       {state.deadline_computations.length > 0 && (
         <Panel
           title="Your deadlines"
