@@ -798,6 +798,10 @@ class AgentRun(StrictModel):
     findings: List[AgentFinding] = Field(default_factory=list)
     tools_available: List[str]
     tool_call_count: int = Field(ge=0)
+    #: Of ``tool_call_count``, how many steps the model itself chose. The remainder were
+    #: added by fixed rules to finish work the model left undone. Kept separate so a
+    #: model-planned run can never take credit for coverage it did not plan.
+    model_planned_calls: int = Field(default=0, ge=0)
     chain_head_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     chain_verified: bool
     autonomy: str

@@ -213,6 +213,7 @@ class Agent:
         plan: Optional[List[PlannedCall]] = None,
         planner: Optional[Any] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+        complete_coverage: bool = True,
     ) -> AgentRun:
         """Execute a plan and record it.
 
@@ -226,6 +227,8 @@ class Agent:
         results: List[Any] = []
         emit = on_event or (lambda event: None)
 
+        self.completed_by_fallback = 0
+
         if planner is not None:
             kind = PlannerKind.MODEL
             emit({
@@ -236,6 +239,8 @@ class Agent:
                 "tools": self.toolbox.names,
             })
             realised = self._run_model_planned(planner, recorder, results, emit)
+            if complete_coverage:
+                self.completed_by_fallback = self._complete_coverage(recorder, results, emit)
         else:
             if plan is not None:
                 kind = PlannerKind.RECORDED
@@ -281,6 +286,9 @@ class Agent:
             findings=findings,
             tools_available=self.toolbox.names,
             tool_call_count=len(recorder.steps),
+            model_planned_calls=sum(
+                1 for step in recorder.steps if step.planner == PlannerKind.MODEL
+            ),
             chain_head_sha256=recorder.head or canonical_sha256({"empty": True}),
             chain_verified=chain_ok,
             autonomy=self.autonomy,
@@ -331,6 +339,54 @@ class Agent:
         if status == AgentStepStatus.OK:
             results.append(output)
         return output
+
+    def _complete_coverage(
+        self,
+        recorder: TraceRecorder,
+        results: List[Any],
+        emit: Callable[[Dict[str, Any]], None],
+    ) -> int:
+        """Run whatever the model left undone, and mark those steps as not its work.
+
+        A planner that stops early used to cost coverage: a passage nobody read is
+        reported unexamined, which is honest but is not the answer anyone wanted. So
+        after the model stops, every call its own agent considers required and that did
+        not happen is executed here.
+
+        Two things make this legitimate rather than a fudge. The added calls are
+        recorded as :attr:`~app.models.PlannerKind.DETERMINISTIC` **on the step**, so the
+        trace shows exactly which calls the model chose and which it missed — the run
+        cannot take credit for work it did not plan. And the added calls come from the
+        agent's own fixed plan, so nothing is executed that a deterministic run would
+        not have executed anyway.
+
+        The result is that model quality changes how much of the route the model gets
+        credit for, and no longer changes whether the output is correct.
+
+        Callers may switch this off with ``complete_coverage=False``. The tests that
+        pin what a gate does about work nobody did need a genuinely incomplete run to
+        look at, and completing it first would hide exactly the behaviour they exist
+        to guard.
+        """
+        executed = {(step.tool, step.input_sha256) for step in recorder.steps}
+        added = 0
+        for call in self.deterministic_plan():
+            signature = (str(call["tool"]), canonical_sha256(dict(call.get("input", {}))))
+            if signature in executed:
+                continue
+            self._execute(call, recorder, results, PlannerKind.DETERMINISTIC, emit)
+            executed.add(signature)
+            added += 1
+        if added:
+            emit({
+                "event": "completed",
+                "added": added,
+                "message": (
+                    f"The AI stopped before covering everything. {added} further "
+                    "step(s) were run by fixed rules to complete the check."
+                ),
+            })
+        return added
 
     def _run_model_planned(
         self,

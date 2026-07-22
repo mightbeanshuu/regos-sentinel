@@ -234,7 +234,7 @@ def test_a_model_plan_cannot_invent_a_finding_the_gate_did_not_make() -> None:
             return None
 
     state = _approved_workspace()
-    run = Extractor(state, ["FAQ-Q15"]).run(planner=Hostile())
+    run = Extractor(state, ["FAQ-Q15"]).run(planner=Hostile(), complete_coverage=False)
 
     assert run.planner.value == "MODEL_PLANNED"
     assert run.steps[0].status.value == "TOOL_ERROR", "the invented tool must be rejected"
@@ -243,6 +243,54 @@ def test_a_model_plan_cannot_invent_a_finding_the_gate_did_not_make() -> None:
     # reports that absence rather than defaulting to something reassuring.
     assert [item.kind for item in run.findings] == ["TIMING_NOT_ASSESSED"]
     assert all(item.provenance == Provenance.DETERMINISTIC for item in run.findings)
+
+
+def test_a_model_that_stops_early_still_produces_the_complete_answer() -> None:
+    """Model quality must change credit, not correctness.
+
+    A planner that gives up after one call used to leave passages unexamined. The run
+    now finishes the required work with fixed rules, and the trace records which steps
+    the model chose so it cannot take credit for the rest.
+    """
+
+    class Lazy:
+        max_steps = 4
+        model_id = "test/lazy"
+        prompt_version = "test"
+
+        def __init__(self) -> None:
+            self._left = 1
+
+        def next_call(self):
+            if self._left <= 0:
+                return None
+            self._left -= 1
+            return {
+                "tool": "read_span",
+                "input": {"span_id": "FAQ-Q15"},
+                "rationale": "read one thing and give up",
+            }
+
+        def observe(self, output) -> None:
+            return None
+
+    spans = ["FAQ-Q14", "FAQ-Q15", "FAQ-Q17-A", "FAQ-Q17-B"]
+    lazy = Extractor(_approved_workspace(), spans).run(planner=Lazy())
+    thorough = Extractor(_approved_workspace(), spans).run()
+
+    # Same verdicts, whoever planned the route.
+    assert [item.kind for item in lazy.findings] == [item.kind for item in thorough.findings]
+    assert not any(item.kind == "TIMING_NOT_ASSESSED" for item in lazy.findings)
+
+    # And the trace is honest about who chose what.
+    assert lazy.planner.value == "MODEL_PLANNED"
+    assert lazy.model_planned_calls == 1
+    assert lazy.tool_call_count > 1
+    model_steps = [s for s in lazy.steps if s.planner.value == "MODEL_PLANNED"]
+    fixed_steps = [s for s in lazy.steps if s.planner.value == "DETERMINISTIC_PLAN"]
+    assert len(model_steps) == 1
+    assert fixed_steps, "the completed work must be marked as not the model's"
+    assert lazy.chain_verified is True
 
 
 def test_the_extractor_matches_verdicts_to_passages_by_id_not_by_order() -> None:
@@ -314,7 +362,7 @@ def test_a_planner_that_repeats_a_query_cannot_manufacture_resolutions() -> None
             return None
 
     state = initial_state()
-    run = ReferenceResolver(state).run(planner=Repetitive())
+    run = ReferenceResolver(state).run(planner=Repetitive(), complete_coverage=False)
 
     unresolved = [item for item in state.references if item.status.value == "UNRESOLVED"]
     assert run.tool_call_count == 6, "every repeated call is still recorded"
@@ -387,7 +435,7 @@ def test_an_obligation_nobody_examined_is_not_reported_as_unchallenged() -> None
         def observe(self, output) -> None:
             return None
 
-    run = Adversary(_approved_workspace()).run(planner=ListOnly())
+    run = Adversary(_approved_workspace()).run(planner=ListOnly(), complete_coverage=False)
 
     assert run.findings, "the obligations exist; something must be said about them"
     assert all(item.kind == "CHALLENGE_NOT_ASSESSED" for item in run.findings)

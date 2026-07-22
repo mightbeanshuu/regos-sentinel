@@ -45,7 +45,7 @@ from typing import List, Optional
 import httpx
 
 from .advisory import advisory_spans
-from .agents.planner import OPENROUTER_URL, api_key, offline, planner_model
+from .agents.planner import offline, planner_model, resolve_provider
 from .models import AssistantAnswer, AssistantCitation, WorkspaceState
 
 PLAIN_PROMPT_VERSION = "regos-plain-english/v1"
@@ -72,17 +72,18 @@ def plain_english(passage: str) -> Optional[str]:
     Failure is entirely acceptable here: the quotation is the answer, and this is a
     convenience laid on top of it. Nothing downstream depends on it succeeding.
     """
-    key = api_key()
-    if offline() or not key or os.environ.get("REGOS_PLAIN_ENGLISH", "").lower() in {
-        "0",
-        "off",
-        "false",
-    }:
+    provider = resolve_provider()
+    if offline() or provider is None or os.environ.get(
+        "REGOS_PLAIN_ENGLISH", ""
+    ).lower() in {"0", "off", "false"}:
         return None
     try:
         response = httpx.post(
-            OPENROUTER_URL,
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            provider["url"],
+            headers={
+                "Authorization": f"Bearer {provider['key']}",
+                "Content-Type": "application/json",
+            },
             json={
                 "model": planner_model(),
                 "temperature": 0,

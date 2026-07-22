@@ -24,6 +24,7 @@ from .planner import (
     api_key,
     load_cassette,
     planner_model,
+    planner_provider,
     save_cassette,
 )
 
@@ -86,6 +87,7 @@ def planner_status() -> Dict[str, object]:
     return {
         "model_available": model_planning_available(),
         "model_id": planner_model() if model_planning_available() else None,
+        "provider": planner_provider() if model_planning_available() else None,
         "offline": os.environ.get("REGOS_OFFLINE") == "1",
         "recorded_available": sorted(
             agent_id.value for agent_id in AgentId if load_cassette(agent_id)
@@ -158,6 +160,15 @@ def run_agent(
         )
         agent = build_agent(state, agent_id)
         run = agent.run(on_event=on_event)
+
+    if run.planner == PlannerKind.MODEL and run.model_planned_calls < run.tool_call_count:
+        completed = run.tool_call_count - run.model_planned_calls
+        note = (
+            f"The AI chose {run.model_planned_calls} of {run.tool_call_count} steps and "
+            f"stopped before covering everything. The remaining {completed} were run by "
+            "fixed rules so the result is complete. Each step in the trace is labelled "
+            "with which of the two chose it."
+        )
 
     run.planner_note = note
 

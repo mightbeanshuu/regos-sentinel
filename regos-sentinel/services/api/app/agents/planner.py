@@ -53,18 +53,87 @@ from .tools import planner_visible
 
 PLANNER_PROMPT_VERSION = "regos-agent-planner/v1"
 
-#: A free, tool-calling-capable model. Overridable, because which model plans is an
-#: operator decision and the trace records whichever one actually did.
+#: Models known to handle this planning job well, best first. Set
+#: ``REGOS_PLANNER_MODEL`` to any of them. The first three are paid and need credits on
+#: the OpenRouter account; the last is free and is the default so the demo runs on a
+#: cold account.
 #:
-#: Chosen by running the four agents against each free tool-calling model on the
-#: account. The differences were large and instructive: weaker planners stopped after
-#: one call, or looped on a query that had already failed. None of them produced a
-#: wrong *finding* — an incomplete plan costs recall, because a pointer nobody looked
-#: for is reported unresolved, and never costs correctness. That asymmetry is a
-#: property of the gates, not of the model, and it is why a free model is tolerable here.
+#: Which model plans is an operator decision, and the trace records whichever one
+#: actually did — so upgrading is a single environment variable and the audit record
+#: tells the truth about it either way.
+SOTA_PLANNER_MODELS = (
+    "anthropic/claude-sonnet-4.5",
+    "openai/gpt-5",
+    "google/gemini-2.5-pro",
+    "openai/gpt-oss-20b:free",
+)
+
+#: A free, tool-calling-capable model, chosen by running the four agents against every
+#: free tool-calling model on the account. The differences were large: weaker planners
+#: stopped after one call, or looped on a query that had already failed.
+#:
+#: None of them produced a wrong *finding*, because findings come from the gates. What a
+#: weak planner used to cost was coverage — a passage nobody looked at is reported
+#: unexamined. :meth:`Agent.run` now closes that gap deterministically after the model
+#: stops, so model quality affects how much of the work the model gets credit for, and
+#: no longer affects whether the answer is right.
 DEFAULT_PLANNER_MODEL = "openai/gpt-oss-20b:free"
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+#: Every provider here speaks the OpenAI chat-completions dialect, including tool
+#: calling, so one code path drives all of them and switching is an environment
+#: variable rather than a rewrite.
+#:
+#: They are ordered by what a team with no budget can actually get today. Google AI
+#: Studio and Groq both issue a key with no card and no spend, and both serve models
+#: well above the free tier OpenRouter gives away — which matters, because a planner
+#: that gives up after one call is the difference between the model doing the work and
+#: the fixed rules doing it for them.
+#:
+#: ``(env var, base URL, default model, label)``
+PROVIDERS = (
+    (
+        "GEMINI_API_KEY",
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "gemini-2.5-flash",
+        "Google AI Studio",
+    ),
+    (
+        "GOOGLE_API_KEY",
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "gemini-2.5-flash",
+        "Google AI Studio",
+    ),
+    (
+        "GROQ_API_KEY",
+        "https://api.groq.com/openai/v1/chat/completions",
+        "llama-3.3-70b-versatile",
+        "Groq",
+    ),
+    (
+        "CEREBRAS_API_KEY",
+        "https://api.cerebras.ai/v1/chat/completions",
+        "llama-3.3-70b",
+        "Cerebras",
+    ),
+    ("OPENROUTER_API_KEY", OPENROUTER_URL, "openai/gpt-oss-20b:free", "OpenRouter"),
+    ("OPENAI_API_KEY", OPENROUTER_URL, "openai/gpt-oss-20b:free", "OpenRouter"),
+)
+
+
+def resolve_provider() -> Optional[Dict[str, str]]:
+    """The first configured provider, or ``None`` if no key is set anywhere.
+
+    ``OPENAI_API_KEY`` is last and points at OpenRouter deliberately: on this project
+    that variable has always held an OpenRouter key, and honouring the name over the
+    value would send a ``sk-or-`` key to OpenAI and fail confusingly.
+    """
+    for variable, url, model, label in PROVIDERS:
+        key = os.environ.get(variable)
+        if key:
+            return {"key": key, "url": url, "model": model, "label": label, "env": variable}
+    return None
 
 CASSETTE_DIR = Path(__file__).with_name("cassettes")
 
@@ -106,12 +175,23 @@ def offline() -> bool:
 
 
 def api_key() -> Optional[str]:
-    """The OpenRouter key, under either name it is commonly exported as."""
-    return os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    """The key of whichever provider is configured."""
+    provider = resolve_provider()
+    return provider["key"] if provider else None
 
 
 def planner_model() -> str:
-    return os.environ.get("REGOS_PLANNER_MODEL", DEFAULT_PLANNER_MODEL)
+    """The model to plan with: an explicit override, else the provider's default."""
+    override = os.environ.get("REGOS_PLANNER_MODEL")
+    if override:
+        return override
+    provider = resolve_provider()
+    return provider["model"] if provider else DEFAULT_PLANNER_MODEL
+
+
+def planner_provider() -> str:
+    provider = resolve_provider()
+    return provider["label"] if provider else "none"
 
 
 # --------------------------------------------------------------------------- #
@@ -206,18 +286,22 @@ class ModelPlanner:
     # -- the conversation ------------------------------------------------- #
 
     def _post(self) -> Dict[str, Any]:
-        key = api_key()
-        if offline() or not key:
+        provider = resolve_provider()
+        if offline() or provider is None:
             raise PlannerUnavailable(
-                "REGOS_OFFLINE=1" if offline() else "No OPENROUTER_API_KEY in the environment."
+                "REGOS_OFFLINE=1"
+                if offline()
+                else "no model provider key is set on this deployment"
             )
+        key = provider["key"]
         try:
             response = httpx.post(
-                OPENROUTER_URL,
+                provider["url"],
                 headers={
                     "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json",
-                    # OpenRouter attributes free-tier traffic by these.
+                    # OpenRouter attributes free-tier traffic by these; the other
+                    # providers ignore them.
                     "HTTP-Referer": "https://regos-sentinel.vercel.app",
                     "X-Title": "RegOS Sentinel",
                 },

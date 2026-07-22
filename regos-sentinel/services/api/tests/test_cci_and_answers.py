@@ -113,3 +113,49 @@ def test_a_question_is_answered_over_the_api_and_is_rate_limited() -> None:
     assert body.status_code == 200
     assert body.json()["kind"] in {"QUOTED", "COMPUTED", "REFUSED"}
     assert client.post("/api/v1/ask", json={"question": ""}).status_code == 422
+
+
+# --------------------------------------------------------------------------- #
+# Which model provider gets used
+# --------------------------------------------------------------------------- #
+
+
+def test_any_free_provider_key_is_enough_to_enable_planning(monkeypatch) -> None:
+    """No provider is required. Whichever key a team can get today should work."""
+    from app.agents.planner import resolve_provider
+
+    for variable in (
+        "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY",
+        "CEREBRAS_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY",
+    ):
+        monkeypatch.delenv(variable, raising=False)
+    assert resolve_provider() is None
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    groq = resolve_provider()
+    assert groq is not None and groq["label"] == "Groq"
+    assert "groq.com" in groq["url"]
+
+    # Google outranks Groq: it is the strongest model a team can get without a card.
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    google = resolve_provider()
+    assert google is not None and google["label"] == "Google AI Studio"
+    assert google["model"].startswith("gemini")
+
+
+def test_an_openai_named_key_is_still_sent_to_openrouter(monkeypatch) -> None:
+    """On this project that variable has always held an ``sk-or-`` OpenRouter key.
+
+    Honouring the variable's name over its value would post it to OpenAI and fail in a
+    way nobody would diagnose quickly.
+    """
+    from app.agents.planner import resolve_provider
+
+    for variable in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY",
+                     "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-or-v1-whatever")
+
+    provider = resolve_provider()
+    assert provider is not None
+    assert "openrouter.ai" in provider["url"]
