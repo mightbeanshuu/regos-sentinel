@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.metrics import GOLD_SET_PATH, as_markdown, decide, load_gold_set, measure
+from app.model_cache import CACHE_PATH
+from app.oscal import SCHEMA_PATH
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 METRICS_DOC = REPO_ROOT / "docs" / "METRICS.md"
@@ -122,3 +124,24 @@ def test_metrics_endpoint_serves_the_same_measured_report() -> None:
 
     assert payload["case_count"] == 24
     assert payload == json.loads(measure().model_dump_json())
+
+
+def test_every_runtime_data_file_ships_inside_the_app_package() -> None:
+    """The container copies `app/` and nothing beside it.
+
+    A committed file the app reads at runtime therefore has to live inside that package.
+    A sibling `data/` directory passes every local test and is simply absent in
+    production — which is exactly how the gold set first shipped, and how the metrics
+    endpoint first 500'd.
+    """
+    app_dir = Path(__file__).resolve().parents[1] / "app"
+    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
+
+    copied = [line for line in dockerfile.splitlines() if line.startswith("COPY")]
+    assert any("app ./app" in line for line in copied)
+
+    for path in (GOLD_SET_PATH, CACHE_PATH, SCHEMA_PATH):
+        assert path.exists(), f"{path} is missing"
+        assert path.is_relative_to(app_dir), (
+            f"{path} is read at runtime but lives outside app/, so it will not be in the image"
+        )

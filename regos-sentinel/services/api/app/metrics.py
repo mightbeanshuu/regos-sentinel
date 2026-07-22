@@ -44,7 +44,9 @@ from .models import (
 from .scenarios import outcome_for, run_scenario
 from .seed import initial_state
 
-GOLD_SET_PATH = Path(__file__).resolve().parent.parent / "data" / "prototype_gold_set.json"
+# Inside the package, alongside the model cache. Anything the app reads at runtime has to
+# travel with the app — a sibling `data/` directory does not survive the container build.
+GOLD_SET_PATH = Path(__file__).with_name("datasets") / "prototype_gold_set.json"
 
 MEASURE_COMMAND = "cd services/api && REGOS_OFFLINE=1 uv run python scripts/measure_prototype.py"
 TEST_COMMAND = "cd services/api && uv run pytest tests/test_metrics.py -q"
