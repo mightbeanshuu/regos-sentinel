@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from app.corpus import GATE_SEQUENCE, corpus_reports
 from app.main import create_app
 from app.models import CorpusGateStatus, CorpusState, DeonticForce, Provenance, ScenarioId
-from app.revision import REVISION_LEGAL_STATE, base_provisions, build_revision, diff_provisions
+from app.revision import base_provisions, build_revision, diff_provisions
 from app.scenarios import SCENARIOS, run_scenario
 from app.seed import initial_state
 
@@ -228,10 +228,9 @@ def test_case_d_reports_changes_without_applying_them() -> None:
     assert all(item["passed"] for item in outcome["checks"]), outcome["checks"]
 
     kinds = [item["kind"] for item in outcome["source_changes"]]
-    assert kinds.count("ADDED") == 1
-    assert kinds.count("CHANGED") == 1
-    assert kinds.count("SUPERSEDED") == 1
-    assert kinds.count("UNCHANGED") == 3
+    assert kinds.count("ADDED") == 6
+    assert kinds.count("CHANGED") == 3
+    assert kinds.count("SUPERSEDED") == 0
 
     # Nothing was applied: the control is untouched by the change report.
     assert state["controls"][0] == control_before
@@ -240,37 +239,55 @@ def test_case_d_reports_changes_without_applying_them() -> None:
         item["review_required"] for item in outcome["source_changes"] if item["kind"] != "UNCHANGED"
     )
 
-    # Every material change carries both sides of the comparison.
+    # Every changed row carries both sides of the comparison.
     for change in outcome["source_changes"]:
         if change["kind"] == "CHANGED":
             assert change["before_quote"] and change["after_quote"]
-            assert change["before_strength"] == DeonticForce.RECOMMENDED.value
-            assert change["after_strength"] == DeonticForce.MANDATORY.value
-            assert change["creates_mandatory_work"] is True
-            assert change["impacted_control_ids"] == ["CTRL-VAPT-07"]
+            assert change["before_locator"] and change["after_locator"]
+
+    # The escalation the advisory actually performs: what Q15 merely encouraged,
+    # Annexure-A item 3 requires. Exactly one topic moves that way.
+    escalations = [
+        item for item in outcome["source_changes"] if item["creates_mandatory_work"]
+    ]
+    assert len(escalations) == 1
+    escalation = escalations[0]
+    assert escalation["subject_key"] == "vapt.vendor.sla.timeline"
+    assert escalation["before_strength"] == DeonticForce.RECOMMENDED.value
+    assert escalation["after_strength"] == DeonticForce.MANDATORY.value
+    assert escalation["impacted_control_ids"] == ["CTRL-VAPT-07"]
+    assert escalation["applied_automatically"] is False
 
 
-def test_case_d_revision_is_labelled_as_prototype_text_not_sebi_text() -> None:
+def test_case_d_compares_two_real_sebi_documents() -> None:
+    """The comparison used to need a constructed second version. It does not any more."""
     revision, _ = build_revision(initial_state())
 
-    assert revision.synthetic is True
-    assert revision.legal_state == REVISION_LEGAL_STATE
-    assert "NOT PUBLISHED BY SEBI" in revision.legal_state
-    assert "Securities and Exchange Board of India" not in revision.authority
-    assert "SEBI has not published it" in revision.disclaimer
+    assert revision.synthetic is False
+    assert revision.authority == "Securities and Exchange Board of India"
+    assert "HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026" in revision.to_version
+    assert "read in conjunction with the CSCRF" in revision.disclaimer
     assert len(revision.base_content_sha256) == 64
     assert revision.base_content_sha256 != revision.revision_content_sha256
 
 
-def test_case_d_escalates_a_disappearing_provision_rather_than_repealing_it() -> None:
-    """A topic the revision neither restates nor supersedes is a question, not a repeal."""
+def test_a_superseding_source_escalates_a_disappearance_but_an_additive_one_does_not() -> None:
+    """The relationship the newer source claims for itself decides what silence means.
+
+    SEBI's advisory says it is read *with* the CSCRF, so a topic it does not mention is
+    simply untouched. Read the same comparison as a replacement and that silence becomes
+    a disappearance that has to be escalated. Getting this backwards would manufacture
+    six alarming findings out of an ordinary additive circular.
+    """
     state = initial_state()
     base = base_provisions(state)
     kept = [item for item in base if item.subject_key != "vapt.virtual.patching"]
 
-    changes = diff_provisions(state, base, kept)
+    additive = diff_provisions(state, base, kept, relationship="READ_IN_CONJUNCTION_WITH")
+    assert all(item.subject_key != "vapt.virtual.patching" for item in additive)
 
-    vanished = next(item for item in changes if item.subject_key == "vapt.virtual.patching")
+    replacing = diff_provisions(state, base, kept, relationship="SUPERSEDES")
+    vanished = next(item for item in replacing if item.subject_key == "vapt.virtual.patching")
     assert vanished.kind.value == "SUPERSEDED"
     assert vanished.review_required is True
     assert vanished.applied_automatically is False
@@ -287,6 +304,20 @@ def test_case_d_marks_impacted_evidence_for_review() -> None:
     assert all("source-version change" in item["reason"] for item in state["evidence"])
 
 
+def test_case_d_keeps_untouched_topics_rather_than_dropping_them() -> None:
+    """Six reviewed topics the advisory is silent on stay governed by the FAQ."""
+    client = client_for()
+
+    state = client.post("/api/v1/scenarios/D_SOURCE_CHANGE/run").json()
+    outcome = next(
+        item for item in state["scenario_outcomes"] if item["scenario_id"] == "D_SOURCE_CHANGE"
+    )
+
+    untouched = next(item for item in outcome["facts"] if item.startswith("topics untouched"))
+    assert "vapt.closure.timeline" in untouched
+    assert all(item["passed"] for item in outcome["checks"]), outcome["checks"]
+
+
 # --------------------------------------------------------------------------- #
 # Corpus packs and the eight gates
 # --------------------------------------------------------------------------- #
@@ -297,7 +328,9 @@ def test_every_pack_is_measured_against_the_same_eight_gates() -> None:
 
     reports = client.get("/api/v1/corpus/packs").json()
 
-    assert len(reports) == 3
+    # Four packs now: the reviewed FAQ, the real 5 May 2026 advisory, the registered
+    # Master Circular, and the upload sandbox.
+    assert len(reports) == 4
     for report in reports:
         assert [gate["id"] for gate in report["gates"]] == [item[0] for item in GATE_SEQUENCE]
         assert report["gates_total"] == 8

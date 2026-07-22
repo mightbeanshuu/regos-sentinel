@@ -40,7 +40,7 @@ from .models import (
     SourceChangeKind,
     WorkspaceState,
 )
-from .revision import build_revision
+from .revision import build_revision, untouched_topics
 
 SCENARIO_SET_LABEL = "Demonstration scenarios from the reviewed prototype corpus."
 
@@ -122,20 +122,21 @@ SCENARIOS: List[ScenarioDefinition] = [
         label="D",
         title="A source version changes underneath a live control",
         question="When the text moves, what happens to work that was already approved?",
-        citation_locator="Synthetic revision · constructed for this demonstration",
+        citation_locator="Advisory dated 5 May 2026 · PDF page 5 · Annexure-A item 3",
         citation_quote=(
-            "REs shall include VAPT finding closure timelines in their service-level agreements "
-            "with third-party service providers"
+            "vendors shall implement appropriate safeguards including updating patch, VAPT, "
+            "continuous monitoring, hardening measures"
         ),
         expected_outcome=(
-            "Every topic in the declared scope is compared. Added, changed and superseded "
-            "passages are listed with both quotations, the controls they reach and the evidence "
-            "they put back in the queue. Nothing is applied automatically."
+            "Every topic the newer source addresses is compared. Added and changed passages are "
+            "listed with both quotations, the controls they reach and the evidence they put back "
+            "in the queue. The vendor-SLA topic shows a real strength escalation: what the FAQ "
+            "merely encouraged, the advisory requires. Nothing is applied automatically."
         ),
         seeded_data=(
-            "The reviewed FAQ pack, compared against a synthetic revision of the same five VAPT "
-            "and patch topics plus one added topic. The revision is prototype text; SEBI has not "
-            "published it."
+            "Two real SEBI documents: the reviewed CSCRF FAQ pack of 11 June 2025, compared "
+            "against circular HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026 — the AI "
+            "vulnerability-detection advisory of 5 May 2026. Neither side is constructed."
         ),
         automated_test="tests/test_scenarios.py::test_case_d_reports_changes_without_applying_them",
         reset_note="Restart demo clears the change report. No control is ever changed by it.",
@@ -615,13 +616,21 @@ def run_case_d(state: WorkspaceState, reviewer_name: str) -> WorkspaceState:
     checks = [
         _check(
             "D1",
-            "How many topics were compared in the declared scope?",
-            "6",
+            "Is either side of this comparison invented?",
+            "No — both are published SEBI documents",
+            "No — both are published SEBI documents"
+            if not revision.synthetic
+            else "Yes — one side is constructed",
+        ),
+        _check(
+            "D2",
+            "How many topics does the newer source address?",
+            "9",
             str(len(changes)),
         ),
-        _check("D2", "Added passages", "1", str(counted[SourceChangeKind.ADDED])),
-        _check("D3", "Changed passages", "1", str(counted[SourceChangeKind.CHANGED])),
-        _check("D4", "Superseded passages", "1", str(counted[SourceChangeKind.SUPERSEDED])),
+        _check("D3", "Duties the newer source adds", "6", str(counted[SourceChangeKind.ADDED])),
+        _check("D4", "Topics whose wording or strength moved", "3",
+               str(counted[SourceChangeKind.CHANGED])),
         _check(
             "D5",
             "How many changes were applied to a control automatically?",
@@ -636,7 +645,7 @@ def run_case_d(state: WorkspaceState, reviewer_name: str) -> WorkspaceState:
         ),
         _check(
             "D7",
-            "Strength escalations that would turn advice into mandatory work",
+            "Strength escalations that turn advice into mandatory work",
             "1",
             str(len(escalations)),
         ),
@@ -645,6 +654,12 @@ def run_case_d(state: WorkspaceState, reviewer_name: str) -> WorkspaceState:
             "How many material changes were routed to human review?",
             f"{len(material)} of {len(material)}",
             f"{len(routed)} of {len(material)}",
+        ),
+        _check(
+            "D9",
+            "Reviewed topics the newer source is silent on, kept rather than dropped",
+            "6",
+            str(len(untouched_topics(state))),
         ),
     ]
 
@@ -663,7 +678,7 @@ def run_case_d(state: WorkspaceState, reviewer_name: str) -> WorkspaceState:
         status=_finalise(checks),
         phase="COMPARED",
         headline=(
-            f"{len(material)} material changes across {len(changes)} compared topics. "
+            f"{len(material)} changes across {len(changes)} topics in a real SEBI advisory. "
             f"{len(impacted_controls)} control(s) and {len(impacted_evidence)} evidence item(s) "
             "need review. Nothing was applied."
         ),
@@ -672,8 +687,10 @@ def run_case_d(state: WorkspaceState, reviewer_name: str) -> WorkspaceState:
             f"comparison scope · {revision.scope_note}",
             f"from · {revision.from_version}",
             f"to · {revision.to_version} · {revision.legal_state}",
+            "relationship · the newer source is read WITH the reviewed corpus, not over it",
             f"impacted controls · {', '.join(impacted_controls) or 'none'}",
             f"evidence marked for review · {', '.join(impacted_evidence) or 'none'}",
+            f"topics untouched by this source · {', '.join(untouched_topics(state)) or 'none'}",
         ],
         citations=[
             _citation(

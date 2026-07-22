@@ -1,30 +1,53 @@
-"""Case D — controlled source-version comparison.
+"""Case D — comparing the reviewed corpus against a newer real SEBI source.
 
-A regulator's text does not stand still. This module answers one question: when a
-source version changes, what does a compliance system owe its user?
+The second version here is not constructed. It is SEBI circular
+``HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026``, the *Advisory on Emerging Advanced
+Artificial Intelligence (AI) Tools for Vulnerability Detection*, published 5 May 2026
+— nine months after the CSCRF FAQ this prototype was built around, on the same subject
+matter. Every quotation below is the regulator's own wording.
 
-The answer this prototype defends is *a reviewable change report, never a silent
-update*. Every change below is computed by :func:`diff_provisions` from two pinned
-provision sets; nothing here is a hand-written list of "changes".
+## The relationship decides the reading
 
-## The honesty problem, and how it is handled
+Paragraph E of the advisory says it "should be read in conjunction with the applicable
+SEBI circulars (including but not limited to Cybersecurity and Cyber Resilience
+framework)". It **adds** duties; it does not replace the FAQ. That single fact governs
+the whole comparison:
 
-SEBI has published exactly one version of the CSCRF FAQ used by this prototype
-(11 June 2025). To demonstrate version comparison at all, the *second* version has
-to be constructed. It therefore carries, in the data itself and not merely in the
-UI copy:
+* a topic the advisory addresses differently is a **change**;
+* a topic only the advisory addresses is an **addition**;
+* a topic the advisory is silent on is **not addressed** — it keeps being governed by
+  the reviewed corpus, and calling that a disappearance would be a misreading.
 
-* ``authority`` that names the prototype, not SEBI;
-* ``legal_state`` of ``SYNTHETIC DEMONSTRATION REVISION — NOT PUBLISHED BY SEBI``;
-* ``synthetic=True`` on the revision record, per invariant I5.
+Getting this wrong manufactures six alarming findings out of nothing, which is why the
+relationship is declared explicitly rather than assumed.
 
-No passage below may ever be presented, quoted or exported as SEBI wording.
+## What the comparison actually surfaces
+
+Two findings matter and neither was arranged:
+
+**The vendor-SLA escalation.** FAQ Q15 says REs "are encouraged to" include VAPT
+closure timelines in vendor SLAs — recommended, no mandatory work. The advisory says
+empanelled vendors "shall implement appropriate safeguards". Same topic, strength
+raised from recommended to required. This is the exact escalation Case B says the gates
+must never invent — and here a real regulator performed it.
+
+**The patch-timing shift.** Q17(a) states a period (one week) with no clock-start. The
+advisory states urgency ("on immediate basis") with no period at all. Both are blocked,
+for different reasons, and neither yields a date.
 """
 
 from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from .advisory import (
+    ADVISORY_NUMBER,
+    ADVISORY_PUBLISHED,
+    advisory_content_hash,
+    advisory_spans,
+    advisory_statements,
+)
+from .agents.tools import analyse_timing
 from .canonical import canonical_sha256
 from .models import (
     DeonticForce,
@@ -36,10 +59,18 @@ from .models import (
     WorkspaceState,
 )
 
-REVISION_ID = "REV-SYNTHETIC-2026-01"
-REVISION_AUTHORITY = "RegOS Sentinel prototype — synthetic demonstration revision"
-REVISION_LEGAL_STATE = "SYNTHETIC DEMONSTRATION REVISION — NOT PUBLISHED BY SEBI"
-REVISION_LOCATOR_PREFIX = "Synthetic revision · constructed for this demonstration"
+REVISION_ID = "REV-SEBI-AI-ADVISORY-2026-05-05"
+
+#: How the newer source describes its own relationship to the reviewed corpus.
+#: Taken from paragraph E, not assumed.
+RELATIONSHIP = "READ_IN_CONJUNCTION_WITH"
+
+SCOPE_NOTE = (
+    "The reviewed CSCRF FAQ pack compared, topic by topic, against SEBI's 5 May 2026 "
+    "AI vulnerability-detection advisory. The advisory states that it is to be read in "
+    "conjunction with the CSCRF, so topics it does not address remain governed by the "
+    "reviewed corpus rather than being treated as withdrawn."
+)
 
 
 class Provision(StrictModel):
@@ -54,88 +85,33 @@ class Provision(StrictModel):
     supersedes: Optional[str] = None
 
 
-#: The declared comparison scope. A version diff is only honest about the topics it
-#: actually looked at, so the scope is named rather than implied.
-DIFF_SCOPE_KEYS = (
-    "vapt.closure.timeline",
-    "vapt.vendor.sla.timeline",
-    "vapt.virtual.patching",
-    "patch.high.severity.timeline",
-    "vapt.other.observation.timeline",
-)
-
-SCOPE_NOTE = (
-    "Five VAPT and patch-management topics from the reviewed pack, compared against a "
-    "synthetic revision of the same five topics plus one added topic."
-)
-
-
-def _revision_provisions() -> List[Provision]:
-    """The synthetic second version. Every quote here is prototype text, not SEBI text."""
-    return [
-        Provision(
-            subject_key="vapt.closure.timeline",
-            subject="VAPT finding closure timeline",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §1",
-            quote="is within three (3) months of submission of VAPT report",
-            strength=DeonticForce.MANDATORY,
-        ),
-        Provision(
-            subject_key="vapt.vendor.sla.timeline",
-            subject="Vendor SLA closure timelines",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §2",
-            quote=(
-                "REs shall include VAPT finding closure timelines in their service-level "
-                "agreements with third-party service providers"
-            ),
-            strength=DeonticForce.MANDATORY,
-        ),
-        Provision(
-            subject_key="vapt.virtual.patching",
-            subject="Virtual patching as a compensatory control",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §3",
-            quote="REs may also consider compensatory controls like virtual patching",
-            strength=DeonticForce.PERMITTED,
-        ),
-        Provision(
-            subject_key="patch.high.severity.timeline",
-            subject="High-severity missing-patch timeline",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §4",
-            quote=(
-                "would be validated for non-compliances against the patch management timelines"
-            ),
-            strength=DeonticForce.MANDATORY,
-        ),
-        Provision(
-            subject_key="patch.register.clock.start",
-            subject="Clock-start for the patch implementation timeline",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §5",
-            quote=(
-                "the patch implementation timeline shall be counted from the date on which the "
-                "vulnerability is recorded in the entity vulnerability register"
-            ),
-            strength=DeonticForce.MANDATORY,
-        ),
-        Provision(
-            subject_key="vapt.observation.closure.consolidated",
-            subject="Consolidated VAPT observation closure timelines",
-            locator=f"{REVISION_LOCATOR_PREFIX} · §6",
-            quote=(
-                "closure timelines for VAPT observations other than missing patches are "
-                "consolidated in the revised closure table"
-            ),
-            strength=DeonticForce.MANDATORY,
-            supersedes="vapt.other.observation.timeline",
-        ),
-    ]
+def _advisory_provisions() -> List[Provision]:
+    """The newer side, built from the real advisory's own passages."""
+    spans = {span.id: span for span in advisory_spans()}
+    provisions: List[Provision] = []
+    for statement in advisory_statements(list(spans.values())):
+        if not statement.subject_key:
+            continue
+        span = spans[statement.span_id]
+        provisions.append(
+            Provision(
+                subject_key=statement.subject_key,
+                subject=statement.subject or statement.subject_key,
+                locator=span.locator,
+                quote=statement.exact_phrase,
+                strength=statement.deontic_force,
+                span_id=span.id,
+            )
+        )
+    return sorted(provisions, key=lambda item: item.subject_key)
 
 
 def base_provisions(state: WorkspaceState) -> List[Provision]:
-    """The first version, read from live workspace state rather than restated here."""
+    """The reviewed side, read from live workspace state rather than restated here."""
     spans = {span.id: span for span in state.source_spans}
     provisions: List[Provision] = []
     for statement in state.regulatory_statements:
-        if statement.subject_key not in DIFF_SCOPE_KEYS:
+        if not statement.subject_key:
             continue
         span = spans.get(statement.span_id)
         provisions.append(
@@ -183,17 +159,6 @@ def _control_ids_for_span(state: WorkspaceState, span_id: Optional[str]) -> List
     return sorted(control_ids)
 
 
-def _human_policy_control_ids(state: WorkspaceState) -> List[str]:
-    """Controls whose deadline currently rests on a person's policy rather than the source."""
-    control_ids = [
-        obligation.control_id
-        for obligation in state.obligations
-        if obligation.status == "ACTIVE"
-        and obligation.deadline.trigger_provenance == Provenance.HUMAN_POLICY
-    ]
-    return sorted(set(control_ids))
-
-
 def _evidence_for_controls(state: WorkspaceState, control_ids: List[str]) -> List[str]:
     """Conservative rule: an impacted control puts every one of its artifacts back in the queue."""
     return sorted(item.id for item in state.evidence if item.control_id in control_ids)
@@ -203,16 +168,17 @@ def diff_provisions(
     state: WorkspaceState,
     base: List[Provision],
     revision: List[Provision],
+    relationship: str = RELATIONSHIP,
 ) -> List[SourceChange]:
-    """Compare two provision sets by topic and derive the operational consequence of each.
+    """Compare two provision sets by topic and derive the consequence of each.
 
     The kind of a change is decided by topic identity, exact wording and requirement
-    strength — never by a stored answer. The consequence of a change is then derived
-    from live workspace state, so an impacted control is one that genuinely exists.
+    strength — never by a stored answer. The consequence is then derived from live
+    workspace state, so an impacted control is one that genuinely exists.
     """
     base_by_key: Dict[str, Provision] = {item.subject_key: item for item in base}
+    additive = relationship == RELATIONSHIP
     changes: List[SourceChange] = []
-    superseded_keys = {item.supersedes for item in revision if item.supersedes}
 
     for index, after in enumerate(sorted(revision, key=lambda item: item.subject_key), start=1):
         before = base_by_key.get(after.supersedes or after.subject_key)
@@ -231,52 +197,42 @@ def diff_provisions(
             and after.strength == DeonticForce.MANDATORY
         )
         before_span_id = before.span_id if before else None
+        timing = analyse_timing(after.quote)
 
         if kind == SourceChangeKind.UNCHANGED:
             impacted: List[str] = []
             impact_summary = "No operational consequence. Wording and strength both match."
             note = "Recorded so the comparison shows what was checked, not only what moved."
-        elif kind == SourceChangeKind.ADDED and after.subject_key == "patch.register.clock.start":
-            patch_span_id = next(
-                (
-                    item.span_id
-                    for item in base
-                    if item.subject_key == "patch.high.severity.timeline"
-                ),
-                None,
-            )
-            impacted = _human_policy_control_ids(state) or _control_ids_for_span(
-                state, patch_span_id
-            )
+        elif escalated and before is not None:
+            impacted = _control_ids_for_span(state, before_span_id)
             impact_summary = (
-                "A stated clock-start would replace the firm policy currently standing in for it."
+                "Requirement strength rises from "
+                f"{before.strength.value.lower()} to required, so the same topic would "
+                "now create mandatory work rather than an advisory."
             )
             note = (
-                "RegOS does not switch a deadline from a person's policy to source wording on "
-                "its own. The reviewer who recorded the policy has to accept the replacement."
+                "Under the reviewed version this was not mandatory. A reviewer must "
+                "confirm the escalation before any control is allowed to fail on it. "
+                f"Timing in the newer wording: {timing['verdict']}."
             )
         elif kind == SourceChangeKind.ADDED:
             impacted = []
-            impact_summary = "A new topic with no control mapped to it yet."
-            note = "Compilation of a new topic stays a reviewed step."
-        elif escalated:
-            impacted = _control_ids_for_span(state, before_span_id)
             impact_summary = (
-                "Requirement strength rises from recommended to required, so the same wording "
-                "would now create mandatory work rather than an advisory."
+                "A duty this entity's control register has no mapping for yet. "
+                f"Timing: {timing['verdict']}."
             )
-            note = (
-                "Under the reviewed version this sentence is an advisory. A reviewer must "
-                "confirm the escalation before any control is allowed to fail on it."
-            )
+            note = "Compiling a new topic stays a reviewed step. " + str(timing["note"])
         elif kind == SourceChangeKind.SUPERSEDED:
             impacted = _control_ids_for_span(state, before_span_id)
             impact_summary = "The passage a live control was compiled from no longer stands alone."
             note = "The superseding passage has to be read and compiled before the control moves."
         else:
             impacted = _control_ids_for_span(state, before_span_id)
-            impact_summary = "Wording changed on a topic a live control depends on."
-            note = "Re-reading the changed wording is a human step."
+            impact_summary = (
+                "Wording changed on a topic a live control depends on. "
+                f"Timing in the newer wording: {timing['verdict']}."
+            )
+            note = f"Re-reading the changed wording is a human step. {timing['note']}"
 
         changes.append(
             SourceChange(
@@ -301,13 +257,16 @@ def diff_provisions(
             )
         )
 
-    # A base topic that the revision neither restates nor supersedes would be an
-    # unexplained disappearance. Surfacing it is the whole point of the gate.
+    if additive:
+        # The newer source is read *with* the reviewed corpus, so its silence on a topic
+        # is ordinary. Treating that silence as a repeal would invent findings.
+        return changes
+
+    restated = {item.subject_key for item in revision} | {
+        item.supersedes for item in revision if item.supersedes
+    }
     for key, before in sorted(base_by_key.items()):
-        restated = any(
-            item.subject_key == key or item.supersedes == key for item in revision
-        )
-        if restated or key in superseded_keys:
+        if key in restated:
             continue
         impacted = _control_ids_for_span(state, before.span_id)
         changes.append(
@@ -330,26 +289,32 @@ def diff_provisions(
     return changes
 
 
+def untouched_topics(state: WorkspaceState) -> List[str]:
+    """Reviewed topics the advisory does not address. Named, not silently dropped."""
+    addressed = {item.subject_key for item in _advisory_provisions()}
+    return sorted({item.subject_key for item in base_provisions(state)} - addressed)
+
+
 def build_revision(state: WorkspaceState) -> tuple[SourceRevision, List[SourceChange]]:
     base = base_provisions(state)
-    revision = _revision_provisions()
+    revision = _advisory_provisions()
     changes = diff_provisions(state, base, revision)
     record = SourceRevision(
         id=REVISION_ID,
         from_version=state.source_version,
-        to_version="synthetic-revision/2026-01-demo-v1",
-        authority=REVISION_AUTHORITY,
-        legal_state=REVISION_LEGAL_STATE,
+        to_version=f"sebi-advisory/{ADVISORY_PUBLISHED} · {ADVISORY_NUMBER}",
+        authority="Securities and Exchange Board of India",
+        legal_state="IN FORCE — READ WITH CSCRF",
         scope_note=SCOPE_NOTE,
         disclaimer=(
-            "The second version in this comparison was written for the demonstration. SEBI has "
-            "not published it, and no sentence in it may be read, quoted or exported as SEBI "
-            "wording. The first version is the real reviewed FAQ pack."
+            "Both versions in this comparison are real SEBI documents. The newer one is "
+            f"circular {ADVISORY_NUMBER} dated 5 May 2026, and it states at paragraph E "
+            "that it is to be read in conjunction with the CSCRF rather than in place "
+            "of it. The English extraction is partial and its gaps are declared on the "
+            "corpus pack."
         ),
         base_content_sha256=canonical_sha256([item.model_dump(mode="json") for item in base]),
-        revision_content_sha256=canonical_sha256(
-            [item.model_dump(mode="json") for item in revision]
-        ),
-        synthetic=True,
+        revision_content_sha256=advisory_content_hash(advisory_spans()),
+        synthetic=False,
     )
     return record, changes

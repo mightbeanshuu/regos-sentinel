@@ -8,6 +8,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+from .agents.crew import CATALOGUE as AGENT_CATALOGUE
+from .agents.orchestrator import AUTONOMY, blocking_challenges, run_agent, run_all_agents
 from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
 from .corpus import corpus_reports
@@ -33,6 +35,9 @@ from .engine import (
 )
 from .metrics import measure
 from .models import (
+    AgentCatalogueEntry,
+    AgentId,
+    AgentRun,
     AiAssuranceReport,
     ApplicabilityScenarioPatch,
     CorpusPackReport,
@@ -224,6 +229,47 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             )
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
+
+    # ------------------------------------------------------------------ #
+    # Agents. They read; deterministic rules decide; a person judges.
+    # Every run is recorded as a hash-chained trace.
+    # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/agents", response_model=list[AgentCatalogueEntry])
+    def agent_catalogue() -> list[AgentCatalogueEntry]:
+        return AGENT_CATALOGUE
+
+    @application.get("/api/v1/agents/runs", response_model=list[AgentRun])
+    def agent_runs(request: Request) -> list[AgentRun]:
+        return store_for(request).load().agent_runs
+
+    @application.post("/api/v1/agents/{agent_id}/run", response_model=WorkspaceState)
+    def execute_agent(request: Request, agent_id: AgentId) -> WorkspaceState:
+        enforce_rate_limit(request, "agent-run", limit=20)
+        return store_for(request).mutate(
+            lambda state: run_agent(state, agent_id, actor="demo.operator")
+        )
+
+    @application.post("/api/v1/agents/run-all", response_model=WorkspaceState)
+    def execute_all_agents(request: Request) -> WorkspaceState:
+        enforce_rate_limit(request, "agent-run", limit=20)
+        return store_for(request).mutate(
+            lambda state: run_all_agents(state, actor="demo.operator")
+        )
+
+    @application.get("/api/v1/agents/challenges")
+    def agent_challenges(request: Request) -> dict:
+        state = store_for(request).load()
+        landed = blocking_challenges(state)
+        return {
+            "landed": landed,
+            "blocking": bool(landed),
+            "autonomy": {key.value: value for key, value in AUTONOMY.items()},
+            "note": (
+                "A landed challenge blocks publication until a person rules on it. No "
+                "agent in this prototype holds a tool that writes to a control."
+            ),
+        }
 
     # ------------------------------------------------------------------ #
     # Corpus packs, the eight gates, the AI split, and measured metrics

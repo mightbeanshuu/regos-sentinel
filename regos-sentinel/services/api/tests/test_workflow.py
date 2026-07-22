@@ -307,7 +307,8 @@ def test_manifest_is_unavailable_until_build_approved(tmp_path: Path) -> None:
     assert oscal.status_code == 200
     artifact = oscal.json()["assessment-results"]
     assert artifact["metadata"]["oscal-version"] == "1.2.2"
-    assert len(artifact["results"][0]["observations"]) == 11
+    # One observation per build test; the adversary gate added the twelfth.
+    assert len(artifact["results"][0]["observations"]) == 12
 
 
 def test_compliance_report_is_state_derived_and_byte_identical(tmp_path: Path) -> None:
@@ -506,7 +507,7 @@ def test_committed_golden_manifest_replays_byte_for_byte() -> None:
 
     assert result["match"] is True
     assert result["recomputed_sha256"] == (
-        "ed2aa77fe34212536eab4a8002839b1f8aef3112fe405797c10e174069926678"
+        "7bf7f49d6f93dbdef76c49aebc947fda1a1fe3b928bb821565568682fa4534d3"
     )
 
 

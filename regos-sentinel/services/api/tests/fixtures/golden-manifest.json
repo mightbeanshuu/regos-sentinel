@@ -18,6 +18,19 @@
         "disclaimer": "Prototype output must be read with the governing Acts, Regulations and Circulars. It is decision support, not legal advice or an automated compliance conclusion."
       },
       {
+        "id": "SEBI-AI-VULN-ADVISORY-2026-05-05",
+        "authority": "Securities and Exchange Board of India",
+        "title": "Advisory on Emerging Advanced Artificial Intelligence (AI) Tools for Vulnerability Detection",
+        "document_type": "Circular / advisory",
+        "published_at": "2026-05-05",
+        "legal_state": "IN FORCE — READ WITH CSCRF",
+        "source_url": "https://www.sebi.gov.in/sebi_data/attachdocs/may-2026/1777992004516.pdf",
+        "content_hash": "6cf7410c746c49230af5df95b9288e84c294261d3e1594c759ce96799ea10d73",
+        "content_hash_scope": "SHA-256 OF NINE HUMAN-CHECKED ENGLISH PASSAGES, NOT THE FULL BILINGUAL PDF",
+        "corpus_scope": "Circular HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026. Nine English passages covering paragraphs A and E and Annexure-A items 1, 2, 3, 5(d), 6(c), 9 and 10. Items 4 and 8 and several sub-items did not survive extraction and are declared as gaps.",
+        "disclaimer": "The official document is bilingual. Only the English text is represented here, the extraction is partial, and the named gaps must be read before relying on any coverage figure."
+      },
+      {
         "id": "SEBI-CSCRF-2024-113",
         "authority": "Securities and Exchange Board of India",
         "title": "Cybersecurity and Cyber Resilience Framework for SEBI REs",
@@ -33,6 +46,15 @@
     ],
     "version": "cscrf-faq/2025-06-11-excerpt-v1",
     "covered_span_ids": [
+      "ADV-A-RISK-CONTEXT",
+      "ADV-E-READ-WITH-CSCRF",
+      "ADV-ANNEX-1-PATCH-IMMEDIATE",
+      "ADV-ANNEX-2-VA-CONTINUOUS",
+      "ADV-ANNEX-3-VENDOR-SAFEGUARDS",
+      "ADV-ANNEX-5D-API-WHITELIST",
+      "ADV-ANNEX-6C-MSOC-ONBOARD",
+      "ADV-ANNEX-9-ASSET-INVENTORY",
+      "ADV-ANNEX-10-AGENTIC-PLAN",
       "FAQ-PREFACE-4",
       "FAQ-Q14",
       "FAQ-Q15",
@@ -82,6 +104,37 @@
         "tests/test_workflow.py::test_review_persists_split_and_propagates_impact",
         "tests/test_workflow.py::test_live_source_matcher_covers_every_pinned_demo_span",
         "tests/test_scenarios.py::test_scenario_catalogue_is_complete"
+      ]
+    },
+    {
+      "id": "PACK-AI-VULN-ADVISORY-2026",
+      "title": "SEBI AI vulnerability-detection advisory · 5 May 2026",
+      "version": "HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026",
+      "published_at": "2026-05-05",
+      "document_id": "SEBI-AI-VULN-ADVISORY-2026-05-05",
+      "source_url": "https://www.sebi.gov.in/legal/circulars/may-2026/advisory-on-emerging-advanced-artificial-intelligence-ai-tools-for-vulnerability-detection_101270.html",
+      "status": "HERO_SCOPE_ACTIVE",
+      "scope_note": "A real SEBI circular published after the reviewed FAQ, on the same subject matter. Nine extracted passages; five declared extraction gaps.",
+      "indexed_span_count": 9,
+      "compiled_candidate_count": 0,
+      "content_identity_sha256": "6cf7410c746c49230af5df95b9288e84c294261d3e1594c759ce96799ea10d73",
+      "authority": "Securities and Exchange Board of India",
+      "legal_state": "IN FORCE — READ WITH CSCRF",
+      "extraction_scope": "English text only, from the official bilingual PDF. Annexure-A items 4 and 8, item 5(c), part of item 6 and paragraph C(iii) are declared gaps.",
+      "source_span_ids": [
+        "ADV-A-RISK-CONTEXT",
+        "ADV-E-READ-WITH-CSCRF",
+        "ADV-ANNEX-1-PATCH-IMMEDIATE",
+        "ADV-ANNEX-2-VA-CONTINUOUS",
+        "ADV-ANNEX-3-VENDOR-SAFEGUARDS",
+        "ADV-ANNEX-5D-API-WHITELIST",
+        "ADV-ANNEX-6C-MSOC-ONBOARD",
+        "ADV-ANNEX-9-ASSET-INVENTORY",
+        "ADV-ANNEX-10-AGENTIC-PLAN"
+      ],
+      "validation_tests": [
+        "tests/test_advisory.py::test_advisory_passages_are_verbatim_and_gaps_declared",
+        "tests/test_advisory.py::test_advisory_untimed_duties_are_blocked_not_guessed"
       ]
     },
     {
@@ -403,9 +456,9 @@
         "blocked_reason": null,
         "citation": {
           "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
-          "span_id": "FAQ-Q17-B",
-          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
-          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "span_id": "FAQ-Q15",
+          "locator": "FAQ dated 11 June 2025 · PDF page 8 · Q15",
+          "quote": "within three (3) months of submission of VAPT report",
           "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
         }
       },
@@ -445,6 +498,20 @@
           "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
         },
         "deadline": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q15",
+          "locator": "FAQ dated 11 June 2025 · PDF page 8 · Q15",
+          "quote": "within three (3) months of submission of VAPT report",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "trigger": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q15",
+          "locator": "FAQ dated 11 June 2025 · PDF page 8 · Q15",
+          "quote": "within three (3) months of submission of VAPT report",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "duration": {
           "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
           "span_id": "FAQ-Q17-B",
           "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
@@ -543,9 +610,9 @@
       "human_policy_note": null,
       "citation": {
         "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
-        "span_id": "FAQ-Q17-B",
-        "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
-        "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+        "span_id": "FAQ-Q15",
+        "locator": "FAQ dated 11 June 2025 · PDF page 8 · Q15",
+        "quote": "within three (3) months of submission of VAPT report",
         "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
       }
     }
@@ -669,6 +736,15 @@
       "stage": "VERIFY",
       "headline": "One-week rule has no source-stated clock start",
       "tests": [
+        {
+          "id": "TEST-ADVERSARY-001",
+          "name": "No agent challenge is outstanding against a compiled obligation",
+          "status": "PASS",
+          "message": "The adversary agent has not run, so this check is vacuous.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
         {
           "id": "TEST-COVERAGE-001",
           "name": "No unresolved material source spans",
@@ -803,6 +879,15 @@
       "headline": "One-week rule has no source-stated clock start",
       "tests": [
         {
+          "id": "TEST-ADVERSARY-001",
+          "name": "No agent challenge is outstanding against a compiled obligation",
+          "status": "PASS",
+          "message": "The adversary agent has not run, so this check is vacuous.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
+        {
           "id": "TEST-COVERAGE-001",
           "name": "No unresolved material source spans",
           "status": "BLOCK",
@@ -935,6 +1020,15 @@
       "stage": "PROVE",
       "headline": "Human-approved regulatory split compiled",
       "tests": [
+        {
+          "id": "TEST-ADVERSARY-001",
+          "name": "No agent challenge is outstanding against a compiled obligation",
+          "status": "PASS",
+          "message": "The adversary agent has not run, so this check is vacuous.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
         {
           "id": "TEST-COVERAGE-001",
           "name": "No unresolved material source spans",
@@ -1079,7 +1173,7 @@
     "model_output_token_limit": 900,
     "state_store": "BOUNDED_SIGNED_IN_MEMORY_SESSION",
     "offline_replay_command": "REGOS_OFFLINE=1 uv run python scripts/replay_build.py",
-    "replay_input_sha256": "e861558bbc19e2450bb3d0303f824173bcafa4711d33058489c841e75032f55f"
+    "replay_input_sha256": "41a315ddb876ade129fe08e6c3a88ff091e3f5f241fd38bed896a9468a86a090"
   },
-  "manifest_sha256": "ed2aa77fe34212536eab4a8002839b1f8aef3112fe405797c10e174069926678"
+  "manifest_sha256": "7bf7f49d6f93dbdef76c49aebc947fda1a1fe3b928bb821565568682fa4534d3"
 }

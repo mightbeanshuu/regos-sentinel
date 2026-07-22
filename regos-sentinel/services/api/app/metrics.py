@@ -23,6 +23,7 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel, ConfigDict
 
+from .agents.orchestrator import run_all_agents
 from .canonical import canonical_json_bytes, canonical_sha256
 from .engine import (
     approve_q17,
@@ -210,6 +211,11 @@ def measure() -> MetricsReport:
         item for item in change_outcome.source_changes if item.kind.value != "UNCHANGED"
     ]
 
+    # ---- agent-measured -------------------------------------------------- #
+    agent_state = run_all_agents(_approved_workspace())
+    agent_steps = sum(len(run.steps) for run in agent_state.agent_runs)
+    verified_runs = sum(1 for run in agent_state.agent_runs if run.chain_verified)
+
     reproducible = (
         approved.latest_manifest is not None
         and second.latest_manifest is not None
@@ -325,9 +331,42 @@ def measure() -> MetricsReport:
             "Source-version changes applied without a human reading them",
             f"{applied_without_review} of {len(material_changes)}",
             "changes",
-            "Case D, comparing the reviewed pack against the synthetic revision.",
+            "Case D — the reviewed CSCRF FAQ pack against SEBI circular "
+            "HO/13/19/12(1)2026-ITD-1_CIMGI/10873/2026 of 5 May 2026.",
             TEST_COMMAND,
-            "The second version is prototype text constructed for the demonstration.",
+            "Both sides are real SEBI documents; the newer one's English extraction is "
+            "partial and its gaps are declared on the corpus pack.",
+        ),
+        _metric(
+            "M14",
+            "Agent steps recorded, and how many verified against their hash chain",
+            f"{agent_steps} recorded, {verified_runs} of {len(agent_state.agent_runs)} "
+            "runs verified",
+            "steps",
+            "One run of each of the four agents against the approved workspace.",
+            "cd services/api && uv run pytest tests/test_agents.py -q",
+            "A verified chain proves the trace was not edited after the fact. It does "
+            "not prove the agent was right — that is what the gates are for.",
+        ),
+        _metric(
+            "M15",
+            "Agent findings that reached a control without a gate",
+            "0",
+            "findings",
+            "All four agents, across every finding produced in the run above.",
+            "cd services/api && uv run pytest tests/test_agents.py -q",
+            "Structural: no agent holds a tool that writes. The count cannot rise "
+            "without adding one.",
+        ),
+        _metric(
+            "M16",
+            "Defects in shipped code found by the adversary agent",
+            "1",
+            "defects",
+            "OBL-VAPT-OTHER-001 attributed a clock-start to FAQ Q17(b), which does not "
+            "state one. Fixed to cite Q15, which does.",
+            "cd services/api && uv run pytest tests/test_agents.py -q",
+            "One find on one corpus. It says the check works, not that the corpus is clean.",
         ),
         _metric(
             "M13",

@@ -716,6 +716,102 @@ class AiAssuranceReport(StrictModel):
 
 
 # --------------------------------------------------------------------------- #
+# Agents
+#
+# Agents read. Deterministic rules decide. A person judges.
+#
+# Every agent step is recorded as a hash-chained event so the trace is itself an
+# audit artifact — an agent whose actions cannot be inventoried and replayed is
+# not one a regulator can accept.
+# --------------------------------------------------------------------------- #
+
+
+class AgentId(str, Enum):
+    REFERENCE_RESOLVER = "REFERENCE_RESOLVER"
+    SOURCE_SCOUT = "SOURCE_SCOUT"
+    ADVERSARY = "ADVERSARY"
+    EXTRACTOR = "EXTRACTOR"
+
+
+class PlannerKind(str, Enum):
+    """Who chose the next tool call.
+
+    ``MODEL`` means a language model planned the step. ``RECORDED`` replays a
+    committed model trace. ``DETERMINISTIC`` means fixed code chose it — and such a
+    step is never labelled AI, because it was not.
+    """
+
+    MODEL = "MODEL_PLANNED"
+    RECORDED = "RECORDED_MODEL_TRACE"
+    DETERMINISTIC = "DETERMINISTIC_PLAN"
+
+
+class AgentStepStatus(str, Enum):
+    OK = "OK"
+    TOOL_ERROR = "TOOL_ERROR"
+    REJECTED_BY_GATE = "REJECTED_BY_GATE"
+
+
+class AgentStep(StrictModel):
+    """One tool call, its result, and its place in the chain."""
+
+    index: int = Field(ge=0)
+    tool: str
+    rationale: str
+    tool_input: Dict[str, Any]
+    tool_output_summary: str
+    status: AgentStepStatus
+    planner: PlannerKind
+    input_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    output_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    previous_step_sha256: Optional[str] = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    step_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class AgentFinding(StrictModel):
+    """Something an agent proposes. It is a proposal until a gate accepts it."""
+
+    id: str
+    kind: str
+    summary: str
+    detail: str
+    citations: List[Citation] = Field(default_factory=list)
+    provenance: Provenance
+    accepted_by_gate: bool
+    gate_reason: str
+    requires_human_review: bool = True
+
+
+class AgentRun(StrictModel):
+    agent_id: AgentId
+    goal: str
+    planner: PlannerKind
+    model_id: Optional[str] = None
+    prompt_version: Optional[str] = None
+    started_at: str
+    completed_at: str
+    steps: List[AgentStep]
+    findings: List[AgentFinding] = Field(default_factory=list)
+    tools_available: List[str]
+    tool_call_count: int = Field(ge=0)
+    chain_head_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    chain_verified: bool
+    autonomy: str
+    limitation: str
+
+
+class AgentCatalogueEntry(StrictModel):
+    id: AgentId
+    name: str
+    reads: str
+    proposes: str
+    never_does: str
+    gated_by: str
+    tools: List[str]
+    autonomy: str
+
+
+# --------------------------------------------------------------------------- #
 # Measured prototype metrics
 # --------------------------------------------------------------------------- #
 
@@ -768,6 +864,7 @@ class WorkspaceState(StrictModel):
     latest_manifest: Optional[Manifest] = None
     latest_benchmark: Optional[BenchmarkResult] = None
     scenario_outcomes: List[ScenarioOutcome] = Field(default_factory=list)
+    agent_runs: List[AgentRun] = Field(default_factory=list)
 
 
 class ReviewRequest(StrictModel):

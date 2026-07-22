@@ -242,7 +242,35 @@ def _build_tests(state: WorkspaceState) -> List[BuildTest]:
         and any(item.status == EvidenceStatus.NEEDS_REVALIDATION for item in state.evidence)
         and len(state.tasks) >= 2
     )
+    # An agent challenge that landed is a blocking gate, not a note. This is what
+    # makes the adversary worth having: it can stop a build, and only a person can
+    # clear it.
+    landed_challenges = [
+        item.summary
+        for run in state.agent_runs
+        if run.agent_id.value == "ADVERSARY"
+        for item in run.findings
+        if item.kind == "CHALLENGE_LANDED"
+    ]
+    adversary_ran = any(run.agent_id.value == "ADVERSARY" for run in state.agent_runs)
+
     return [
+        BuildTest(
+            id="TEST-ADVERSARY-001",
+            name="No agent challenge is outstanding against a compiled obligation",
+            status=BuildTestStatus.BLOCK if landed_challenges else BuildTestStatus.PASS,
+            message=(
+                "; ".join(landed_challenges)
+                if landed_challenges
+                else (
+                    "The adversary agent found nothing to contradict. That is evidence, "
+                    "not proof of correctness."
+                    if adversary_ran
+                    else "The adversary agent has not run, so this check is vacuous."
+                )
+            ),
+            related_span_ids=["FAQ-Q17-A"],
+        ),
         BuildTest(
             id="TEST-COVERAGE-001",
             name="No unresolved material source spans",
@@ -737,6 +765,17 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
         reviewer_name=request.reviewer_name,
         citation=q17b,
     )
+    # Q17(b) defines *which* findings this branch covers and states the period
+    # ("3 months"). It does not say what starts the clock — that sentence lives in
+    # Q15, which states both: "within three (3) months of submission of VAPT report".
+    # Citing Q17(b) for the trigger would attribute to a passage something it does not
+    # say, so the deadline cites Q15 and the branch definition cites Q17(b).
+    # Found by the adversary agent; see tests/test_agents.py.
+    q15_deadline = _citation(
+        state,
+        "FAQ-Q15",
+        "within three (3) months of submission of VAPT report",
+    )
     other_obligation = Obligation(
         id="OBL-VAPT-OTHER-001",
         version=1,
@@ -752,7 +791,7 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             trigger_provenance=Provenance.SOURCE_EXPLICIT,
             duration_provenance=Provenance.SOURCE_EXPLICIT,
             computable=True,
-            citation=q17b,
+            citation=q15_deadline,
         ),
         control_id="CTRL-VAPT-07",
         evidence_requirements=["VAPT report", "Risk-graded remediation record", "Closure proof"],
@@ -761,7 +800,9 @@ def approve_q17(state: WorkspaceState, request: ReviewRequest) -> WorkspaceState
             "action": q17b,
             "object": q17b,
             "condition": q17b,
-            "deadline": q17b,
+            "deadline": q15_deadline,
+            "trigger": q15_deadline,
+            "duration": q17b,
         },
         field_provenance={
             "actor": Provenance.SOURCE_EXPLICIT,

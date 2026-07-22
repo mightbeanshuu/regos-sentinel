@@ -86,16 +86,31 @@ def _gate(
 
 
 def _hero_gates(state: WorkspaceState, pack: CorpusPack) -> List[CorpusGate]:
+    """Gates for an active pack, computed against *that pack's own* passages.
+
+    A pack may only show a gate as cleared if something ran for it. Registering a
+    second active source and letting it inherit the first one's progress would be the
+    exact overstatement this table exists to prevent — so coverage, extraction, review
+    and report generation are all scoped to this pack's document.
+    """
     scoped = [span for span in state.source_spans if span.document_id == pack.document_id]
-    disposed = [
-        entry
-        for entry in state.coverage
-        if any(span.id == entry.span_id for span in scoped)
-    ]
+    scoped_ids = {span.id for span in scoped}
+    disposed = [entry for entry in state.coverage if entry.span_id in scoped_ids]
     ambiguous = [item for item in disposed if item.status == CoverageStatus.AMBIGUOUS]
-    compiled = [item for item in state.obligations if item.status == "ACTIVE"]
-    approved = any(review.decision == "APPROVED" for review in state.reviews)
-    sealed = state.latest_manifest is not None
+    compiled = [
+        item
+        for item in state.obligations
+        if item.status == "ACTIVE" and item.deadline.citation.span_id in scoped_ids
+    ]
+    reviewed_here = [
+        review
+        for review in state.reviews
+        if review.decision == "APPROVED" and review.span_id in scoped_ids
+    ]
+    approved = bool(reviewed_here)
+    # A sealed record only counts for the pack whose passages it actually compiled.
+    sealed = state.latest_manifest is not None and bool(compiled)
+    covered = bool(scoped) and len(disposed) == len(scoped)
     passed = CorpusGateStatus.PASSED
     not_run = CorpusGateStatus.NOT_RUN
 
@@ -108,13 +123,13 @@ def _hero_gates(state: WorkspaceState, pack: CorpusPack) -> List[CorpusGate]:
         ),
         _gate(
             *GATE_SEQUENCE[1],
-            passed,
+            passed if scoped else not_run,
             f"{len(scoped)} passages, each with a page-level locator",
             "tests/test_documents.py::test_sentences_split_on_word_boundaries_not_bare_suffixes",
         ),
         _gate(
             *GATE_SEQUENCE[2],
-            passed,
+            passed if covered else not_run,
             (
                 f"{len(disposed)} of {len(scoped)} passages disposed"
                 + (f" · {len(ambiguous)} awaiting interpretation" if ambiguous else "")
@@ -134,21 +149,30 @@ def _hero_gates(state: WorkspaceState, pack: CorpusPack) -> List[CorpusGate]:
         ),
         _gate(
             *GATE_SEQUENCE[4],
-            passed,
-            "Four provenance values, one per derived field",
+            passed if compiled else not_run,
+            (
+                "Four provenance values, one per derived field"
+                if compiled
+                else "Nothing derived from this pack yet, so nothing to attribute"
+            ),
             "tests/test_workflow.py::test_uncomputable_deadline_rejects_due_date_and_policy_note",
         ),
         _gate(
             *GATE_SEQUENCE[5],
-            passed,
-            f"{len(state.applicability_scenarios)} scenario receipts · inclusions and exclusions",
+            passed if compiled else not_run,
+            (
+                f"{len(state.applicability_scenarios)} scenario receipts · "
+                "inclusions and exclusions"
+                if compiled
+                else "No requirement from this pack has reached an applicability decision"
+            ),
             "tests/test_scenarios.py::test_case_c_receipts_an_exclusion",
         ),
         _gate(
             *GATE_SEQUENCE[6],
             passed if approved else not_run,
             (
-                f"Approved by {state.reviews[-1].reviewer_name}"
+                f"Approved by {reviewed_here[-1].reviewer_name}"
                 if approved
                 else "Waiting for a named reviewer"
             ),

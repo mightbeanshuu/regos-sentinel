@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
+from .advisory import advisory_document, advisory_pack, advisory_spans
 from .model_cache import load_model_cache
 from .models import (
     ApplicabilityReceipt,
@@ -162,9 +163,16 @@ def initial_state() -> WorkspaceState:
         "Board of India.",
         False,
     )
-    spans = [disclaimer, q14, q15, q16, q17a, q17b, q20, q24, q25]
-    model_run_receipt, _ = load_model_cache(spans)
-    excerpt_hash = hashlib.sha256("\n".join(span.text for span in spans).encode()).hexdigest()
+    faq_spans = [disclaimer, q14, q15, q16, q17a, q17b, q20, q24, q25]
+    # The 5 May 2026 advisory is read and segmented, so its passages live in the
+    # workspace. They are deliberately *not* compiled into this entity's controls —
+    # the gate table shows extraction as not run, and Case D compares against them.
+    advisory = advisory_spans()
+    spans = faq_spans + advisory
+    model_run_receipt, _ = load_model_cache(faq_spans)
+    excerpt_hash = hashlib.sha256(
+        "\n".join(span.text for span in faq_spans).encode()
+    ).hexdigest()
 
     document = SourceDocument(
         id=DOCUMENT_ID,
@@ -304,7 +312,7 @@ def initial_state() -> WorkspaceState:
             ],
             has_dormant_license=False,
         ),
-        documents=[document],
+        documents=[document, advisory_document(advisory)],
         corpus_packs=[
             CorpusPack(
                 id="PACK-CSCRF-FAQ-HERO",
@@ -327,7 +335,7 @@ def initial_state() -> WorkspaceState:
                     "Q14–Q25 and Preface ¶4. Obligation extraction is limited to Q15, Q17(a) "
                     "and Q17(b); the remaining spans supply applicability and calendar facts."
                 ),
-                source_span_ids=[span.id for span in spans],
+                source_span_ids=[span.id for span in faq_spans],
                 validation_tests=[
                     "tests/test_workflow.py::test_build_fails_closed_before_human_review",
                     "tests/test_workflow.py::test_review_persists_split_and_propagates_impact",
@@ -335,6 +343,7 @@ def initial_state() -> WorkspaceState:
                     "tests/test_scenarios.py::test_scenario_catalogue_is_complete",
                 ],
             ),
+            advisory_pack(advisory),
             CorpusPack(
                 id="PACK-STOCK-BROKER-MC-2025",
                 title="Master Circular for Stock Brokers",
@@ -393,6 +402,20 @@ def initial_state() -> WorkspaceState:
         ],
         source_spans=spans,
         coverage=[
+            *[
+                CoverageEntry(
+                    id=f"COV-{span.id}",
+                    span_id=span.id,
+                    status=CoverageStatus.OUT_OF_SCOPE,
+                    rationale=(
+                        "Read and segmented from the 5 May 2026 advisory. Not compiled "
+                        "into this entity's control register — the advisory is "
+                        "registered as a second reviewed source and Case D compares "
+                        "the reviewed corpus against it."
+                    ),
+                )
+                for span in advisory
+            ],
             CoverageEntry(
                 id="COV-PREFACE-4",
                 span_id=disclaimer.id,
