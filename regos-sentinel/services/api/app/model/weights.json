@@ -1,0 +1,149 @@
+{
+  "features": [
+    "bias",
+    "has_duration",
+    "has_clock_start",
+    "has_urgency",
+    "duration_and_clock_start",
+    "duration_without_clock_start",
+    "urgency_without_duration",
+    "imperative",
+    "ceiling_language",
+    "within",
+    "recurrence",
+    "unit:minute",
+    "unit:hour",
+    "unit:day",
+    "unit:week",
+    "unit:month",
+    "unit:year",
+    "unit:business day"
+  ],
+  "labels": [
+    "PERIOD_AND_TRIGGER",
+    "PERIOD_ONLY",
+    "URGENCY_ONLY",
+    "NO_TIMING"
+  ],
+  "metrics": {
+    "accuracy": 0.977,
+    "confusion": {
+      "NO_TIMING": {
+        "NO_TIMING": 28,
+        "PERIOD_AND_TRIGGER": 0,
+        "PERIOD_ONLY": 0,
+        "URGENCY_ONLY": 1
+      },
+      "PERIOD_AND_TRIGGER": {
+        "NO_TIMING": 0,
+        "PERIOD_AND_TRIGGER": 19,
+        "PERIOD_ONLY": 0,
+        "URGENCY_ONLY": 0
+      },
+      "PERIOD_ONLY": {
+        "NO_TIMING": 1,
+        "PERIOD_AND_TRIGGER": 0,
+        "PERIOD_ONLY": 18,
+        "URGENCY_ONLY": 0
+      },
+      "URGENCY_ONLY": {
+        "NO_TIMING": 0,
+        "PERIOD_AND_TRIGGER": 0,
+        "PERIOD_ONLY": 0,
+        "URGENCY_ONLY": 20
+      }
+    },
+    "examples": 87,
+    "folds": 6,
+    "note": "Stratified 6-fold cross-validation over 87 hand-labelled sentences, 22 of them real published SEBI wording and the rest constructed variations. A sample this size supports a claim about the lexical signal and not much else; it is reported as measured, not extrapolated.",
+    "recall_by_class": {
+      "NO_TIMING": 0.9655,
+      "PERIOD_AND_TRIGGER": 1.0,
+      "PERIOD_ONLY": 0.9474,
+      "URGENCY_ONLY": 1.0
+    }
+  },
+  "model_version": "regos-timing/1.0.0",
+  "weights": {
+    "NO_TIMING": {
+      "bias": 1.9584805721575347,
+      "ceiling_language": -0.5234955057056933,
+      "duration_and_clock_start": -0.6361451057064667,
+      "duration_without_clock_start": -1.0680236412187636,
+      "has_clock_start": -0.6361451057064667,
+      "has_duration": -0.8467436798314736,
+      "has_urgency": -1.0217069956749294,
+      "imperative": 1.111650537213006,
+      "recurrence": -0.7632407736576758,
+      "unit:business day": -0.5575343156235824,
+      "unit:day": -0.8220991745262024,
+      "unit:hour": -0.5044306240476675,
+      "unit:minute": -0.5624211170566393,
+      "unit:month": -1.0262806896625039,
+      "unit:week": -0.7664155202179163,
+      "unit:year": -1.1965787831832964,
+      "urgency_without_duration": -1.0217069956749294,
+      "within": -0.6092743192040176
+    },
+    "PERIOD_AND_TRIGGER": {
+      "bias": -0.7837372029946357,
+      "ceiling_language": -0.3773109434339014,
+      "duration_and_clock_start": 1.7326037427982723,
+      "duration_without_clock_start": -0.9093156115692097,
+      "has_clock_start": 1.7326037427982723,
+      "has_duration": 0.41497345249207973,
+      "has_urgency": -0.43282974579743205,
+      "imperative": -0.5757154366000488,
+      "recurrence": 0.4182916044185621,
+      "unit:business day": -0.3869713721384409,
+      "unit:day": 0.6230866428683838,
+      "unit:hour": 0.46311013923666455,
+      "unit:minute": -0.3889494913794508,
+      "unit:month": 0.4670968538699961,
+      "unit:week": 0.239298595758852,
+      "unit:year": 0.8747008051219588,
+      "urgency_without_duration": -0.43282974579743205,
+      "within": 0.7557891602545235
+    },
+    "PERIOD_ONLY": {
+      "bias": -0.5498392111725443,
+      "ceiling_language": 1.095823483410009,
+      "duration_and_clock_start": -0.888304093170984,
+      "duration_without_clock_start": 2.2728053580763388,
+      "has_clock_start": -0.888304093170984,
+      "has_duration": 0.683152878938281,
+      "has_urgency": -0.7103278558766286,
+      "imperative": -0.13444688830473164,
+      "recurrence": 0.08738929994056573,
+      "unit:business day": 1.1106152666970255,
+      "unit:day": 0.43117025819164756,
+      "unit:hour": 0.2578420084063615,
+      "unit:minute": 1.1170283110174501,
+      "unit:month": 0.8409187947657584,
+      "unit:week": 0.7654281977670562,
+      "unit:year": 0.6488972914772817,
+      "urgency_without_duration": -0.7103278558766286,
+      "within": 0.05644776945446842
+    },
+    "URGENCY_ONLY": {
+      "bias": -0.6249041579903558,
+      "ceiling_language": -0.195017034270414,
+      "duration_and_clock_start": -0.20815454392081942,
+      "duration_without_clock_start": -0.2954661052883622,
+      "has_clock_start": -0.20815454392081942,
+      "has_duration": -0.2513826515988875,
+      "has_urgency": 2.1648645973489895,
+      "imperative": -0.40148821230822584,
+      "recurrence": 0.257559869298548,
+      "unit:business day": -0.16610957893500172,
+      "unit:day": -0.2321577265338292,
+      "unit:hour": -0.21652152359535917,
+      "unit:minute": -0.1656577025813604,
+      "unit:month": -0.28173495897325035,
+      "unit:week": -0.23831127330799173,
+      "unit:year": -0.32701931341594204,
+      "urgency_without_duration": 2.1648645973489895,
+      "within": -0.20296261050497433
+    }
+  }
+}

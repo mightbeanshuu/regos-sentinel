@@ -18,6 +18,7 @@ from .agents.orchestrator import (
     run_agent,
     run_all_agents,
 )
+from .agents.tools import analyse_timing
 from .answers import ask
 from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
@@ -44,6 +45,7 @@ from .engine import (
     set_qsb_status,
 )
 from .metrics import measure
+from .model import load_classifier, model_card
 from .models import (
     AgentCatalogueEntry,
     AgentId,
@@ -253,6 +255,46 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     # The index SEBI actually scores an entity on, and an assistant that
     # may only quote the source or decline.
     # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/model")
+    def timing_model_card() -> dict:
+        """What RegOS's own model is, how it was measured, and what it must not decide."""
+        return model_card()
+
+    @application.post("/api/v1/model/explain")
+    def explain_timing(body: AssistantQuestion) -> dict:
+        """Classify one sentence, and show the features and weights behind the answer.
+
+        The deterministic rule runs on the same sentence. Both verdicts are returned and
+        neither overrules the other — where they disagree, that is the output, and a
+        person decides. Two independent methods agreeing is evidence; one silently
+        winning is not.
+        """
+        classifier = load_classifier()
+        if classifier is None:
+            raise HTTPException(status_code=503, detail="The model weights are not built.")
+        model = classifier.explain(body.question)
+        rule = analyse_timing(body.question)
+        # The rule and the model use different names for the same four outcomes.
+        equivalent = {
+            "PERIOD_AND_TRIGGER_STATED": "PERIOD_AND_TRIGGER",
+            "PERIOD_WITHOUT_TRIGGER": "PERIOD_ONLY",
+            "URGENCY_WITHOUT_PERIOD": "URGENCY_ONLY",
+            "NO_TIMING_LANGUAGE": "NO_TIMING",
+        }
+        agree = equivalent.get(rule["verdict"]) == model["label"]
+        return {
+            "sentence": body.question,
+            "model": model,
+            "rule": {"verdict": rule["verdict"], "note": rule["note"]},
+            "agree": agree,
+            "note": (
+                "Both methods reached the same answer independently."
+                if agree
+                else "The model and the fixed rule disagree. Neither overrules the "
+                     "other; a person decides, and the disagreement is the finding."
+            ),
+        }
 
     @application.get("/api/v1/cci", response_model=CciReport)
     def cyber_capability_index(request: Request) -> CciReport:

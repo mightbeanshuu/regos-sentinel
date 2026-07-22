@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -81,58 +82,72 @@ DEFAULT_PLANNER_MODEL = "openai/gpt-oss-20b:free"
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-#: Every provider here speaks the OpenAI chat-completions dialect, including tool
-#: calling, so one code path drives all of them and switching is an environment
-#: variable rather than a rewrite.
+#: Where a model can be reached, and in which dialect.
 #:
-#: They are ordered by what a team with no budget can actually get today. Google AI
-#: Studio and Groq both issue a key with no card and no spend, and both serve models
-#: well above the free tier OpenRouter gives away — which matters, because a planner
-#: that gives up after one call is the difference between the model doing the work and
-#: the fixed rules doing it for them.
+#: Most providers speak the OpenAI chat-completions dialect, so one code path drives
+#: them all. Google is the exception and is worth the exception: its keys authenticate
+#: with an ``x-goog-api-key`` header rather than a bearer token, and its function
+#: calling uses ``contents``/``functionDeclarations`` instead of ``messages``/``tools``.
+#: It is first in the list because a Google AI Studio key is the strongest planner a
+#: team can obtain today without a card or a spend, and a planner that gives up after
+#: one call is the difference between the model doing the work and the fixed rules
+#: doing it for them.
 #:
-#: ``(env var, base URL, default model, label)``
+#: ``OPENAI_API_KEY`` is last and points at OpenRouter deliberately: on this project
+#: that variable has always held an ``sk-or-`` key, and honouring the name over the
+#: value would post it to OpenAI and fail in a way nobody would diagnose quickly.
 PROVIDERS = (
-    (
-        "GEMINI_API_KEY",
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-        "gemini-2.5-flash",
-        "Google AI Studio",
-    ),
-    (
-        "GOOGLE_API_KEY",
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-        "gemini-2.5-flash",
-        "Google AI Studio",
-    ),
-    (
-        "GROQ_API_KEY",
-        "https://api.groq.com/openai/v1/chat/completions",
-        "llama-3.3-70b-versatile",
-        "Groq",
-    ),
-    (
-        "CEREBRAS_API_KEY",
-        "https://api.cerebras.ai/v1/chat/completions",
-        "llama-3.3-70b",
-        "Cerebras",
-    ),
-    ("OPENROUTER_API_KEY", OPENROUTER_URL, "openai/gpt-oss-20b:free", "OpenRouter"),
-    ("OPENAI_API_KEY", OPENROUTER_URL, "openai/gpt-oss-20b:free", "OpenRouter"),
+    {
+        "env": "GEMINI_API_KEY",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "model": "gemini-flash-latest",
+        "label": "Google AI Studio",
+        "dialect": "gemini",
+    },
+    {
+        "env": "GOOGLE_API_KEY",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "model": "gemini-flash-latest",
+        "label": "Google AI Studio",
+        "dialect": "gemini",
+    },
+    {
+        "env": "GROQ_API_KEY",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Groq",
+        "dialect": "openai",
+    },
+    {
+        "env": "CEREBRAS_API_KEY",
+        "url": "https://api.cerebras.ai/v1/chat/completions",
+        "model": "llama-3.3-70b",
+        "label": "Cerebras",
+        "dialect": "openai",
+    },
+    {
+        "env": "OPENROUTER_API_KEY",
+        "url": OPENROUTER_URL,
+        "model": "openai/gpt-oss-20b:free",
+        "label": "OpenRouter",
+        "dialect": "openai",
+    },
+    {
+        "env": "OPENAI_API_KEY",
+        "url": OPENROUTER_URL,
+        "model": "openai/gpt-oss-20b:free",
+        "label": "OpenRouter",
+        "dialect": "openai",
+    },
 )
 
 
 def resolve_provider() -> Optional[Dict[str, str]]:
-    """The first configured provider, or ``None`` if no key is set anywhere.
-
-    ``OPENAI_API_KEY`` is last and points at OpenRouter deliberately: on this project
-    that variable has always held an OpenRouter key, and honouring the name over the
-    value would send a ``sk-or-`` key to OpenAI and fail confusingly.
-    """
-    for variable, url, model, label in PROVIDERS:
-        key = os.environ.get(variable)
+    """The first configured provider, or ``None`` if no key is set anywhere."""
+    for provider in PROVIDERS:
+        key = os.environ.get(provider["env"])
         if key:
-            return {"key": key, "url": url, "model": model, "label": label, "env": variable}
+            return {**provider, "key": key}
     return None
 
 CASSETTE_DIR = Path(__file__).with_name("cassettes")
@@ -142,6 +157,9 @@ MAX_STEPS = 12
 
 #: Tool output handed back to the model is truncated; the hash covers the whole thing.
 MAX_OBSERVATION_CHARS = 3000
+
+#: Longest we will wait out a free-tier rate limit before giving up on the model.
+MAX_RETRY_WAIT = 15.0
 
 SYSTEM_PROMPT = """\
 You are the planner for one agent inside RegOS Sentinel, a regulatory compliance system \
@@ -282,10 +300,13 @@ class ModelPlanner:
             },
         ]
         self._pending_call_id: Optional[str] = None
+        self._pending_call_name: Optional[str] = None
+        #: Google's turns, kept exactly as returned. See ``_post_gemini``.
+        self._gemini_contents: List[Dict[str, Any]] = []
 
     # -- the conversation ------------------------------------------------- #
 
-    def _post(self) -> Dict[str, Any]:
+    def _provider(self) -> Dict[str, str]:
         provider = resolve_provider()
         if offline() or provider is None:
             raise PlannerUnavailable(
@@ -293,103 +314,230 @@ class ModelPlanner:
                 if offline()
                 else "no model provider key is set on this deployment"
             )
-        key = provider["key"]
+        return provider
+
+    def _send(self, provider: Dict[str, str], url: str, headers: Dict[str, str], body: Any):
+        """POST once, and give a rate limit exactly one second chance.
+
+        Every free tier meters requests per minute, and a planner makes several calls in
+        quick succession by design — so a 429 mid-run is ordinary rather than
+        exceptional, and giving up on the first one throws away a working model. The
+        provider usually says how long to wait; that is honoured up to a cap, because a
+        demo cannot stall on a minute-long backoff. A second 429 is taken at its word.
+        """
+        for attempt in (0, 1):
+            try:
+                response = httpx.post(url, headers=headers, json=body, timeout=self.timeout)
+                if response.status_code == 429:
+                    if attempt == 0:
+                        time.sleep(min(self._retry_after(response), MAX_RETRY_WAIT))
+                        continue
+                    raise PlannerUnavailable(
+                        "the planner model is rate limited right now (HTTP 429). This is "
+                        "a quota limit on the free tier, not a fault in the run."
+                    )
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPError as error:
+                # Keep the first line only; the rest is library boilerplate.
+                detail = str(error).strip().splitlines()[0]
+                raise PlannerUnavailable(f"{type(error).__name__}: {detail}") from error
+        raise PlannerUnavailable("the planner model is rate limited right now (HTTP 429).")
+
+    @staticmethod
+    def _retry_after(response: httpx.Response) -> float:
+        """However long the provider asked us to wait, in seconds. Default 8."""
+        header = response.headers.get("retry-after")
+        if header and header.isdigit():
+            return float(header)
         try:
-            response = httpx.post(
-                provider["url"],
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Content-Type": "application/json",
-                    # OpenRouter attributes free-tier traffic by these; the other
-                    # providers ignore them.
-                    "HTTP-Referer": "https://regos-sentinel.vercel.app",
-                    "X-Title": "RegOS Sentinel",
-                },
-                json={
-                    "model": self.model,
-                    "temperature": 0,
-                    "max_tokens": 700,
-                    "tools": [
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": tool["name"],
-                                "description": tool["description"],
-                                "parameters": tool["parameters"],
-                            },
-                        }
-                        for tool in self.tools
-                    ],
-                    "tool_choice": "auto",
-                    "messages": self._messages,
-                },
-                timeout=self.timeout,
-            )
-            if response.status_code == 429:
-                # The common case on a free tier, and worth naming plainly rather than
-                # reporting as a generic failure — the deployment is fine, the quota is not.
-                raise PlannerUnavailable(
-                    "the planner model is rate limited right now (HTTP 429). "
-                    "This is a quota limit on the free tier, not a fault in the run."
-                )
-            response.raise_for_status()
-            envelope = response.json()
-        except httpx.HTTPError as error:
-            # Keep the first line only; the rest is library boilerplate.
-            detail = str(error).strip().splitlines()[0]
-            raise PlannerUnavailable(f"{type(error).__name__}: {detail}") from error
+            for detail in response.json()["error"].get("details", []):
+                delay = str(detail.get("retryDelay", ""))
+                if delay.endswith("s") and delay[:-1].replace(".", "", 1).isdigit():
+                    return float(delay[:-1])
+        except Exception:  # noqa: BLE001 — the default is fine
+            pass
+        return 8.0
+
+    # -- dialects --------------------------------------------------------- #
+    #
+    # Both return the same normalised shape — ``{"content": str, "call": {...}|None}`` —
+    # so everything above this line is dialect-agnostic. The conversation is kept in the
+    # OpenAI shape and translated for Google at send time, because keeping one canonical
+    # history is far easier to reason about than maintaining two.
+
+    def _post_openai(self, provider: Dict[str, str]) -> Dict[str, Any]:
+        envelope = self._send(
+            provider,
+            provider["url"],
+            {
+                "Authorization": f"Bearer {provider['key']}",
+                "Content-Type": "application/json",
+                # OpenRouter attributes free-tier traffic by these; others ignore them.
+                "HTTP-Referer": "https://regos-sentinel.vercel.app",
+                "X-Title": "RegOS Sentinel",
+            },
+            {
+                "model": self.model,
+                "temperature": 0,
+                "max_tokens": 700,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool["name"],
+                            "description": tool["description"],
+                            "parameters": tool["parameters"],
+                        },
+                    }
+                    for tool in self.tools
+                ],
+                "tool_choice": "auto",
+                "messages": self._messages,
+            },
+        )
         if "choices" not in envelope:
-            raise PlannerUnavailable(
-                f"Planner returned no choices: {str(envelope)[:200]}"
-            )
+            raise PlannerUnavailable(f"Planner returned no choices: {str(envelope)[:200]}")
         self.model_id = str(envelope.get("model") or self.model)
-        return envelope["choices"][0]["message"]
+        message = envelope["choices"][0]["message"]
+        calls = message.get("tool_calls") or []
+        if not calls:
+            return {"content": message.get("content") or "", "call": None}
+        call = calls[0]
+        raw = (call.get("function") or {}).get("arguments") or "{}"
+        try:
+            arguments = json.loads(raw) if isinstance(raw, str) else raw
+        except json.JSONDecodeError:
+            # Malformed arguments are not repaired. The call goes through empty and the
+            # tool rejects it, which is recorded rather than hidden.
+            arguments = {}
+        return {
+            "content": message.get("content") or "",
+            "call": {
+                "id": call.get("id") or "call_0",
+                "name": str((call.get("function") or {}).get("name") or ""),
+                "arguments": arguments if isinstance(arguments, dict) else {},
+            },
+        }
+
+    def _post_gemini(self, provider: Dict[str, str]) -> Dict[str, Any]:
+        """Google's own dialect: header auth, ``contents``, ``functionDeclarations``.
+
+        Gemini's own turns are replayed **verbatim** rather than rebuilt from the
+        canonical history. Its thinking models attach a ``thoughtSignature`` to each
+        ``functionCall``, and reject the next request if the signature does not come
+        back with it — so a faithful-looking translation that drops the field produces
+        a 400 on the second call and works perfectly on the first, which is a
+        memorable way to lose an afternoon. Keeping the model's own bytes sidesteps
+        the whole class of problem.
+        """
+        system = next(
+            (m["content"] for m in self._messages if m.get("role") == "system"), ""
+        )
+        if not self._gemini_contents:
+            self._gemini_contents = [
+                {"role": "user", "parts": [{"text": m["content"]}]}
+                for m in self._messages
+                if m.get("role") == "user"
+            ]
+
+        body: Dict[str, Any] = {
+            "contents": self._gemini_contents,
+            "tools": [{
+                "functionDeclarations": [
+                    {
+                        "name": tool["name"],
+                        "description": tool["description"],
+                        "parameters": tool["parameters"],
+                    }
+                    for tool in self.tools
+                ]
+            }],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 700},
+        }
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+
+        envelope = self._send(
+            provider,
+            f"{provider['url']}/{self.model}:generateContent",
+            {"x-goog-api-key": provider["key"], "Content-Type": "application/json"},
+            body,
+        )
+        candidates = envelope.get("candidates") or []
+        if not candidates:
+            raise PlannerUnavailable(f"Planner returned nothing: {str(envelope)[:200]}")
+        self.model_id = str(envelope.get("modelVersion") or self.model)
+        content = candidates[0].get("content") or {}
+        parts = content.get("parts") or []
+        # Verbatim, signatures and all. See the docstring.
+        self._gemini_contents.append({"role": "model", "parts": parts})
+        text = " ".join(str(part["text"]) for part in parts if "text" in part).strip()
+        for part in parts:
+            if "functionCall" in part:
+                function = part["functionCall"]
+                return {
+                    "content": text,
+                    "call": {
+                        "id": function.get("id") or "call_0",
+                        "name": str(function.get("name") or ""),
+                        "arguments": function.get("args") or {},
+                    },
+                }
+        return {"content": text, "call": None}
 
     def next_call(self) -> Optional[Dict[str, Any]]:
         """The next planned call, or ``None`` when the model considers the goal met."""
-        message = self._post()
-        tool_calls = message.get("tool_calls") or []
-        if not tool_calls:
+        provider = self._provider()
+        reply = (
+            self._post_gemini(provider)
+            if provider.get("dialect") == "gemini"
+            else self._post_openai(provider)
+        )
+        call = reply["call"]
+        if call is None:
             return None
 
-        call = tool_calls[0]
-        self._pending_call_id = call.get("id") or "call_0"
-        # Keep the assistant turn verbatim so the next request is a valid continuation.
-        self._messages.append(
-            {
-                "role": "assistant",
-                "content": message.get("content") or "",
-                "tool_calls": [call],
-            }
-        )
-        raw_arguments = (call.get("function") or {}).get("arguments") or "{}"
-        try:
-            arguments = (
-                json.loads(raw_arguments)
-                if isinstance(raw_arguments, str)
-                else raw_arguments
-            )
-        except json.JSONDecodeError:
-            # Malformed arguments are not repaired. The call goes through as empty and
-            # the tool rejects it, which is recorded rather than hidden.
-            arguments = {}
-        rationale = (message.get("content") or "").strip() or (
-            f"Model planner chose {(call.get('function') or {}).get('name')}."
-        )
+        self._pending_call_id = call["id"]
+        self._pending_call_name = call["name"]
+        # Keep the turn in the canonical shape so the next request continues cleanly.
+        self._messages.append({
+            "role": "assistant",
+            "content": reply["content"],
+            "tool_calls": [{
+                "id": call["id"],
+                "type": "function",
+                "function": {
+                    "name": call["name"],
+                    "arguments": json.dumps(call["arguments"]),
+                },
+            }],
+        })
+        rationale = reply["content"].strip() or f"Model planner chose {call['name']}."
         return {
-            "tool": str((call.get("function") or {}).get("name") or ""),
-            "input": arguments if isinstance(arguments, dict) else {},
+            "tool": call["name"],
+            "input": call["arguments"],
             "rationale": rationale[:400],
         }
 
     def observe(self, output: Any) -> None:
         """Hand the tool's real output back to the model before it plans again."""
         payload = json.dumps(output, default=str)
-        self._messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": self._pending_call_id or "call_0",
-                "content": payload[:MAX_OBSERVATION_CHARS],
-            }
-        )
+        if self._gemini_contents:
+            self._gemini_contents.append({
+                "role": "user",
+                "parts": [{
+                    "functionResponse": {
+                        "name": self._pending_call_name or "",
+                        "response": {"result": payload[:MAX_OBSERVATION_CHARS]},
+                    }
+                }],
+            })
+        self._messages.append({
+            "role": "tool",
+            "tool_call_id": self._pending_call_id or "call_0",
+            "name": self._pending_call_name or "",
+            "content": payload[:MAX_OBSERVATION_CHARS],
+        })
         self._pending_call_id = None
+        self._pending_call_name = None
