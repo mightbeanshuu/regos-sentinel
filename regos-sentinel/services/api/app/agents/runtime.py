@@ -208,40 +208,46 @@ class Agent:
 
     # -- the loop -------------------------------------------------------- #
 
-    def run(self, plan: Optional[List[PlannedCall]] = None) -> AgentRun:
-        planner = PlannerKind.DETERMINISTIC
-        if plan is not None:
-            planner = PlannerKind.RECORDED
-        else:
-            plan = self.deterministic_plan()
+    def run(
+        self,
+        plan: Optional[List[PlannedCall]] = None,
+        planner: Optional[Any] = None,
+    ) -> AgentRun:
+        """Execute a plan and record it.
 
+        Three plan sources, and the label always tells the truth about which was used:
+        a live ``planner`` object plans step by step against real tool output
+        (``MODEL``), an explicit ``plan`` replays a committed model recording
+        (``RECORDED``), and the fallback is this agent's own fixed sequence
+        (``DETERMINISTIC``). A deterministic plan is never described as AI.
+        """
         recorder = TraceRecorder()
         results: List[Any] = []
-        for call in plan:
-            tool = str(call["tool"])
-            payload = dict(call.get("input", {}))
-            rationale = str(call.get("rationale", "")) or "No rationale recorded."
-            try:
-                output = self.toolbox.call(tool, payload)
-                status = AgentStepStatus.OK
-            except ToolRejected as error:
-                output = {"error": str(error)}
-                status = AgentStepStatus.TOOL_ERROR
-            except Exception as error:  # a tool failure is evidence, not a crash
-                output = {"error": f"{type(error).__name__}: {error}"}
-                status = AgentStepStatus.TOOL_ERROR
-            recorder.record(tool, rationale, payload, output, status, planner)
-            if status == AgentStepStatus.OK:
-                results.append(output)
+
+        if planner is not None:
+            kind = PlannerKind.MODEL
+            realised = self._run_model_planned(planner, recorder, results)
+        else:
+            if plan is not None:
+                kind = PlannerKind.RECORDED
+            else:
+                kind = PlannerKind.DETERMINISTIC
+                plan = self.deterministic_plan()
+            for call in plan:
+                self._execute(call, recorder, results, kind)
+            realised = list(plan)
 
         findings = self.gate(results)
         chain_ok = verify_chain(recorder.steps)
+        self.realised_plan: List[PlannedCall] = realised
         return AgentRun(
             agent_id=self.agent_id,
             goal=self.goal,
-            planner=planner,
-            model_id=None,
-            prompt_version=None,
+            planner=kind,
+            model_id=getattr(planner, "model_id", None) if planner is not None else None,
+            prompt_version=(
+                getattr(planner, "prompt_version", None) if planner is not None else None
+            ),
             started_at=_timestamp(0),
             completed_at=_timestamp(len(recorder.steps)),
             steps=recorder.steps,
@@ -253,6 +259,51 @@ class Agent:
             autonomy=self.autonomy,
             limitation=self.limitation,
         )
+
+    # -- plan execution --------------------------------------------------- #
+
+    def _execute(
+        self,
+        call: PlannedCall,
+        recorder: TraceRecorder,
+        results: List[Any],
+        kind: PlannerKind,
+    ) -> Any:
+        """Run one planned call, recording it whether or not it worked."""
+        tool = str(call["tool"])
+        payload = dict(call.get("input", {}))
+        rationale = str(call.get("rationale", "")) or "No rationale recorded."
+        try:
+            output = self.toolbox.call(tool, payload)
+            status = AgentStepStatus.OK
+        except ToolRejected as error:
+            output = {"error": str(error)}
+            status = AgentStepStatus.TOOL_ERROR
+        except Exception as error:  # a tool failure is evidence, not a crash
+            output = {"error": f"{type(error).__name__}: {error}"}
+            status = AgentStepStatus.TOOL_ERROR
+        recorder.record(tool, rationale, payload, output, status, kind)
+        if status == AgentStepStatus.OK:
+            results.append(output)
+        return output
+
+    def _run_model_planned(
+        self, planner: Any, recorder: TraceRecorder, results: List[Any]
+    ) -> List[PlannedCall]:
+        """Let a model choose each call, having seen what the last one returned.
+
+        The model's contribution ends here. It never sees :meth:`gate`, and a call it
+        gets wrong becomes a recorded failed step rather than a bad finding.
+        """
+        realised: List[PlannedCall] = []
+        for _ in range(getattr(planner, "max_steps", 12)):
+            call = planner.next_call()
+            if call is None:  # the model considers the goal met
+                break
+            output = self._execute(call, recorder, results, PlannerKind.MODEL)
+            realised.append(call)
+            planner.observe(output)
+        return realised
 
 
 def finding(

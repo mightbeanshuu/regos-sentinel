@@ -8,6 +8,22 @@ decides which of them to call; none of them asks a model anything.
 Note what is absent. There is no tool that writes an obligation, changes a control,
 sets a deadline, or approves anything. The toolbox is the permission boundary, and it
 is enforced by omission rather than by a policy an agent could talk its way around.
+
+A second boundary sits inside the first. :data:`TOOL_SPECS` is the surface a *language
+model* planner is offered, and it is deliberately narrower than the toolbox. The rule
+is not that a planner may never type a string — it types search queries, and it may
+offer a quotation to :func:`verify_quote` to have it refuted. The rule is that **no
+string a planner writes can come back as evidence**. Every planner-visible tool returns
+content drawn from a pinned corpus, or returns a verdict about the caller's own text
+without repeating it into a finding.
+
+That is why :func:`analyse_timing` is absent here while :func:`analyse_span_timing` is
+present, and why :func:`compare_span_sets` is absent while
+:func:`source_comparison_tool` is present. Both excluded tools take the material to be
+judged as an argument, so a model calling them would be grading its own prose and a gate
+downstream would treat the verdict as a fact about the regulation. Their replacements
+take an identifier and read the text from pinned state. The planner picks the route; the
+sources supply the content.
 """
 
 from __future__ import annotations
@@ -121,6 +137,59 @@ _IDENTIFIER = re.compile(
 def _identifiers(text: str) -> List[str]:
     return [" ".join(match.group(0).lower().replace("-", " ").split())
             for match in _IDENTIFIER.finditer(text)]
+
+
+def span_identifiers(span_id: str) -> List[str]:
+    """The identifiers a pinned excerpt answers to, from its heading and its id."""
+    entry = CSCRF_CORPUS.get(span_id)
+    if entry is None:
+        return []
+    return _identifiers(f"{entry['heading']} {span_id}")
+
+
+def identifiers_agree(pointer: str, span_id: str) -> Dict[str, Any]:
+    """Does a pointer name the passage it was matched to?
+
+    This exists because the resolver's original check could not fail. It drew a probe
+    from the fetched passage and then verified that probe against the same passage, so
+    "verified verbatim" was true by construction and every search hit became a
+    resolution — a pointer to "Table 47" resolved to Table 19, and one to
+    "PR.MA Guideline 5" resolved to Guideline 6, each reported as confirmed.
+
+    The check has to compare the passage against something the passage did not supply.
+    The pointer is the only such thing available, so the rule is: every identifier the
+    pointer names must be one the passage answers to. Ranking a near-miss stays
+    harmless; accepting one does not.
+    """
+    wanted = sorted(set(_identifiers(pointer)))
+    held = sorted(set(span_identifiers(span_id)))
+    missing = [item for item in wanted if item not in held]
+    if not wanted:
+        return {
+            "agrees": False,
+            "pointer_identifiers": [],
+            "span_identifiers": held,
+            "missing": [],
+            "reason": (
+                "The pointer names no identifier (no table, annexure, guideline or "
+                "control number), so there is nothing to verify a match against."
+            ),
+        }
+    agrees = not missing
+    return {
+        "agrees": agrees,
+        "pointer_identifiers": wanted,
+        "span_identifiers": held,
+        "missing": missing,
+        "reason": (
+            f"The passage answers to {', '.join(held)}, which covers the pointer."
+            if agrees
+            else (
+                f"The pointer names {', '.join(missing)}, which this passage does not "
+                f"answer to — it answers to {', '.join(held) or 'nothing'}."
+            )
+        ),
+    }
 
 
 def search_corpus(query: str, limit: int = 3) -> Dict[str, Any]:
@@ -344,6 +413,25 @@ def workspace_tools(state: WorkspaceState) -> Dict[str, Any]:
         ]
         return {"statements": items, "summary": f"{len(items)} statement(s)"}
 
+    def analyse_span_timing(span_id: str) -> Dict[str, Any]:
+        """Judge the timing of a pinned passage, named by id rather than quoted.
+
+        This is :func:`analyse_timing` with the text supplied by the workspace instead
+        of by the caller. That difference is the whole point: a planner may say *which*
+        passage to judge and may not say *what it says*. The verdict is returned keyed
+        by ``span_id`` so a gate can match it to the passage by identity rather than by
+        its position in the plan — which is what makes a model-chosen order safe.
+        """
+        span = next((item for item in state.source_spans if item.id == span_id), None)
+        if span is None:
+            return {
+                "span_id": span_id,
+                "found": False,
+                "summary": f"{span_id} not in workspace; nothing to analyse",
+            }
+        verdict = analyse_timing(span.text)
+        return {**verdict, "span_id": span.id, "found": True, "locator": span.locator}
+
     def read_entity_facts() -> Dict[str, Any]:
         profile = state.entity_profile
         return {
@@ -365,6 +453,7 @@ def workspace_tools(state: WorkspaceState) -> Dict[str, Any]:
         "list_active_obligations": list_active_obligations,
         "list_statements": list_statements,
         "read_entity_facts": read_entity_facts,
+        "analyse_span_timing": analyse_span_timing,
     }
 
 
@@ -445,3 +534,185 @@ def compare_span_sets(
             )
         ),
     }
+
+
+def source_comparison_tool(state: WorkspaceState, candidate: List[Dict[str, str]]):
+    """Build the planner-safe form of :func:`compare_span_sets`.
+
+    :func:`compare_span_sets` takes both sides of the comparison as arguments, which is
+    the right shape for a deterministic caller and the wrong shape for a model — asking
+    a model to reproduce two sets of exact quotations invites it to approximate one.
+    This closure supplies both sides from pinned state and leaves the planner exactly
+    one decision: which relationship the newer source claims for itself. That decision
+    is a reading of the source's own words, which is a judgement worth having a model
+    make, and it is validated by :func:`compare_span_sets` before it is acted on.
+    """
+
+    def compare_registered_sources(
+        relationship: str = "READ_IN_CONJUNCTION_WITH",
+    ) -> Dict[str, Any]:
+        base = [
+            {"subject_key": item.subject_key, "quote": item.exact_phrase}
+            for item in state.regulatory_statements
+            if item.subject_key
+        ]
+        return compare_span_sets(base, candidate, relationship=relationship)
+
+    return compare_registered_sources
+
+
+# --------------------------------------------------------------------------- #
+# The planner-visible surface
+# --------------------------------------------------------------------------- #
+
+#: JSON schemas for the tools a language-model planner may choose from.
+#:
+#: A tool absent from this table is not hidden from the *system* — deterministic plans
+#: call several of them — it is hidden from the *model*. The rule for inclusion is
+#: mechanical: every property below is an identifier or a closed enumeration, so the
+#: worst a wrong model choice can do is read the wrong pinned passage, which the trace
+#: records and the gate discards. Nothing here lets a model supply evidence.
+TOOL_SPECS: Dict[str, Dict[str, Any]] = {
+    "list_unresolved_references": {
+        "description": (
+            "List every outbound pointer in the workspace that has no resolved target "
+            "yet. Takes no arguments. Start here when the goal is to resolve pointers."
+        ),
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    "search_corpus": {
+        "description": (
+            "Rank the pinned CSCRF excerpts against a locator string such as "
+            "'CSCRF Part I · PDF page 49 · Table 19'. Returns candidate span ids with "
+            "scores. Pass the target_locator of a reference verbatim."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "A locator or identifier copied from a reference, e.g. "
+                        "'Table 19', 'PR.MA.S3', 'Annexure-A', 'PR.MA Guideline 6'."
+                    ),
+                },
+                "limit": {"type": "integer", "minimum": 1, "maximum": 4},
+            },
+            "required": ["query"],
+        },
+    },
+    "fetch_span": {
+        "description": (
+            "Return one pinned CSCRF excerpt in full, with its SHA-256 fingerprint. "
+            "Use a span id returned by search_corpus."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "span_id": {
+                    "type": "string",
+                    "enum": sorted(CSCRF_CORPUS),
+                }
+            },
+            "required": ["span_id"],
+        },
+    },
+    "verify_quote": {
+        "description": (
+            "Check whether a quotation appears verbatim in a pinned CSCRF excerpt. "
+            "Quote text must be copied from a passage already read, never composed."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "span_id": {"type": "string", "enum": sorted(CSCRF_CORPUS)},
+                "quote": {
+                    "type": "string",
+                    "description": "Text copied verbatim from a passage you have read.",
+                },
+            },
+            "required": ["span_id", "quote"],
+        },
+    },
+    "read_span": {
+        "description": (
+            "Read one source passage held in the workspace, by id, e.g. 'FAQ-Q15'. "
+            "Returns its locator, question and full text."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"span_id": {"type": "string"}},
+            "required": ["span_id"],
+        },
+    },
+    "analyse_span_timing": {
+        "description": (
+            "Judge whether a workspace passage states a usable deadline. Returns one "
+            "of PERIOD_AND_TRIGGER_STATED, PERIOD_WITHOUT_TRIGGER, "
+            "URGENCY_WITHOUT_PERIOD or NO_TIMING_LANGUAGE, keyed by span id. You name "
+            "the passage; you do not supply its text."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"span_id": {"type": "string"}},
+            "required": ["span_id"],
+        },
+    },
+    "list_active_obligations": {
+        "description": (
+            "List every compiled obligation that would reach a person, with the span "
+            "and quotation each one rests on. Takes no arguments."
+        ),
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    "read_entity_facts": {
+        "description": (
+            "Read the synthetic entity profile that applicability was decided against. "
+            "Takes no arguments."
+        ),
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    "list_statements": {
+        "description": (
+            "List extracted regulatory statements, optionally filtered to one span id."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"span_id": {"type": "string"}},
+            "required": [],
+        },
+    },
+    "list_known_sources": {
+        "description": (
+            "List the registered corpus packs and their versions, statuses and content "
+            "fingerprints. Takes no arguments."
+        ),
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    "compare_registered_sources": {
+        "description": (
+            "Compare the reviewed corpus against the newer registered source by topic. "
+            "You choose only the relationship the newer source claims for itself: "
+            "READ_IN_CONJUNCTION_WITH if it is additive, SUPERSEDES if it replaces. "
+            "Read the newer source's own wording before choosing; a wrong choice "
+            "reports untouched topics as disappearances."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "relationship": {
+                    "type": "string",
+                    "enum": ["READ_IN_CONJUNCTION_WITH", "SUPERSEDES"],
+                }
+            },
+            "required": ["relationship"],
+        },
+    },
+}
+
+
+def planner_visible(tool_names: List[str]) -> List[Dict[str, Any]]:
+    """The subset of an agent's toolbox that may be offered to a model planner."""
+    return [
+        {"name": name, **TOOL_SPECS[name]} for name in sorted(tool_names) if name in TOOL_SPECS
+    ]

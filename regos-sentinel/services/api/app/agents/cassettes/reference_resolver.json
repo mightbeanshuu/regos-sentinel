@@ -1,0 +1,34 @@
+{
+  "agent_id": "REFERENCE_RESOLVER",
+  "goal": "Resolve each unresolved outbound reference to a pinned, hash-verified passage.",
+  "model_id": "openai/gpt-oss-20b:free",
+  "plan": [
+    {
+      "input": {},
+      "rationale": "Model planner chose list_unresolved_references.",
+      "tool": "list_unresolved_references"
+    },
+    {
+      "input": {
+        "span_id": "CSCRF-TABLE-19"
+      },
+      "rationale": "Model planner chose fetch_span.",
+      "tool": "fetch_span"
+    },
+    {
+      "input": {
+        "span_id": "CSCRF-PR-MA-G6"
+      },
+      "rationale": "Model planner chose fetch_span.",
+      "tool": "fetch_span"
+    },
+    {
+      "input": {
+        "span_id": "CSCRF-ANNEXURE-A"
+      },
+      "rationale": "Model planner chose fetch_span.",
+      "tool": "fetch_span"
+    }
+  ],
+  "prompt_version": "regos-agent-planner/v1"
+}

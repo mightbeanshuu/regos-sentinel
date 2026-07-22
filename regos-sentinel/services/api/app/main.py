@@ -9,7 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .agents.crew import CATALOGUE as AGENT_CATALOGUE
-from .agents.orchestrator import AUTONOMY, blocking_challenges, run_agent, run_all_agents
+from .agents.orchestrator import (
+    AUTONOMY,
+    blocking_challenges,
+    planner_status,
+    run_agent,
+    run_all_agents,
+)
 from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
 from .corpus import corpus_reports
@@ -44,6 +50,7 @@ from .models import (
     EntityProfilePatch,
     LiveSourceVerificationReceipt,
     MetricsReport,
+    PlannerKind,
     ReferenceStatus,
     ReviewerReadingRequest,
     ReviewRequest,
@@ -243,18 +250,38 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     def agent_runs(request: Request) -> list[AgentRun]:
         return store_for(request).load().agent_runs
 
+    @application.get("/api/v1/agents/planner")
+    def agent_planner_status() -> dict:
+        """What can plan a run right now, and what runs by default."""
+        return planner_status()
+
     @application.post("/api/v1/agents/{agent_id}/run", response_model=WorkspaceState)
-    def execute_agent(request: Request, agent_id: AgentId) -> WorkspaceState:
+    def execute_agent(
+        request: Request,
+        agent_id: AgentId,
+        planner: PlannerKind = PlannerKind.DETERMINISTIC,
+    ) -> WorkspaceState:
+        """Run one agent.
+
+        ``planner`` asks for a plan source. It is a request, not a guarantee: if a live
+        model is unreachable the run falls back and reports the source it actually used,
+        because a trace that misnames its own planner is worse than no trace.
+        """
         enforce_rate_limit(request, "agent-run", limit=20)
         return store_for(request).mutate(
-            lambda state: run_agent(state, agent_id, actor="demo.operator")
+            lambda state: run_agent(
+                state, agent_id, actor="demo.operator", planner_kind=planner
+            )
         )
 
     @application.post("/api/v1/agents/run-all", response_model=WorkspaceState)
-    def execute_all_agents(request: Request) -> WorkspaceState:
+    def execute_all_agents(
+        request: Request,
+        planner: PlannerKind = PlannerKind.DETERMINISTIC,
+    ) -> WorkspaceState:
         enforce_rate_limit(request, "agent-run", limit=20)
         return store_for(request).mutate(
-            lambda state: run_all_agents(state, actor="demo.operator")
+            lambda state: run_all_agents(state, actor="demo.operator", planner_kind=planner)
         )
 
     @application.get("/api/v1/agents/challenges")

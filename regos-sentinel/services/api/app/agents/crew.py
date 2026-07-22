@@ -30,10 +30,11 @@ from .runtime import Agent, AgentToolbox, PlannedCall, finding
 from .tools import (
     CSCRF_SOURCE_URL,
     analyse_timing,
-    compare_span_sets,
     fetch_span,
+    identifiers_agree,
     list_known_sources,
     search_corpus,
+    source_comparison_tool,
     verify_quote,
     workspace_tools,
 )
@@ -99,59 +100,95 @@ class ReferenceResolver(Agent):
         return plan
 
     def gate(self, results: List[Any]) -> List[AgentFinding]:
+        """Judge each *reference*, not each search.
+
+        Two things forced this shape, both found by letting a model plan freely.
+
+        The gate used to produce one finding per search, which under a fixed plan was
+        one per reference and under a model plan was one per keystroke — a planner that
+        retried a query six times manufactured six resolutions.
+
+        Worse, it accepted any hit. The "verified verbatim" step drew its probe from the
+        fetched passage and checked it against that same passage, so it could not fail.
+        Verification now runs against the pointer, which the passage did not supply:
+        every identifier the pointer names must be one the passage answers to.
+        """
+        # Candidates come from either route a plan may take to a passage: ranking it
+        # with a search, or naming it outright and fetching it. One model planner did
+        # the second and skipped the first entirely, which was a perfectly good way to
+        # reach the answer and produced nothing the gate could see.
+        candidates: Dict[str, int] = {}
+        for item in results:
+            if not isinstance(item, dict):
+                continue
+            for hit in item.get("hits") or []:
+                span_id = str(hit["span_id"])
+                candidates[span_id] = max(candidates.get(span_id, 0), int(hit.get("score", 0)))
+            if item.get("found") and item.get("sha256") and item.get("span_id"):
+                candidates.setdefault(str(item["span_id"]), 0)
+
         findings: List[AgentFinding] = []
-        searches = [item for item in results if isinstance(item, dict) and "hits" in item]
-        for index, search in enumerate(searches, start=1):
-            hits = search.get("hits") or []
-            if not hits:
+        unresolved = [item for item in self.state.references if item.status.value == "UNRESOLVED"]
+        for index, reference in enumerate(unresolved, start=1):
+            pointer = reference.target_locator
+            agreeing = sorted(
+                (
+                    (span_id, identifiers_agree(pointer, span_id))
+                    for span_id in candidates
+                ),
+                key=lambda item: -candidates[item[0]],
+            )
+            match = next((item for item in agreeing if item[1]["agrees"]), None)
+
+            if match is None:
+                near = agreeing[0] if agreeing else None
                 findings.append(
                     finding(
                         f"REF-{index:02d}",
                         "REFERENCE_UNRESOLVED",
-                        f"No pinned passage matches {search['query']!r}",
-                        "The pointer names a passage that is not in the committed corpus. "
-                        "It stays unresolved rather than being matched to the nearest "
-                        "thing available.",
+                        f"{pointer} → unresolved",
+                        (
+                            f"The closest candidate was {near[0]}, and it was refused: "
+                            f"{near[1]['reason']}"
+                            if near
+                            else "No search in this plan returned a candidate for this "
+                            "pointer, so nothing was matched to it."
+                        ),
                         Provenance.DETERMINISTIC,
                         accepted=False,
-                        gate_reason="No candidate; a near-miss is not a resolution.",
+                        gate_reason=(
+                            "A near-miss is not a resolution. The pointer stays "
+                            "unresolved rather than being bound to the nearest passage."
+                        ),
                     )
                 )
                 continue
-            best = hits[0]
-            fetched = fetch_span(best["span_id"])
-            # A hit is not a resolution. The quote has to actually be there.
-            probe = " ".join(str(fetched.get("text", "")).split()[:12])
-            check = verify_quote(best["span_id"], probe)
-            accepted = bool(fetched.get("found")) and bool(check.get("verbatim"))
+
+            span_id, agreement = match
+            fetched = fetch_span(span_id)
+            excerpt = " ".join(str(fetched.get("text", "")).split()[:12])
             findings.append(
                 finding(
                     f"REF-{index:02d}",
-                    "REFERENCE_RESOLVED" if accepted else "REFERENCE_UNVERIFIED",
-                    f"{search['query']} → {best['span_id']}",
-                    (
-                        f"{best['heading']}. Fingerprint {fetched.get('sha256', '')[:16]}…"
-                        if accepted
-                        else "A candidate was found but its text could not be verified."
-                    ),
+                    "REFERENCE_RESOLVED",
+                    f"{pointer} → {span_id}",
+                    f"{fetched.get('heading', span_id)}. {agreement['reason']} "
+                    f"Fingerprint {str(fetched.get('sha256', ''))[:16]}…",
                     Provenance.DETERMINISTIC,
-                    accepted=accepted,
+                    accepted=True,
                     gate_reason=(
-                        "Target exists and its text verified verbatim."
-                        if accepted
-                        else str(check.get("reason", "verification failed"))
+                        "Every identifier the pointer names is one this passage answers "
+                        "to, and the passage is pinned at the fingerprint shown."
                     ),
                     citations=[
                         Citation(
                             document_id="SEBI-CSCRF-2024-113",
-                            span_id=best["span_id"],
-                            locator=str(fetched.get("locator", best["locator"])),
-                            quote=probe,
+                            span_id=span_id,
+                            locator=str(fetched.get("locator", "")),
+                            quote=excerpt,
                             source_url=CSCRF_SOURCE_URL,
                         )
-                    ]
-                    if accepted
-                    else [],
+                    ],
                 )
             )
         return findings
@@ -192,18 +229,14 @@ class SourceScout(Agent):
                 {
                     "list_known_sources": lambda: list_known_sources(state),
                     "list_statements": bound["list_statements"],
-                    "compare_span_sets": compare_span_sets,
+                    # Both sides of the comparison come from pinned state. A planner
+                    # chooses the relationship and nothing else; see
+                    # ``source_comparison_tool``.
+                    "compare_registered_sources": source_comparison_tool(state, candidate),
                     "analyse_timing": analyse_timing,
                 }
             )
         )
-
-    def _base(self) -> List[Dict[str, str]]:
-        return [
-            {"subject_key": item.subject_key, "quote": item.exact_phrase}
-            for item in self.state.regulatory_statements
-            if item.subject_key
-        ]
 
     def deterministic_plan(self) -> List[PlannedCall]:
         plan: List[PlannedCall] = [
@@ -213,10 +246,8 @@ class SourceScout(Agent):
                 "rationale": "Establish which source versions are registered.",
             },
             {
-                "tool": "compare_span_sets",
+                "tool": "compare_registered_sources",
                 "input": {
-                    "base": self._base(),
-                    "candidate": self.candidate,
                     # Paragraph E of the advisory says it is to be read *with* the CSCRF,
                     # not in place of it. Declaring that here stops the comparison
                     # reporting every untouched FAQ topic as a disappearance.
@@ -384,33 +415,57 @@ class Adversary(Agent):
         findings: List[AgentFinding] = []
         for index, obligation in enumerate(listing["obligations"], start=1):
             span = spans.get(obligation["cited_span_id"])
+
+            if span is None:
+                # An inspection that did not happen is not an inspection that passed.
+                # Every challenge below is guarded on having read the cited passage, so
+                # a plan that skipped the read used to fall through all three and report
+                # "withstood every challenge — the quotation is verbatim", for a
+                # quotation nothing had looked at. A fixed plan always read them, so the
+                # only way to see it was to let a model plan badly.
+                findings.append(
+                    finding(
+                        f"ADV-{index:02d}",
+                        "CHALLENGE_NOT_ASSESSED",
+                        f"{obligation['obligation_id']} was not examined",
+                        "The passage this obligation cites "
+                        f"({obligation['cited_span_id']}) was never read during this "
+                        "run, so none of the three challenges could be applied to it. "
+                        "This is a gap in coverage, not a clean result.",
+                        Provenance.DETERMINISTIC,
+                        accepted=False,
+                        gate_reason=(
+                            "No conclusion is available. Reporting an unexamined "
+                            "obligation as unchallenged would be assurance nobody earned."
+                        ),
+                        requires_human_review=True,
+                    )
+                )
+                continue
+
             challenges: List[str] = []
 
             # Challenge 1 — is the quotation the obligation rests on really there?
-            if span is not None:
-                check = verify_quote_against_text(obligation["cited_quote"], span["text"])
-                if not check:
-                    challenges.append(
-                        "The quotation recorded on this obligation does not appear "
-                        "verbatim in the passage it cites."
-                    )
+            if not verify_quote_against_text(obligation["cited_quote"], span["text"]):
+                challenges.append(
+                    "The quotation recorded on this obligation does not appear "
+                    "verbatim in the passage it cites."
+                )
 
             # Challenge 2 — does the passage support the timing the obligation claims?
-            if span is not None:
-                timing = analyse_timing(span["text"])
-                if obligation["computable"] and timing["verdict"] != "PERIOD_AND_TRIGGER_STATED":
-                    if obligation["trigger_provenance"] != Provenance.HUMAN_POLICY.value:
-                        challenges.append(
-                            "A date is computable here, but the cited passage does not "
-                            f"state both a period and a clock-start ({timing['verdict']}), "
-                            "and the trigger is not recorded as a human decision."
-                        )
+            timing = analyse_timing(span["text"])
+            if obligation["computable"] and timing["verdict"] != "PERIOD_AND_TRIGGER_STATED":
+                if obligation["trigger_provenance"] != Provenance.HUMAN_POLICY.value:
+                    challenges.append(
+                        "A date is computable here, but the cited passage does not "
+                        f"state both a period and a clock-start ({timing['verdict']}), "
+                        "and the trigger is not recorded as a human decision."
+                    )
 
             # Challenge 3 — is a trigger claimed as SEBI wording that the passage lacks?
             if (
                 obligation["trigger"]
                 and obligation["trigger_provenance"] == Provenance.SOURCE_EXPLICIT.value
-                and span is not None
                 and not any(
                     marker in span["text"].lower()
                     for marker in ("submission", "completion", "receipt", "approval")
@@ -499,7 +554,7 @@ class Extractor(Agent):
             AgentToolbox(
                 {
                     "read_span": bound["read_span"],
-                    "analyse_timing": analyse_timing,
+                    "analyse_span_timing": bound["analyse_span_timing"],
                     "list_statements": bound["list_statements"],
                 }
             )
@@ -516,22 +571,46 @@ class Extractor(Agent):
                 }
             )
         for span_id in self.span_ids:
-            span = next((item for item in self.state.source_spans if item.id == span_id), None)
-            if span is None:
-                continue
             plan.append(
                 {
-                    "tool": "analyse_timing",
-                    "input": {"text": span.text},
+                    "tool": "analyse_span_timing",
+                    "input": {"span_id": span_id},
                     "rationale": f"Judge whether {span_id} states a usable deadline.",
                 }
             )
         return plan
 
     def gate(self, results: List[Any]) -> List[AgentFinding]:
-        timings = [item for item in results if isinstance(item, dict) and "verdict" in item]
+        """Match each verdict to its passage by id, never by position in the plan.
+
+        The earlier version paired verdicts with span ids by order, which was correct
+        only because a fixed plan produced them in order. A model planner may read the
+        passages in any order, skip one, or judge one twice — so the verdict carries
+        its own ``span_id`` and is matched on that.
+        """
+        timings = {
+            item["span_id"]: item
+            for item in results
+            if isinstance(item, dict) and "verdict" in item and item.get("span_id")
+        }
         findings: List[AgentFinding] = []
-        for span_id, timing in zip(self.span_ids, timings):
+        for span_id in self.span_ids:
+            timing = timings.get(span_id)
+            if timing is None:
+                findings.append(
+                    finding(
+                        f"EXT-{span_id}",
+                        "TIMING_NOT_ASSESSED",
+                        f"{span_id} · not assessed",
+                        "The plan never judged this passage's timing, so no verdict "
+                        "exists for it. An absent judgement is reported as absent "
+                        "rather than defaulted to a safe-looking one.",
+                        Provenance.DETERMINISTIC,
+                        accepted=False,
+                        gate_reason="No verdict was produced for this passage.",
+                    )
+                )
+                continue
             computable = timing["verdict"] == "PERIOD_AND_TRIGGER_STATED"
             findings.append(
                 finding(
@@ -575,7 +654,12 @@ CATALOGUE: List[AgentCatalogueEntry] = [
         proposes="What was added, changed or dropped between them",
         never_does="Apply a change to a control or an evidence item",
         gated_by="Reports only; every material change routes to human review",
-        tools=["list_known_sources", "list_statements", "compare_span_sets", "analyse_timing"],
+        tools=[
+            "list_known_sources",
+            "list_statements",
+            "compare_registered_sources",
+            "analyse_timing",
+        ],
         autonomy="Proposes a change report; nothing is applied automatically",
     ),
     AgentCatalogueEntry(
@@ -596,7 +680,7 @@ CATALOGUE: List[AgentCatalogueEntry] = [
         proposes="Whether that wording supports a computable deadline",
         never_does="Supply the missing period or clock-start",
         gated_by="A blocked verdict routes the gap to a person",
-        tools=["read_span", "analyse_timing", "list_statements"],
+        tools=["read_span", "analyse_span_timing", "list_statements"],
         autonomy="Proposes a verdict; the firm's policy remains a human decision",
     ),
 ]
