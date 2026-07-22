@@ -8,7 +8,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
+from .corpus import corpus_reports
 from .documents import (
     MAX_PAGE_COUNT,
     MAX_UPLOAD_BYTES,
@@ -29,13 +31,20 @@ from .engine import (
     set_applicability_scenarios,
     set_qsb_status,
 )
+from .metrics import measure
 from .models import (
+    AiAssuranceReport,
     ApplicabilityScenarioPatch,
+    CorpusPackReport,
     EntityProfilePatch,
     LiveSourceVerificationReceipt,
+    MetricsReport,
     ReferenceStatus,
     ReviewerReadingRequest,
     ReviewRequest,
+    ScenarioDefinition,
+    ScenarioId,
+    ScenarioOutcome,
     WorkspaceState,
 )
 from .oscal import generate_assessment_results, validate_assessment_results
@@ -44,6 +53,14 @@ from .report import (
     render_compliance_report,
     render_document_report,
     render_review_packet,
+)
+from .scenarios import (
+    SCENARIO_SET_LABEL,
+    SCENARIO_SET_NOTE,
+    SCENARIOS,
+    SCENARIOS_BY_ID,
+    outcome_for,
+    run_scenario,
 )
 from .seed import SCHEMA_VERSION
 from .source_verification import SourceVerificationUnavailable, verify_official_source
@@ -160,6 +177,72 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     def reset_demo(request: Request) -> WorkspaceState:
         documents_for(request).clear()
         return store_for(request).reset()
+
+    # ------------------------------------------------------------------ #
+    # Demonstration scenarios A–D. Four cases, one workflow. Case A is the
+    # guided review and stays the default path; B, C and D each add a kind
+    # of regulatory problem A alone cannot show.
+    # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/scenarios")
+    def list_scenarios(request: Request) -> dict:
+        state = store_for(request).load()
+        return {
+            "label": SCENARIO_SET_LABEL,
+            "note": SCENARIO_SET_NOTE,
+            "scenarios": [item.model_dump(mode="json") for item in SCENARIOS],
+            "outcomes": [
+                outcome.model_dump(mode="json")
+                for outcome in (outcome_for(state, item.id) for item in SCENARIOS)
+                if outcome is not None
+            ],
+        }
+
+    @application.get("/api/v1/scenarios/{scenario_id}", response_model=ScenarioDefinition)
+    def read_scenario(scenario_id: ScenarioId) -> ScenarioDefinition:
+        return SCENARIOS_BY_ID[scenario_id]
+
+    @application.get(
+        "/api/v1/scenarios/{scenario_id}/outcome",
+        response_model=ScenarioOutcome,
+    )
+    def read_scenario_outcome(request: Request, scenario_id: ScenarioId) -> ScenarioOutcome:
+        outcome = outcome_for(store_for(request).load(), scenario_id)
+        if outcome is None:
+            raise HTTPException(
+                status_code=409,
+                detail="This scenario has not been run in this session yet.",
+            )
+        return outcome
+
+    @application.post("/api/v1/scenarios/{scenario_id}/run", response_model=WorkspaceState)
+    def execute_scenario(request: Request, scenario_id: ScenarioId) -> WorkspaceState:
+        enforce_rate_limit(request, "scenario-run", limit=20)
+        try:
+            return store_for(request).mutate(
+                lambda state: run_scenario(state, scenario_id, "demo.operator")
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    # ------------------------------------------------------------------ #
+    # Corpus packs, the eight gates, the AI split, and measured metrics
+    # ------------------------------------------------------------------ #
+
+    @application.get("/api/v1/corpus/packs", response_model=list[CorpusPackReport])
+    def corpus_packs(request: Request) -> list[CorpusPackReport]:
+        return corpus_reports(
+            store_for(request).load(),
+            uploaded_count=len(documents_for(request).list()),
+        )
+
+    @application.get("/api/v1/assurance", response_model=AiAssuranceReport)
+    def assurance(request: Request) -> AiAssuranceReport:
+        return build_assurance_report(store_for(request).load())
+
+    @application.get("/api/v1/metrics", response_model=MetricsReport)
+    def metrics() -> MetricsReport:
+        return measure()
 
     # ------------------------------------------------------------------ #
     # Review your document — a bounded, session-private lane for a PDF

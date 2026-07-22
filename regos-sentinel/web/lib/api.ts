@@ -1,7 +1,12 @@
 import type {
+  AiAssuranceReport,
+  CorpusPackReport,
   DocumentLimits,
   LiveSourceVerificationReceipt,
+  MetricsReport,
   PassageClass,
+  ScenarioCatalogue,
+  ScenarioId,
   UploadedDocument,
   WorkspaceState,
 } from "./types";
@@ -115,6 +120,15 @@ export const regosApi = {
       }),
     }),
   runBenchmark: () => request("/benchmarks/run", { method: "POST" }),
+
+  // ---- Demonstration scenarios A–D -----------------------------------
+  scenarios: () => requestJson<ScenarioCatalogue>("/scenarios", { cache: "no-store" }),
+  runScenario: (id: ScenarioId) => request(`/scenarios/${id}/run`, { method: "POST" }),
+
+  // ---- Technical detail for the audit trail ---------------------------
+  corpusPacks: () => requestJson<CorpusPackReport[]>("/corpus/packs", { cache: "no-store" }),
+  assurance: () => requestJson<AiAssuranceReport>("/assurance", { cache: "no-store" }),
+  metrics: () => requestJson<MetricsReport>("/metrics", { cache: "no-store" }),
 
   // ---- Review your document ------------------------------------------
   documentLimits: () => requestJson<DocumentLimits>("/documents/limits", { cache: "no-store" }),

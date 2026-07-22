@@ -1,0 +1,272 @@
+{
+  "dataset_id": "regos-prototype-gold-set/1.0.0",
+  "label": "Human-labelled abstention gold set for the reviewed prototype scope",
+  "scope": "Thirteen cases derived from passages this prototype has actually read (nine CSCRF FAQ spans and four pinned CSCRF reference excerpts), plus eleven synthetic probes written to test the gate from both sides. It is not a sample of the SEBI corpus and carries no statistical claim.",
+  "labelling_note": "Each case records what the passage states, read by a human against the source text. expected_behaviour is written down before the engine runs. COMPILE means a date or duty may be produced; DEFER_TO_HUMAN means the system must stop and ask; ADVISORY_ONLY means record it without creating mandatory work; NOT_APPLICABLE means the entity facts exclude it.",
+  "cases": [
+    {
+      "id": "GS-01",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q15 — VAPT closure within three months of report submission",
+      "source_span_id": "FAQ-Q15",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "COMPILE"
+    },
+    {
+      "id": "GS-02",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q15 — REs are encouraged to include SLA closure timelines",
+      "source_span_id": "FAQ-Q15",
+      "strength": "RECOMMENDED",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-03",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q15 — REs may also consider virtual patching",
+      "source_span_id": "FAQ-Q15",
+      "strength": "PERMITTED",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-04",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q17(a) — one week for high-severity missing patches, no clock-start",
+      "source_span_id": "FAQ-Q17-A",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-05",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q17(b) — three months for other VAPT observations",
+      "source_span_id": "FAQ-Q17-B",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-06",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q14 — half-yearly VAPT periodicity for QSBs",
+      "source_span_id": "FAQ-Q14",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-07",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q16 — VAPT reporting format is Annexure-A",
+      "source_span_id": "FAQ-Q16",
+      "strength": "MANDATORY",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-08",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q20 — all CSCRF periodicities are financial-year based",
+      "source_span_id": "FAQ-Q20",
+      "strength": "DEFINITIONAL",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-09",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q24 — highest category applies across multiple registrations",
+      "source_span_id": "FAQ-Q24",
+      "strength": "MANDATORY",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-10",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Q25 — registration, not operation, is the scope fact",
+      "source_span_id": "FAQ-Q25",
+      "strength": "MANDATORY",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-11",
+      "origin": "REVIEWED_SOURCE",
+      "name": "Table 19 — VAPT report submitted within one month of completion",
+      "source_span_id": "CSCRF-TABLE-19",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "COMPILE"
+    },
+    {
+      "id": "GS-12",
+      "origin": "REVIEWED_SOURCE",
+      "name": "PR.MA.S3 — high patches within one week, no stated clock-start",
+      "source_span_id": "CSCRF-PR-MA-S3",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-13",
+      "origin": "REVIEWED_SOURCE",
+      "name": "PR.MA Guideline 6 — virtual patching for a maximum of six months",
+      "source_span_id": "CSCRF-PR-MA-G6",
+      "strength": "PERMITTED",
+      "states_duration": true,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-14",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — duration and trigger both stated, entity in scope",
+      "source_span_id": "SYNTHETIC-PROBE-01",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "COMPILE"
+    },
+    {
+      "id": "GS-15",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — trigger stated, duration absent",
+      "source_span_id": "SYNTHETIC-PROBE-02",
+      "strength": "MANDATORY",
+      "states_duration": false,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-16",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — neither duration nor trigger stated",
+      "source_span_id": "SYNTHETIC-PROBE-03",
+      "strength": "MANDATORY",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-17",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — recommended language carrying a specific duration",
+      "source_span_id": "SYNTHETIC-PROBE-04",
+      "strength": "RECOMMENDED",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-18",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — permitted language carrying a specific duration",
+      "source_span_id": "SYNTHETIC-PROBE-05",
+      "strength": "PERMITTED",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-19",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — prohibition with no timing at all",
+      "source_span_id": "SYNTHETIC-PROBE-06",
+      "strength": "PROHIBITED",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "DEFER_TO_HUMAN"
+    },
+    {
+      "id": "GS-20",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — definitional sentence that creates no duty",
+      "source_span_id": "SYNTHETIC-PROBE-07",
+      "strength": "DEFINITIONAL",
+      "states_duration": false,
+      "states_trigger": false,
+      "applies_to_entity": true,
+      "expected_behaviour": "ADVISORY_ONLY"
+    },
+    {
+      "id": "GS-21",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — complete requirement that the entity facts exclude",
+      "source_span_id": "SYNTHETIC-PROBE-08",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-22",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — incomplete requirement that the entity facts exclude",
+      "source_span_id": "SYNTHETIC-PROBE-09",
+      "strength": "MANDATORY",
+      "states_duration": true,
+      "states_trigger": false,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-23",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — advisory language on an entity the facts exclude",
+      "source_span_id": "SYNTHETIC-PROBE-10",
+      "strength": "RECOMMENDED",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": false,
+      "expected_behaviour": "NOT_APPLICABLE"
+    },
+    {
+      "id": "GS-24",
+      "origin": "SYNTHETIC_PROBE",
+      "name": "Probe — prohibition with a stated deadline for compliance",
+      "source_span_id": "SYNTHETIC-PROBE-11",
+      "strength": "PROHIBITED",
+      "states_duration": true,
+      "states_trigger": true,
+      "applies_to_entity": true,
+      "expected_behaviour": "COMPILE"
+    }
+  ]
+}

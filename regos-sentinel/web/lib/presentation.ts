@@ -93,6 +93,22 @@ const STATES: Record<string, StateMeta> = {
   // ---- Corpus packs ----------------------------------------------------
   HERO_SCOPE_ACTIVE: meta("Reviewed demo source", "ok"),
   SOURCE_REGISTERED_NOT_COMPILED: meta("Reference only — not yet reviewed", "neutral"),
+  UPLOAD_SANDBOX_AVAILABLE: meta("Open for your own document", "accent"),
+
+  // ---- Corpus gates ----------------------------------------------------
+  GATE_PASSED: meta("Cleared", "ok"),
+  GATE_NOT_RUN: meta("Not attempted", "neutral"),
+  GATE_NOT_APPLICABLE: meta("Deliberately not run", "neutral"),
+
+  // ---- Demonstration scenarios ----------------------------------------
+  SCENARIO_NOT_RUN: meta("Not run yet", "neutral"),
+  SCENARIO_DEMONSTRATED: meta("Behaved as expected", "ok"),
+  SCENARIO_UNEXPECTED_RESULT: meta(
+    "Did not behave as expected",
+    "fail",
+    "An observed value differs from the outcome written down before the case ran.",
+  ),
+
 
   // ---- Applicability ---------------------------------------------------
   APPLIES: meta("Applies", "ok"),
@@ -118,6 +134,34 @@ const STATES: Record<string, StateMeta> = {
   PERMISSION: meta("Optional — no mandatory task", "neutral"),
   BACKGROUND: meta("Background only", "neutral"),
 };
+
+/**
+ * Two vocabularies live in their own maps because their values collide with the global
+ * state table: a source change is `ADDED`, and so is a freshly uploaded document; a
+ * pipeline actor is `DETERMINISTIC`, and so is a provenance value. Same word, different
+ * meaning, so they get their own lookup rather than a shared one that quietly wins.
+ */
+const CHANGE_KINDS: Record<string, StateMeta> = {
+  ADDED: meta("New passage", "accent", "Not present in the version now in force."),
+  CHANGED: meta("Wording or strength changed", "review"),
+  SUPERSEDED: meta("Superseded", "review", "The passage a live control was built from moved."),
+  UNCHANGED: meta("No change", "neutral"),
+};
+
+const ACTORS: Record<string, StateMeta> = {
+  SOURCE: meta("The source", "neutral", "Read from the official document."),
+  AI: meta("AI proposes", "review", "A draft only. Nothing here reaches a control unreviewed."),
+  DETERMINISTIC: meta("Fixed rules enforce", "accent", "Code, not judgement."),
+  HUMAN: meta("A person decides", "accent", "Named, with a written reason."),
+};
+
+export function changeKindOf(value: string): StateMeta {
+  return CHANGE_KINDS[value] ?? stateOf(value);
+}
+
+export function actorOf(value: string): StateMeta {
+  return ACTORS[value] ?? stateOf(value);
+}
 
 /** Nouns and product terms that must never reach the primary workflow in raw form. */
 const TERMS: Record<string, string> = {

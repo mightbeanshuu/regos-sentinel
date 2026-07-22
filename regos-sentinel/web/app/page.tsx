@@ -5,11 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AuditTrail } from "../components/AuditTrail";
 import { DocumentReview } from "../components/DocumentReview";
 import { GuidedReview } from "../components/GuidedReview";
+import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import { Disclosure } from "../components/ui";
 import { regosApi } from "../lib/api";
 import type {
   DocumentLimits,
   LiveSourceVerificationReceipt,
+  ScenarioCatalogue,
+  ScenarioId,
   UploadedDocument,
   WorkspaceState,
 } from "../lib/types";
@@ -27,6 +30,8 @@ export default function Home() {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [receipt, setReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
+  const [catalogue, setCatalogue] = useState<ScenarioCatalogue | null>(null);
+  const [scenario, setScenario] = useState<ScenarioId>("A_MISSING_TRIGGER");
   const [tab, setTab] = useState<TabId>("guided");
   const [busy, setBusy] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
@@ -38,14 +43,16 @@ export default function Home() {
 
   const load = useCallback(async () => {
     try {
-      const [workspace, documentList, documentLimits] = await Promise.all([
+      const [workspace, documentList, documentLimits, scenarioCatalogue] = await Promise.all([
         regosApi.workspace(),
         regosApi.listDocuments().catch(() => [] as UploadedDocument[]),
         regosApi.documentLimits().catch(() => null),
+        regosApi.scenarios().catch(() => null),
       ]);
       setState(workspace);
       setDocuments(documentList);
       setLimits(documentLimits);
+      setCatalogue(scenarioCatalogue);
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to reach the RegOS API.");
@@ -60,6 +67,7 @@ export default function Home() {
       setError(null);
       try {
         setState(await operation());
+        setCatalogue(await regosApi.scenarios().catch(() => null));
         if (focusTarget) {
           window.requestAnimationFrame(() => {
             document.getElementById(focusTarget)?.scrollIntoView({
@@ -112,6 +120,10 @@ export default function Home() {
     setDocuments([]);
     await act(regosApi.reset, "top");
   }, [act]);
+
+  const activeScenario = catalogue?.scenarios.find((item) => item.id === scenario) ?? null;
+  const activeOutcome =
+    catalogue?.outcomes.find((item) => item.scenario_id === scenario) ?? null;
 
   /** Roving arrow-key navigation across the tablist, per WAI-ARIA tabs. */
   const onTabKeyDown = useCallback((event: React.KeyboardEvent, index: number) => {
@@ -253,7 +265,27 @@ export default function Home() {
           aria-labelledby="tab-guided"
           hidden={tab !== "guided"}
         >
-          {tab === "guided" && (
+          {tab === "guided" && catalogue && (
+            <div style={{ marginBottom: "28px" }}>
+              <ScenarioSelector
+                catalogue={catalogue}
+                active={scenario}
+                onSelect={setScenario}
+              />
+            </div>
+          )}
+
+          {tab === "guided" && activeScenario && !activeScenario.guided && (
+            <ScenarioCase
+              scenario={activeScenario}
+              outcome={activeOutcome}
+              busy={busy}
+              onRun={() => act(() => regosApi.runScenario(activeScenario.id))}
+              onReset={restart}
+            />
+          )}
+
+          {tab === "guided" && (!activeScenario || activeScenario.guided) && (
             <GuidedReview
               state={state}
               receipt={receipt}

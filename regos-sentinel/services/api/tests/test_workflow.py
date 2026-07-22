@@ -506,7 +506,19 @@ def test_committed_golden_manifest_replays_byte_for_byte() -> None:
 
     assert result["match"] is True
     assert result["recomputed_sha256"] == (
-        "767a935da9310726222f325d42dc7fb06517339119a0fa364dcb0a5664be8f74"
+        "ed2aa77fe34212536eab4a8002839b1f8aef3112fe405797c10e174069926678"
+    )
+
+
+def test_golden_manifest_fixture_still_matches_a_live_approved_build(tmp_path: Path) -> None:
+    """Guards against the quiet failure: a fixture that verifies against itself forever
+    while the schema it was captured from has moved on."""
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "golden-manifest.json").read_text())
+    live = approved_state(client_for(tmp_path))["latest_manifest"]
+
+    assert live == fixture, (
+        "docs and fixture drift: regenerate tests/fixtures/golden-manifest.json from a live "
+        "approved build and repin the digest above"
     )
 
 

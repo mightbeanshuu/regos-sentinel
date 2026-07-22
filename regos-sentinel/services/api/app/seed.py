@@ -10,6 +10,7 @@ from .models import (
     Citation,
     Control,
     CorpusPack,
+    CorpusState,
     CoverageEntry,
     CoverageStatus,
     DeadlineComputation,
@@ -36,7 +37,14 @@ DOCUMENT_ID = "SEBI-CSCRF-FAQ-2025-06-11"
 SCHEMA_VERSION = "obligation-schema/1.1.0"
 
 
-def _span(span_id: str, question: str, locator: str, text: str, normative: bool) -> SourceSpan:
+def _span(
+    span_id: str,
+    question: str,
+    locator: str,
+    text: str,
+    normative: bool,
+    subject_key: str = "",
+) -> SourceSpan:
     return SourceSpan(
         id=span_id,
         document_id=DOCUMENT_ID,
@@ -45,6 +53,7 @@ def _span(span_id: str, question: str, locator: str, text: str, normative: bool)
         text=text,
         normative_signal=normative,
         source_url=SOURCE_URL,
+        subject_key=subject_key,
     )
 
 
@@ -66,6 +75,7 @@ def initial_state() -> WorkspaceState:
         "The periodicity of VAPT and cyber audit for QSBs shall be half-yearly "
         "irrespective of the category they fall in as per CSCRF.",
         True,
+        "vapt.qsb.periodicity",
     )
     q15 = _span(
         "FAQ-Q15",
@@ -81,6 +91,7 @@ def initial_state() -> WorkspaceState:
         "patching guidelines from CERT-In where OEM patches have longer period of "
         "implementation subject to the confirmation from their respective ‘IT Committees’.",
         True,
+        "vapt.closure.timeline",
     )
     q16 = _span(
         "FAQ-Q16",
@@ -90,6 +101,7 @@ def initial_state() -> WorkspaceState:
         "and Timelines’ in CSCRF. It mentions VAPT related reporting, periodicity, and "
         "timelines. Further, the reporting format shall be as per CSCRF: Annexure-A.",
         True,
+        "vapt.reporting.format",
     )
     q17a = _span(
         "FAQ-Q17-A",
@@ -100,6 +112,7 @@ def initial_state() -> WorkspaceState:
         "timelines (1 week; please refer standard PR.MA.S3 and the corresponding guidelines "
         "specified under PR.MA: Guidelines in Part II of CSCRF).",
         True,
+        "patch.high.severity.timeline",
     )
     q17b = _span(
         "FAQ-Q17-B",
@@ -110,6 +123,7 @@ def initial_state() -> WorkspaceState:
         "However, even for the closure of such findings, graded approach (based on the "
         "criticality) shall be followed.",
         True,
+        "vapt.other.observation.timeline",
     )
     q20 = _span(
         "FAQ-Q20",
@@ -299,7 +313,7 @@ def initial_state() -> WorkspaceState:
                 published_at="2025-06-11",
                 document_id=DOCUMENT_ID,
                 source_url=SOURCE_URL,
-                status="HERO_SCOPE_ACTIVE",
+                status=CorpusState.ACTIVE,
                 scope_note=(
                     "Nine pinned spans support the Q14–Q25 demo scenarios; the pack does not "
                     "represent the entire FAQ."
@@ -307,6 +321,19 @@ def initial_state() -> WorkspaceState:
                 indexed_span_count=9,
                 compiled_candidate_count=2,
                 content_identity_sha256=excerpt_hash,
+                authority="Securities and Exchange Board of India",
+                legal_state="GUIDANCE — READ WITH CSCRF",
+                extraction_scope=(
+                    "Q14–Q25 and Preface ¶4. Obligation extraction is limited to Q15, Q17(a) "
+                    "and Q17(b); the remaining spans supply applicability and calendar facts."
+                ),
+                source_span_ids=[span.id for span in spans],
+                validation_tests=[
+                    "tests/test_workflow.py::test_build_fails_closed_before_human_review",
+                    "tests/test_workflow.py::test_review_persists_split_and_propagates_impact",
+                    "tests/test_workflow.py::test_live_source_matcher_covers_every_pinned_demo_span",
+                    "tests/test_scenarios.py::test_scenario_catalogue_is_complete",
+                ],
             ),
             CorpusPack(
                 id="PACK-STOCK-BROKER-MC-2025",
@@ -318,7 +345,7 @@ def initial_state() -> WorkspaceState:
                     "https://www.sebi.gov.in/legal/master-circulars/jun-2025/"
                     "master-circular-for-stock-brokers_94623.html"
                 ),
-                status="SOURCE_REGISTERED_NOT_COMPILED",
+                status=CorpusState.REGISTERED,
                 scope_note=(
                     "Version-pinned expansion target. Source identity is registered, while zero "
                     "spans or obligations are presented as processed in this prototype."
@@ -330,6 +357,38 @@ def initial_state() -> WorkspaceState:
                     b"https://www.sebi.gov.in/legal/master-circulars/jun-2025/"
                     b"master-circular-for-stock-brokers_94623.html"
                 ).hexdigest(),
+                authority="Securities and Exchange Board of India",
+                legal_state="IN FORCE — NOT PROCESSED BY THIS PROTOTYPE",
+                extraction_scope="None. No span of this circular has been read or classified.",
+                source_span_ids=[],
+                validation_tests=["tests/test_workflow.py::test_reset_returns_to_unreviewed_state"],
+            ),
+            CorpusPack(
+                id="PACK-SESSION-UPLOAD-SANDBOX",
+                title="Your uploaded document · session sandbox",
+                version="session-scoped",
+                published_at="—",
+                document_id="SESSION-UPLOAD",
+                source_url=SOURCE_URL,
+                status=CorpusState.SANDBOX,
+                scope_note=(
+                    "A PDF you supply is segmented and classified deterministically inside your "
+                    "own browser session. It is never given official status and never stored."
+                ),
+                indexed_span_count=0,
+                compiled_candidate_count=0,
+                content_identity_sha256=hashlib.sha256(
+                    b"regos|session-upload-sandbox|no-persistent-content"
+                ).hexdigest(),
+                authority="Stated by the uploader, not verified by RegOS",
+                legal_state="UNKNOWN — SUPPLIED BY A VISITOR",
+                extraction_scope=(
+                    "Text-layer pages only. No OCR, no model call, no live source verification."
+                ),
+                source_span_ids=[],
+                validation_tests=[
+                    "tests/test_documents.py::test_uploaded_pdf_is_segmented_and_classified",
+                ],
             ),
         ],
         source_spans=spans,
@@ -456,6 +515,8 @@ def initial_state() -> WorkspaceState:
                 review_note=(
                     "Requirement-equivalent timeline language; exact force remains reviewable."
                 ),
+                subject="VAPT finding closure timeline",
+                subject_key="vapt.closure.timeline",
             ),
             RegulatoryStatement(
                 id="STMT-Q15-SLA-ADVISORY",
@@ -468,6 +529,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="ADVISORY_ONLY_NO_COMPLIANCE_FAILURE",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="Encouragement must not be promoted to a mandatory control.",
+                subject="Vendor SLA closure timelines",
+                subject_key="vapt.vendor.sla.timeline",
             ),
             RegulatoryStatement(
                 id="STMT-Q15-VIRTUAL-PATCH",
@@ -478,6 +541,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="OPTION_RECORDED_NO_TASK",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="A permission is retained without creating mandatory work.",
+                subject="Virtual patching as a compensatory control",
+                subject_key="vapt.virtual.patching",
             ),
             RegulatoryStatement(
                 id="STMT-Q17-A-REQUIREMENT",
@@ -492,6 +557,8 @@ def initial_state() -> WorkspaceState:
                 review_note=(
                     "Duration is explicit; clock-start remains unresolved in this FAQ span."
                 ),
+                subject="High-severity missing-patch timeline",
+                subject_key="patch.high.severity.timeline",
             ),
             RegulatoryStatement(
                 id="STMT-Q17-B-REQUIREMENT",
@@ -505,6 +572,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="CONTROL_GENERATING",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="Retains the three-month branch for other VAPT observations.",
+                subject="Other VAPT observation closure timeline",
+                subject_key="vapt.other.observation.timeline",
             ),
             RegulatoryStatement(
                 id="STMT-Q20-FY-BASIS",
@@ -517,6 +586,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="CALENDAR_BASIS_FINANCIAL_YEAR",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="Defines calendar semantics; it does not create a standalone task.",
+                subject="Financial-year calendar basis",
+                subject_key="periodicity.calendar.basis",
             ),
             RegulatoryStatement(
                 id="STMT-Q24-HIGHEST-CATEGORY",
@@ -530,6 +601,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="APPLICABILITY_HIGHEST_CATEGORY",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="Activated when entity facts contain multiple registrations.",
+                subject="Highest category across registrations",
+                subject_key="applicability.highest.category",
             ),
             RegulatoryStatement(
                 id="STMT-Q25-DORMANT-LICENCE",
@@ -540,6 +613,8 @@ def initial_state() -> WorkspaceState:
                 operational_effect="APPLICABILITY_NOT_REMOVED_BY_NON_OPERATION",
                 classification_provenance=Provenance.DETERMINISTIC,
                 review_note="The receipt retains the FAQ's softer ‘may continue’ wording.",
+                subject="Registered but non-operational service",
+                subject_key="applicability.dormant.licence",
             ),
         ],
         findings=[

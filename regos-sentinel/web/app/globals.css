@@ -680,6 +680,98 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   .outcome-item { grid-template-columns: 22px minmax(0, 1fr); gap: var(--s3); }
 }
 
+
+/* ==========================================================================
+   Demonstration scenarios A–D
+   A quiet rail above the workflow, not a second navigation. Case A is the
+   default; the other three are there to show the same path holds elsewhere.
+   ========================================================================== */
+
+.scenario-bar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+}
+
+.scenario-bar-head {
+  padding: var(--s4) var(--s5) var(--s3);
+  border-bottom: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: var(--s1);
+}
+
+.scenario-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.scenario-tab {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  padding: var(--s4) var(--s4);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background var(--t-micro) var(--ease);
+}
+.scenario-tab:last-child { border-right: 0; }
+.scenario-tab:hover { background: var(--surface); }
+.scenario-tab--on { background: var(--surface); border-bottom-color: var(--accent); }
+
+.scenario-tab-label {
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line-2);
+  font-size: 0.75rem; font-weight: 700; color: var(--ink-3);
+}
+.scenario-tab--on .scenario-tab-label {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+
+.scenario-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.scenario-tab-title { font-size: 0.875rem; font-weight: 620; line-height: 1.3; }
+.scenario-tab--on .scenario-tab-title { color: var(--accent); }
+.scenario-tab-question { font-size: 0.8125rem; color: var(--ink-3); line-height: 1.4; }
+
+/* ---------- One row of a source-version comparison ------------------------ */
+
+.change {
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+.change--added      { border-left-color: var(--accent); }
+.change--changed    { border-left-color: var(--review); }
+.change--superseded { border-left-color: var(--review); }
+.change--unchanged  { border-left-color: var(--line-2); background: transparent; }
+
+.change-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .scenario-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scenario-tab:nth-child(2) { border-right: 0; }
+  .scenario-tab:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .scenario-tab--on:nth-child(-n + 2) { border-bottom-color: var(--accent); }
+}
+
+@media (max-width: 560px) {
+  .scenario-tabs { grid-template-columns: minmax(0, 1fr); }
+  .scenario-tab { border-right: 0; border-bottom: 1px solid var(--line); }
+  .scenario-tab:last-child { border-bottom: 0; }
+  .scenario-tab--on { border-bottom-color: var(--accent); }
+}
+
 /* ==========================================================================
    Reduced motion — every animation collapses to an instant state change.
    Content is visible by default and is never gated behind a transition.

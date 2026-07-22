@@ -1,10 +1,1085 @@
 {
-  "manifest_version": "golden/1",
-  "build_id": "BUILD-GOLDEN",
-  "generated_at": "2026-07-22T00:00:00Z",
+  "manifest_version": "compliance-build-manifest/1.0.0",
+  "build_id": "BUILD-0003",
+  "generated_at": "2026-07-22T00:01:01Z",
   "source": {
-    "title": "CSCRF – FAQ",
-    "synthetic": false
+    "documents": [
+      {
+        "id": "SEBI-CSCRF-FAQ-2025-06-11",
+        "authority": "Securities and Exchange Board of India",
+        "title": "FAQs on CSCRF for SEBI REs and Framework for Adoption of Cloud Services",
+        "document_type": "Official FAQ / guidance",
+        "published_at": "2025-06-11",
+        "legal_state": "GUIDANCE — READ WITH CSCRF",
+        "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf",
+        "content_hash": "afaf62f7263135aac3d55393cabf42911252552140f1f6814a96f911f270e203",
+        "content_hash_scope": "SHA-256 OF HUMAN-VERIFIED DEMO EXCERPTS, NOT THE FULL PDF",
+        "corpus_scope": "Nine human-verified spans used for the Q14–Q25 prototype scenarios",
+        "disclaimer": "Prototype output must be read with the governing Acts, Regulations and Circulars. It is decision support, not legal advice or an automated compliance conclusion."
+      },
+      {
+        "id": "SEBI-CSCRF-2024-113",
+        "authority": "Securities and Exchange Board of India",
+        "title": "Cybersecurity and Cyber Resilience Framework for SEBI REs",
+        "document_type": "Circular / framework",
+        "published_at": "2024-08-20",
+        "legal_state": "IN FORCE — READ WITH SUBSEQUENT CLARIFICATIONS",
+        "source_url": "https://www.sebi.gov.in/sebi_data/attachdocs/aug-2024/1724326790365.pdf",
+        "content_hash": "e1478e1e396c7e6af4898554e645d9a4d6ebf45e53d638815950bc0aac966b5a",
+        "content_hash_scope": "SHA-256 OF FOUR HUMAN-VERIFIED REFERENCE EXCERPTS, NOT THE FULL PDF",
+        "corpus_scope": "Table 19, PR.MA Guideline 6, Annexure-A header/field scope, and PR.MA.S3 used by the Q15–Q17 prototype path",
+        "disclaimer": "The prototype dependency set is limited to the four referenced excerpts."
+      }
+    ],
+    "version": "cscrf-faq/2025-06-11-excerpt-v1",
+    "covered_span_ids": [
+      "FAQ-PREFACE-4",
+      "FAQ-Q14",
+      "FAQ-Q15",
+      "FAQ-Q16",
+      "FAQ-Q17-A",
+      "FAQ-Q17-B",
+      "FAQ-Q20",
+      "FAQ-Q24",
+      "FAQ-Q25"
+    ],
+    "dependency_span_ids": [
+      "CSCRF-TABLE-19",
+      "CSCRF-PR-MA-G6",
+      "CSCRF-ANNEXURE-A",
+      "CSCRF-PR-MA-S3"
+    ]
   },
-  "manifest_sha256": "767a935da9310726222f325d42dc7fb06517339119a0fa364dcb0a5664be8f74"
+  "corpus_packs": [
+    {
+      "id": "PACK-CSCRF-FAQ-HERO",
+      "title": "CSCRF FAQ · human-verified prototype scope",
+      "version": "2025-06-11-excerpt-v1",
+      "published_at": "2025-06-11",
+      "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+      "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf",
+      "status": "HERO_SCOPE_ACTIVE",
+      "scope_note": "Nine pinned spans support the Q14–Q25 demo scenarios; the pack does not represent the entire FAQ.",
+      "indexed_span_count": 9,
+      "compiled_candidate_count": 2,
+      "content_identity_sha256": "afaf62f7263135aac3d55393cabf42911252552140f1f6814a96f911f270e203",
+      "authority": "Securities and Exchange Board of India",
+      "legal_state": "GUIDANCE — READ WITH CSCRF",
+      "extraction_scope": "Q14–Q25 and Preface ¶4. Obligation extraction is limited to Q15, Q17(a) and Q17(b); the remaining spans supply applicability and calendar facts.",
+      "source_span_ids": [
+        "FAQ-PREFACE-4",
+        "FAQ-Q14",
+        "FAQ-Q15",
+        "FAQ-Q16",
+        "FAQ-Q17-A",
+        "FAQ-Q17-B",
+        "FAQ-Q20",
+        "FAQ-Q24",
+        "FAQ-Q25"
+      ],
+      "validation_tests": [
+        "tests/test_workflow.py::test_build_fails_closed_before_human_review",
+        "tests/test_workflow.py::test_review_persists_split_and_propagates_impact",
+        "tests/test_workflow.py::test_live_source_matcher_covers_every_pinned_demo_span",
+        "tests/test_scenarios.py::test_scenario_catalogue_is_complete"
+      ]
+    },
+    {
+      "id": "PACK-STOCK-BROKER-MC-2025",
+      "title": "Master Circular for Stock Brokers",
+      "version": "SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/90",
+      "published_at": "2025-06-17",
+      "document_id": "SEBI-STOCK-BROKER-MC-2025-90",
+      "source_url": "https://www.sebi.gov.in/legal/master-circulars/jun-2025/master-circular-for-stock-brokers_94623.html",
+      "status": "SOURCE_REGISTERED_NOT_COMPILED",
+      "scope_note": "Version-pinned expansion target. Source identity is registered, while zero spans or obligations are presented as processed in this prototype.",
+      "indexed_span_count": 0,
+      "compiled_candidate_count": 0,
+      "content_identity_sha256": "aa227fb4289272b83eb72adba2db93ab8324150e91e4ae47731145f641a07da2",
+      "authority": "Securities and Exchange Board of India",
+      "legal_state": "IN FORCE — NOT PROCESSED BY THIS PROTOTYPE",
+      "extraction_scope": "None. No span of this circular has been read or classified.",
+      "source_span_ids": [],
+      "validation_tests": [
+        "tests/test_workflow.py::test_reset_returns_to_unreviewed_state"
+      ]
+    },
+    {
+      "id": "PACK-SESSION-UPLOAD-SANDBOX",
+      "title": "Your uploaded document · session sandbox",
+      "version": "session-scoped",
+      "published_at": "—",
+      "document_id": "SESSION-UPLOAD",
+      "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf",
+      "status": "UPLOAD_SANDBOX_AVAILABLE",
+      "scope_note": "A PDF you supply is segmented and classified deterministically inside your own browser session. It is never given official status and never stored.",
+      "indexed_span_count": 0,
+      "compiled_candidate_count": 0,
+      "content_identity_sha256": "a05f4a9f8460b0ea8a8cbf5e43e8dc9fc8196b51591b9fe83c1e36637f45b9cb",
+      "authority": "Stated by the uploader, not verified by RegOS",
+      "legal_state": "UNKNOWN — SUPPLIED BY A VISITOR",
+      "extraction_scope": "Text-layer pages only. No OCR, no model call, no live source verification.",
+      "source_span_ids": [],
+      "validation_tests": [
+        "tests/test_documents.py::test_uploaded_pdf_is_segmented_and_classified"
+      ]
+    }
+  ],
+  "references": [
+    {
+      "id": "REF-Q15-TABLE-19",
+      "from_span_id": "FAQ-Q15",
+      "target_document_id": "SEBI-CSCRF-2024-113",
+      "target_locator": "CSCRF Part I · PDF page 49 · Table 19",
+      "relationship": "READ_WITH",
+      "status": "RESOLVED_HASHED",
+      "target_span_id": "CSCRF-TABLE-19",
+      "target_hash": "1da84cdfabf21c5fa555500cd9ab50e746e33b21425b3e5502ce7ced669a1ea2",
+      "resolution_note": "Dependency closed. Table 19 states the three-month clock-start as VAPT report submission and separately records submission and revalidation timelines."
+    },
+    {
+      "id": "REF-Q15-GUIDELINE-6",
+      "from_span_id": "FAQ-Q15",
+      "target_document_id": "SEBI-CSCRF-2024-113",
+      "target_locator": "CSCRF Part II · PDF page 116 · PR.MA Guideline 6",
+      "relationship": "READ_WITH",
+      "status": "RESOLVED_HASHED",
+      "target_span_id": "CSCRF-PR-MA-G6",
+      "target_hash": "76a60f32a79aed6f885a173eee8588c95048971c3a2c8ec085825455691b0d71",
+      "resolution_note": "Dependency closed. Guideline 6 supplies conditions for the permitted virtual-patching option without turning Q15's encouragement into a failure."
+    },
+    {
+      "id": "REF-Q16-ANNEXURE-A",
+      "from_span_id": "FAQ-Q16",
+      "target_document_id": "SEBI-CSCRF-2024-113",
+      "target_locator": "CSCRF Part III · PDF pages 133–141 · Annexure-A",
+      "relationship": "FORMAT_DEFINED_BY",
+      "status": "RESOLVED_HASHED",
+      "target_span_id": "CSCRF-ANNEXURE-A",
+      "target_hash": "6fd7f855b3e4540645e952c506ce437d3686fa2359320cab5f21e16c869f323e",
+      "resolution_note": "Dependency closed. Annexure-A is pinned as the VAPT reporting-format source; the prototype maps evidence metadata but performs no regulatory submission."
+    },
+    {
+      "id": "REF-Q17-PR-MA-S3",
+      "from_span_id": "FAQ-Q17-A",
+      "target_document_id": "SEBI-CSCRF-2024-113",
+      "target_locator": "CSCRF Part II · PDF pages 116–117 · PR.MA.S3",
+      "relationship": "READ_WITH",
+      "status": "RESOLVED_HASHED",
+      "target_span_id": "CSCRF-PR-MA-S3",
+      "target_hash": "8fc574064a6f361076ee627f149873264b3232140b6ad187113094aed88b2204",
+      "resolution_note": "Dependency closed. PR.MA.S3 confirms the high-patch one-week maximum but still does not state the event that starts the clock."
+    }
+  ],
+  "regulatory_statements": [
+    {
+      "id": "STMT-Q15-REQUIREMENT",
+      "span_id": "FAQ-Q15",
+      "exact_phrase": "is within three (3) months of submission of VAPT report",
+      "deontic_force": "MANDATORY",
+      "legalruleml_operator": "Obligation",
+      "operational_effect": "CONTROL_GENERATING",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Requirement-equivalent timeline language; exact force remains reviewable.",
+      "subject": "VAPT finding closure timeline",
+      "subject_key": "vapt.closure.timeline"
+    },
+    {
+      "id": "STMT-Q15-SLA-ADVISORY",
+      "span_id": "FAQ-Q15",
+      "exact_phrase": "REs are encouraged to include ‘VAPT finding closure’ related timelines",
+      "deontic_force": "RECOMMENDED",
+      "legalruleml_operator": "Recommendation",
+      "operational_effect": "ADVISORY_ONLY_NO_COMPLIANCE_FAILURE",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Encouragement must not be promoted to a mandatory control.",
+      "subject": "Vendor SLA closure timelines",
+      "subject_key": "vapt.vendor.sla.timeline"
+    },
+    {
+      "id": "STMT-Q15-VIRTUAL-PATCH",
+      "span_id": "FAQ-Q15",
+      "exact_phrase": "REs may also consider compensatory controls like virtual patching",
+      "deontic_force": "PERMITTED",
+      "legalruleml_operator": "Permission",
+      "operational_effect": "OPTION_RECORDED_NO_TASK",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "A permission is retained without creating mandatory work.",
+      "subject": "Virtual patching as a compensatory control",
+      "subject_key": "vapt.virtual.patching"
+    },
+    {
+      "id": "STMT-Q17-A-REQUIREMENT",
+      "span_id": "FAQ-Q17-A",
+      "exact_phrase": "would be validated for non-compliances against the patch management timelines",
+      "deontic_force": "MANDATORY",
+      "legalruleml_operator": "Obligation",
+      "operational_effect": "CONTROL_GENERATING_AFTER_REFERENCE_CLOSURE",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Duration is explicit; clock-start remains unresolved in this FAQ span.",
+      "subject": "High-severity missing-patch timeline",
+      "subject_key": "patch.high.severity.timeline"
+    },
+    {
+      "id": "STMT-Q17-B-REQUIREMENT",
+      "span_id": "FAQ-Q17-B",
+      "exact_phrase": "shall be validated for non-closure against the VAPT observation closure timelines",
+      "deontic_force": "MANDATORY",
+      "legalruleml_operator": "Obligation",
+      "operational_effect": "CONTROL_GENERATING",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Retains the three-month branch for other VAPT observations.",
+      "subject": "Other VAPT observation closure timeline",
+      "subject_key": "vapt.other.observation.timeline"
+    },
+    {
+      "id": "STMT-Q20-FY-BASIS",
+      "span_id": "FAQ-Q20",
+      "exact_phrase": "All the periodicities mentioned in the CSCRF are based on financial year",
+      "deontic_force": "DEFINITIONAL",
+      "legalruleml_operator": "ConstitutiveStatement",
+      "operational_effect": "CALENDAR_BASIS_FINANCIAL_YEAR",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Defines calendar semantics; it does not create a standalone task.",
+      "subject": "Financial-year calendar basis",
+      "subject_key": "periodicity.calendar.basis"
+    },
+    {
+      "id": "STMT-Q24-HIGHEST-CATEGORY",
+      "span_id": "FAQ-Q24",
+      "exact_phrase": "the provision of highest category under which such an RE falls shall be applicable",
+      "deontic_force": "MANDATORY",
+      "legalruleml_operator": "Obligation",
+      "operational_effect": "APPLICABILITY_HIGHEST_CATEGORY",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "Activated when entity facts contain multiple registrations.",
+      "subject": "Highest category across registrations",
+      "subject_key": "applicability.highest.category"
+    },
+    {
+      "id": "STMT-Q25-DORMANT-LICENCE",
+      "span_id": "FAQ-Q25",
+      "exact_phrase": "applicable to all those intermediaries who are registered with SEBI",
+      "deontic_force": "MANDATORY",
+      "legalruleml_operator": "Obligation",
+      "operational_effect": "APPLICABILITY_NOT_REMOVED_BY_NON_OPERATION",
+      "classification_provenance": "DETERMINISTIC",
+      "review_note": "The receipt retains the FAQ's softer ‘may continue’ wording.",
+      "subject": "Registered but non-operational service",
+      "subject_key": "applicability.dormant.licence"
+    }
+  ],
+  "entity_profile": {
+    "id": "ENT-ASTER-001",
+    "legal_name": "Aster Securities Pvt Ltd",
+    "entity_type": "STOCK_BROKER",
+    "cscrf_category": "SMALL-SIZE RE",
+    "is_qsb": false,
+    "environment": "SYNTHETIC DEMO PROFILE",
+    "facts_version": "entity-facts/1",
+    "registrations": [
+      {
+        "registration_type": "STOCK_BROKER",
+        "cscrf_category": "SMALL-SIZE RE",
+        "operational": true,
+        "synthetic": true
+      }
+    ],
+    "has_dormant_license": false,
+    "synthetic": true
+  },
+  "obligations": [
+    {
+      "id": "OBL-PATCH-HIGH-001",
+      "version": 1,
+      "actor": "SEBI-regulated entity",
+      "action": "remediate",
+      "object": "high-severity vulnerability caused by non-implementation of a patch",
+      "condition": "severity=HIGH and caused_by_missing_patch=true",
+      "deadline": {
+        "trigger": "Proactive discovery date recorded by vulnerability management",
+        "duration": 1,
+        "unit": "week",
+        "calendar_basis": "7 calendar days in this demo ruleset",
+        "trigger_provenance": "HUMAN_POLICY",
+        "duration_provenance": "SOURCE_EXPLICIT",
+        "computable": true,
+        "blocked_reason": null,
+        "citation": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "control_id": "CTRL-VAPT-07",
+      "evidence_requirements": [
+        "OEM advisory or discovery record",
+        "Non-production patch test result",
+        "Deployment approval",
+        "Closure proof"
+      ],
+      "field_citations": {
+        "actor": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "action": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "object": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "condition": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "deadline": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "field_provenance": {
+        "actor": "SOURCE_EXPLICIT",
+        "action": "SOURCE_EXPLICIT",
+        "object": "SOURCE_EXPLICIT",
+        "condition": "DETERMINISTIC",
+        "trigger": "HUMAN_POLICY",
+        "duration": "SOURCE_EXPLICIT"
+      },
+      "applicability": {
+        "id": "APR-PATCH-HIGH-001",
+        "obligation_id": "OBL-PATCH-HIGH-001",
+        "applies": true,
+        "entity_fact": "entity_type=STOCK_BROKER; finding_severity=HIGH; caused_by_missing_patch=true",
+        "rule": "SEBI RE + high severity + non-implementation of patch",
+        "reason": "The synthetic finding matches every condition in the Q17(a) branch.",
+        "provenance": "DETERMINISTIC",
+        "reviewer_name": "Aditi Rao",
+        "citation": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-A",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+          "quote": "high severity ... patch management timelines (1 week)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "status": "ACTIVE",
+      "provenance": "AI_SUGGESTED"
+    },
+    {
+      "id": "OBL-VAPT-OTHER-001",
+      "version": 1,
+      "actor": "SEBI-regulated entity",
+      "action": "close",
+      "object": "other VAPT observation",
+      "condition": "caused_by_missing_patch=false",
+      "deadline": {
+        "trigger": "VAPT report submission",
+        "duration": 3,
+        "unit": "months",
+        "calendar_basis": "calendar months",
+        "trigger_provenance": "SOURCE_EXPLICIT",
+        "duration_provenance": "SOURCE_EXPLICIT",
+        "computable": true,
+        "blocked_reason": null,
+        "citation": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "control_id": "CTRL-VAPT-07",
+      "evidence_requirements": [
+        "VAPT report",
+        "Risk-graded remediation record",
+        "Closure proof"
+      ],
+      "field_citations": {
+        "actor": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "action": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "object": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "condition": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        },
+        "deadline": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "field_provenance": {
+        "actor": "SOURCE_EXPLICIT",
+        "action": "SOURCE_EXPLICIT",
+        "object": "SOURCE_EXPLICIT",
+        "condition": "DETERMINISTIC",
+        "trigger": "SOURCE_EXPLICIT",
+        "duration": "SOURCE_EXPLICIT"
+      },
+      "applicability": {
+        "id": "APR-VAPT-OTHER-001",
+        "obligation_id": "OBL-VAPT-OTHER-001",
+        "applies": true,
+        "entity_fact": "entity_type=STOCK_BROKER; caused_by_missing_patch=false",
+        "rule": "SEBI RE + VAPT observation other than patch implementation",
+        "reason": "The configuration finding follows Q17(b), not the Q17(a) patch branch.",
+        "provenance": "DETERMINISTIC",
+        "reviewer_name": "Aditi Rao",
+        "citation": {
+          "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+          "span_id": "FAQ-Q17-B",
+          "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+          "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+          "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+        }
+      },
+      "status": "ACTIVE",
+      "provenance": "AI_SUGGESTED"
+    }
+  ],
+  "controls": [
+    {
+      "id": "CTRL-VAPT-07",
+      "version": 2,
+      "name": "VAPT finding closure",
+      "owner": "Cybersecurity Lead",
+      "rule_summary": "High-severity missing-patch findings: one week. Other VAPT observations: three months with a criticality-graded approach.",
+      "previous_rule_summary": "All VAPT findings close within three months of report submission.",
+      "status": "ACTIVE — REMEDIATION ACTIONS OPEN",
+      "source_obligation_ids": [
+        "OBL-PATCH-HIGH-001",
+        "OBL-VAPT-OTHER-001"
+      ]
+    }
+  ],
+  "deadline_computations": [
+    {
+      "id": "DLC-PATCH-001",
+      "finding_id": "F-001",
+      "obligation_id": "OBL-PATCH-HIGH-001",
+      "trigger_label": "Proactive discovery date recorded by vulnerability management",
+      "trigger_date": "2026-07-22",
+      "duration_label": "1 week",
+      "due_date": "2026-07-29",
+      "calculation_trace": [
+        "2026-07-22 · reviewer records the entity policy input",
+        "+ 1 week · source-explicit duration from FAQ Q17(a)",
+        "2026-07-29 · calculated due date"
+      ],
+      "trigger_provenance": "HUMAN_POLICY",
+      "duration_provenance": "SOURCE_EXPLICIT",
+      "computable": true,
+      "blocked_reason": null,
+      "human_policy_note": "The cited Q17 branches support the corrected conditional control.",
+      "citation": {
+        "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+        "span_id": "FAQ-Q17-A",
+        "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(a)",
+        "quote": "high severity ... patch management timelines (1 week)",
+        "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+      }
+    },
+    {
+      "id": "DLC-VAPT-OTHER-001",
+      "finding_id": "F-002",
+      "obligation_id": "OBL-VAPT-OTHER-001",
+      "trigger_label": "VAPT report submission",
+      "trigger_date": "2026-07-20",
+      "duration_label": "3 calendar months",
+      "due_date": "2026-10-20",
+      "calculation_trace": [
+        "2026-07-20 · synthetic VAPT report submission",
+        "+ 3 calendar months · source-explicit rule from FAQ Q15/Q17(b)",
+        "2026-10-20 · calculated due date"
+      ],
+      "trigger_provenance": "SOURCE_EXPLICIT",
+      "duration_provenance": "SOURCE_EXPLICIT",
+      "computable": true,
+      "blocked_reason": null,
+      "human_policy_note": null,
+      "citation": {
+        "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+        "span_id": "FAQ-Q17-B",
+        "locator": "FAQ dated 11 June 2025 · printed p.8 · PDF page 9 · Q17(b)",
+        "quote": "Other vulnerabilities ... VAPT observation closure timelines (3 months)",
+        "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+      }
+    }
+  ],
+  "periodicity_windows": [],
+  "applicability_scenarios": [
+    {
+      "id": "APP-Q24-MULTI-REG",
+      "source_span_id": "FAQ-Q24",
+      "scenario": "Multiple SEBI registrations use the highest applicable category",
+      "activated": false,
+      "decision": "NOT_ACTIVATED_SINGLE_REGISTRATION",
+      "entity_facts": [
+        "registrations=1",
+        "highest_category=SMALL-SIZE RE"
+      ],
+      "reason": "The current synthetic profile has a single SEBI registration.",
+      "provenance": "DETERMINISTIC",
+      "reviewer_name": null,
+      "reviewed_at": null,
+      "citation": {
+        "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+        "span_id": "FAQ-Q24",
+        "locator": "FAQ dated 11 June 2025 · PDF page 10 · Q24",
+        "quote": "the provision of highest category under which such an RE falls shall be applicable",
+        "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+      }
+    },
+    {
+      "id": "APP-Q25-DORMANT-LICENCE",
+      "source_span_id": "FAQ-Q25",
+      "scenario": "A registered but non-operational service remains in scope",
+      "activated": false,
+      "decision": "NOT_ACTIVATED_NO_DORMANT_LICENCE",
+      "entity_facts": [
+        "has_dormant_license=false"
+      ],
+      "reason": "The current synthetic profile has no dormant licensed service.",
+      "provenance": "DETERMINISTIC",
+      "reviewer_name": null,
+      "reviewed_at": null,
+      "citation": {
+        "document_id": "SEBI-CSCRF-FAQ-2025-06-11",
+        "span_id": "FAQ-Q25",
+        "locator": "FAQ dated 11 June 2025 · PDF page 11 · Q25",
+        "quote": "applicable to all those intermediaries who are registered with SEBI",
+        "source_url": "https://www.sebi.gov.in/sebi_data/faqfiles/jun-2025/1749647139924.pdf"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EVD-VAPT-REGISTER-001",
+      "name": "vapt_register_q1.csv",
+      "kind": "Synthetic VAPT finding register metadata",
+      "control_id": "CTRL-VAPT-07",
+      "status": "NEEDS_REVALIDATION",
+      "collected_at": "2026-07-20T10:00:00Z",
+      "reason": "Finding classifications must be revalidated against the new patch and non-patch branches.",
+      "synthetic": true
+    },
+    {
+      "id": "EVD-VENDOR-SLA-001",
+      "name": "vendor_sla.pdf",
+      "kind": "Synthetic vendor SLA metadata",
+      "control_id": "CTRL-VAPT-07",
+      "status": "NEEDS_REVALIDATION",
+      "collected_at": "2026-07-10T08:15:00Z",
+      "reason": "The 30-day vendor commitment is retained as an advisory gap under Q15; no failed control is created.",
+      "synthetic": true
+    },
+    {
+      "id": "EVD-PATCH-POLICY-001",
+      "name": "patch_policy_v1.pdf",
+      "kind": "Approved policy metadata",
+      "control_id": "CTRL-VAPT-07",
+      "status": "NEEDS_REVALIDATION",
+      "collected_at": "2026-07-15T09:30:00Z",
+      "reason": "The approved control changed from a single three-month rule to a conditional one-week branch.",
+      "synthetic": true
+    }
+  ],
+  "reviewer_readings": [
+    {
+      "id": "READ-Q17-001",
+      "span_id": "FAQ-Q17-A",
+      "reviewer_name": "Aditi Rao",
+      "reviewer_role": "Compliance Officer",
+      "independent_interpretation": "The one-week duration is explicit while the start event is not stated.",
+      "trigger_policy": "Proactive discovery date recorded by vulnerability management",
+      "committed_at": "2026-07-22T00:00:40Z",
+      "system_suggestion_revealed_at": "2026-07-22T00:00:41Z",
+      "revealed_system_suggestion": "Q17(a) supports a one-week duration for high-severity missing-patch findings; the cited Q17(a) and scoped PR.MA.S3 spans do not state the clock-start."
+    }
+  ],
+  "reviewer": {
+    "id": "REV-Q17-001",
+    "span_id": "FAQ-Q17-A",
+    "decision": "APPROVED",
+    "selected_interpretation": "Split missing-patch high severity from all other VAPT observations",
+    "reason": "The cited Q17 branches support the corrected conditional control.",
+    "reviewer_name": "Aditi Rao",
+    "reviewer_role": "Compliance Officer",
+    "decided_at": "2026-07-22T00:00:50Z",
+    "policy_inputs": {
+      "trigger_policy": "Proactive discovery date recorded by vulnerability management",
+      "trigger_date": "2026-07-22",
+      "trigger_provenance": "HUMAN_POLICY"
+    },
+    "independent_reading_id": "READ-Q17-001",
+    "reviewer_agreement": true
+  },
+  "test_history": [
+    {
+      "id": "BUILD-0001",
+      "run_id": "RUN-0001",
+      "sequence": 1,
+      "status": "BLOCKED_AWAITING_HUMAN",
+      "started_at": "2026-07-22T00:00:10Z",
+      "completed_at": "2026-07-22T00:00:11Z",
+      "stage": "VERIFY",
+      "headline": "One-week rule has no source-stated clock start",
+      "tests": [
+        {
+          "id": "TEST-COVERAGE-001",
+          "name": "No unresolved material source spans",
+          "status": "BLOCK",
+          "message": "Q17 contains material deadline branches that remain uncompiled.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-PATCH-BRANCH-001",
+          "name": "High-severity missing-patch branch exists",
+          "status": "BLOCK",
+          "message": "The current control applies three months to all VAPT findings and misses Q17(a).",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-HUMAN-REVIEW-001",
+          "name": "Material interpretation has human approval",
+          "status": "BLOCK",
+          "message": "Publication is blocked until a human reviews the conflicting deadline branches.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-INDEPENDENT-READING-001",
+          "name": "Reviewer commits an independent reading before system reveal",
+          "status": "BLOCK",
+          "message": "The system suggestion remains hidden until the reviewer commits a reading.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-CITATION-001",
+          "name": "Material fields have exact source locators",
+          "status": "BLOCK",
+          "message": "One or more material obligation fields lack an exact source locator.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-REFERENCE-CLOSURE-001",
+          "name": "Every scoped outbound reference is closed",
+          "status": "BLOCK",
+          "message": "One or more explicit Q15–Q17 CSCRF dependencies remain unresolved.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q16",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-DEONTIC-FORCE-001",
+          "name": "Recommendations cannot create compliance failures",
+          "status": "PASS",
+          "message": "Q15's SLA language is typed RECOMMENDED and creates an advisory, not a failure.",
+          "related_span_ids": [
+            "FAQ-Q15"
+          ]
+        },
+        {
+          "id": "TEST-DEADLINE-TRACE-001",
+          "name": "Deadline calculations expose trigger provenance",
+          "status": "BLOCK",
+          "message": "No due date is published until the rule branch and trigger input are reviewed.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-IMPACT-001",
+          "name": "Downstream impact is propagated",
+          "status": "PASS",
+          "message": "Control, SLA, evidence and remediation task states are internally consistent.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-FY-PERIODICITY-001",
+          "name": "QSB periodicity uses Indian financial-year halves",
+          "status": "PASS",
+          "message": "QSB half-years resolve to Apr–Sep and Oct–Mar under Q14 and Q20.",
+          "related_span_ids": [
+            "FAQ-Q14",
+            "FAQ-Q20"
+          ]
+        },
+        {
+          "id": "TEST-APPLICABILITY-HARD-CASES-001",
+          "name": "Applicability receipts match the registered entity facts",
+          "status": "PASS",
+          "message": "Q24 and Q25 receipts explain both activated and excluded scenarios.",
+          "related_span_ids": [
+            "FAQ-Q24",
+            "FAQ-Q25"
+          ]
+        }
+      ],
+      "impact": {
+        "controls_changed": 0,
+        "vendor_sla_advisories": 0,
+        "evidence_revalidation": 0,
+        "tasks_created": 0
+      },
+      "source_version": "cscrf-faq/2025-06-11-excerpt-v1",
+      "schema_version": "obligation-schema/1.1.0",
+      "ruleset_version": "cscrf-demo-rules/1.0.0",
+      "reviewer": null
+    },
+    {
+      "id": "BUILD-0002",
+      "run_id": "RUN-0002",
+      "sequence": 2,
+      "status": "BLOCKED_AWAITING_HUMAN",
+      "started_at": "2026-07-22T00:00:30Z",
+      "completed_at": "2026-07-22T00:00:31Z",
+      "stage": "VERIFY",
+      "headline": "One-week rule has no source-stated clock start",
+      "tests": [
+        {
+          "id": "TEST-COVERAGE-001",
+          "name": "No unresolved material source spans",
+          "status": "BLOCK",
+          "message": "Q17 contains material deadline branches that remain uncompiled.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-PATCH-BRANCH-001",
+          "name": "High-severity missing-patch branch exists",
+          "status": "BLOCK",
+          "message": "The current control applies three months to all VAPT findings and misses Q17(a).",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-HUMAN-REVIEW-001",
+          "name": "Material interpretation has human approval",
+          "status": "BLOCK",
+          "message": "Publication is blocked until a human reviews the conflicting deadline branches.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-INDEPENDENT-READING-001",
+          "name": "Reviewer commits an independent reading before system reveal",
+          "status": "BLOCK",
+          "message": "The system suggestion remains hidden until the reviewer commits a reading.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-CITATION-001",
+          "name": "Material fields have exact source locators",
+          "status": "BLOCK",
+          "message": "One or more material obligation fields lack an exact source locator.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-REFERENCE-CLOSURE-001",
+          "name": "Every scoped outbound reference is closed",
+          "status": "PASS",
+          "message": "Q15–Q17 dependencies are linked to four hash-pinned CSCRF source spans.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q16",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-DEONTIC-FORCE-001",
+          "name": "Recommendations cannot create compliance failures",
+          "status": "PASS",
+          "message": "Q15's SLA language is typed RECOMMENDED and creates an advisory, not a failure.",
+          "related_span_ids": [
+            "FAQ-Q15"
+          ]
+        },
+        {
+          "id": "TEST-DEADLINE-TRACE-001",
+          "name": "Deadline calculations expose trigger provenance",
+          "status": "BLOCK",
+          "message": "No due date is published until the rule branch and trigger input are reviewed.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-IMPACT-001",
+          "name": "Downstream impact is propagated",
+          "status": "PASS",
+          "message": "Control, SLA, evidence and remediation task states are internally consistent.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-FY-PERIODICITY-001",
+          "name": "QSB periodicity uses Indian financial-year halves",
+          "status": "PASS",
+          "message": "QSB half-years resolve to Apr–Sep and Oct–Mar under Q14 and Q20.",
+          "related_span_ids": [
+            "FAQ-Q14",
+            "FAQ-Q20"
+          ]
+        },
+        {
+          "id": "TEST-APPLICABILITY-HARD-CASES-001",
+          "name": "Applicability receipts match the registered entity facts",
+          "status": "PASS",
+          "message": "Q24 and Q25 receipts explain both activated and excluded scenarios.",
+          "related_span_ids": [
+            "FAQ-Q24",
+            "FAQ-Q25"
+          ]
+        }
+      ],
+      "impact": {
+        "controls_changed": 0,
+        "vendor_sla_advisories": 0,
+        "evidence_revalidation": 0,
+        "tasks_created": 0
+      },
+      "source_version": "cscrf-faq/2025-06-11-excerpt-v1",
+      "schema_version": "obligation-schema/1.1.0",
+      "ruleset_version": "cscrf-demo-rules/1.0.0",
+      "reviewer": null
+    },
+    {
+      "id": "BUILD-0003",
+      "run_id": "RUN-0003",
+      "sequence": 3,
+      "status": "APPROVED",
+      "started_at": "2026-07-22T00:01:00Z",
+      "completed_at": "2026-07-22T00:01:01Z",
+      "stage": "PROVE",
+      "headline": "Human-approved regulatory split compiled",
+      "tests": [
+        {
+          "id": "TEST-COVERAGE-001",
+          "name": "No unresolved material source spans",
+          "status": "PASS",
+          "message": "Every scoped normative span has a recorded disposition.",
+          "related_span_ids": []
+        },
+        {
+          "id": "TEST-PATCH-BRANCH-001",
+          "name": "High-severity missing-patch branch exists",
+          "status": "PASS",
+          "message": "High-severity missing-patch findings use an explicit one-week rule.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-HUMAN-REVIEW-001",
+          "name": "Material interpretation has human approval",
+          "status": "PASS",
+          "message": "An authorized reviewer approved the Q17 split with a recorded reason.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-INDEPENDENT-READING-001",
+          "name": "Reviewer commits an independent reading before system reveal",
+          "status": "PASS",
+          "message": "The pre-reveal reading and reveal timestamp are persisted.",
+          "related_span_ids": [
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-CITATION-001",
+          "name": "Material fields have exact source locators",
+          "status": "PASS",
+          "message": "Actor, action, object, condition and deadline fields are source-linked.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-REFERENCE-CLOSURE-001",
+          "name": "Every scoped outbound reference is closed",
+          "status": "PASS",
+          "message": "Q15–Q17 dependencies are linked to four hash-pinned CSCRF source spans.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q16",
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-DEONTIC-FORCE-001",
+          "name": "Recommendations cannot create compliance failures",
+          "status": "PASS",
+          "message": "Q15's SLA language is typed RECOMMENDED and creates an advisory, not a failure.",
+          "related_span_ids": [
+            "FAQ-Q15"
+          ]
+        },
+        {
+          "id": "TEST-DEADLINE-TRACE-001",
+          "name": "Deadline calculations expose trigger provenance",
+          "status": "PASS",
+          "message": "Every synthetic finding has an inspectable calendar trace and labeled inputs.",
+          "related_span_ids": [
+            "FAQ-Q15",
+            "FAQ-Q17-A",
+            "FAQ-Q17-B"
+          ]
+        },
+        {
+          "id": "TEST-IMPACT-001",
+          "name": "Downstream impact is propagated",
+          "status": "PASS",
+          "message": "Control, SLA, evidence and remediation task states are internally consistent.",
+          "related_span_ids": [
+            "FAQ-Q17-A"
+          ]
+        },
+        {
+          "id": "TEST-FY-PERIODICITY-001",
+          "name": "QSB periodicity uses Indian financial-year halves",
+          "status": "PASS",
+          "message": "QSB half-years resolve to Apr–Sep and Oct–Mar under Q14 and Q20.",
+          "related_span_ids": [
+            "FAQ-Q14",
+            "FAQ-Q20"
+          ]
+        },
+        {
+          "id": "TEST-APPLICABILITY-HARD-CASES-001",
+          "name": "Applicability receipts match the registered entity facts",
+          "status": "PASS",
+          "message": "Q24 and Q25 receipts explain both activated and excluded scenarios.",
+          "related_span_ids": [
+            "FAQ-Q24",
+            "FAQ-Q25"
+          ]
+        }
+      ],
+      "impact": {
+        "controls_changed": 1,
+        "vendor_sla_advisories": 1,
+        "evidence_revalidation": 3,
+        "tasks_created": 2
+      },
+      "source_version": "cscrf-faq/2025-06-11-excerpt-v1",
+      "schema_version": "obligation-schema/1.1.0",
+      "ruleset_version": "cscrf-demo-rules/1.1.0-human-approved",
+      "reviewer": "Aditi Rao"
+    }
+  ],
+  "audit_event_ids": [
+    "AUD-0001",
+    "AUD-0002",
+    "AUD-0003",
+    "AUD-0004",
+    "AUD-0005",
+    "AUD-0006",
+    "AUD-0007",
+    "AUD-0008"
+  ],
+  "reproducibility": {
+    "schema_version": "obligation-schema/1.1.0",
+    "ruleset_version": "cscrf-demo-rules/1.1.0-human-approved",
+    "extraction_mode": "HUMAN_VERIFIED_SEEDED_EXCERPTS",
+    "model_provider": "OpenRouter",
+    "model_id": "google/gemma-4-26b-a4b-it:free",
+    "prompt_version": "regos-extraction/q15-q17-v1",
+    "model_input_sha256": "8ac3d7931184c2737d487a970bd41166f3ebfedd553f3d4764138c997f1fe381",
+    "model_output_sha256": "8e867b2fb62d617877dbf06226bed9bf8929e67fbddd25bce460f91326d472a9",
+    "model_cache_hit": true,
+    "model_output_token_limit": 900,
+    "state_store": "BOUNDED_SIGNED_IN_MEMORY_SESSION",
+    "offline_replay_command": "REGOS_OFFLINE=1 uv run python scripts/replay_build.py",
+    "replay_input_sha256": "e861558bbc19e2450bb3d0303f824173bcafa4711d33058489c841e75032f55f"
+  },
+  "manifest_sha256": "ed2aa77fe34212536eab4a8002839b1f8aef3112fe405797c10e174069926678"
 }

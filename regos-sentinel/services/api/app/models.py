@@ -93,6 +93,9 @@ class SourceSpan(StrictModel):
     text: str
     normative_signal: bool
     source_url: str
+    # Stable topic identity, used to line a passage up against the same topic in another
+    # source version. Empty means the passage is outside any declared comparison scope.
+    subject_key: str = ""
 
 
 class LiveSourceVerificationReceipt(StrictModel):
@@ -136,6 +139,14 @@ class SourceReference(StrictModel):
     resolution_note: Optional[str] = None
 
 
+class CorpusState(str, Enum):
+    """The only three honest states a corpus can be in inside this prototype."""
+
+    ACTIVE = "HERO_SCOPE_ACTIVE"
+    REGISTERED = "SOURCE_REGISTERED_NOT_COMPILED"
+    SANDBOX = "UPLOAD_SANDBOX_AVAILABLE"
+
+
 class CorpusPack(StrictModel):
     id: str
     title: str
@@ -143,11 +154,40 @@ class CorpusPack(StrictModel):
     published_at: str
     document_id: str
     source_url: str
-    status: str
+    status: CorpusState
     scope_note: str
     indexed_span_count: int = Field(ge=0)
     compiled_candidate_count: int = Field(ge=0)
     content_identity_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    authority: str = "Not stated"
+    legal_state: str = "NOT STATED"
+    extraction_scope: str = "Not declared"
+    source_span_ids: List[str] = Field(default_factory=list)
+    validation_tests: List[str] = Field(default_factory=list)
+
+
+class CorpusGateStatus(str, Enum):
+    PASSED = "GATE_PASSED"
+    NOT_RUN = "GATE_NOT_RUN"
+    NOT_APPLICABLE = "GATE_NOT_APPLICABLE"
+
+
+class CorpusGate(StrictModel):
+    """One of the eight gates a corpus must clear before it can produce work."""
+
+    id: str
+    name: str
+    plain: str
+    status: CorpusGateStatus
+    observed: str
+    test_id: Optional[str] = None
+
+
+class CorpusPackReport(StrictModel):
+    pack: CorpusPack
+    gates: List[CorpusGate]
+    gates_passed: int = Field(ge=0)
+    gates_total: int = Field(ge=1)
 
 
 class RegulatoryStatement(StrictModel):
@@ -159,6 +199,8 @@ class RegulatoryStatement(StrictModel):
     operational_effect: str
     classification_provenance: Provenance
     review_note: str
+    subject: str = ""
+    subject_key: str = ""
 
 
 class RegistrationFact(StrictModel):
@@ -505,6 +547,199 @@ class BenchmarkResult(StrictModel):
     operating_points: List[BenchmarkOperatingPoint]
 
 
+# --------------------------------------------------------------------------- #
+# Demonstration scenarios A–D
+#
+# Four cases from the reviewed prototype corpus. They demonstrate a reusable
+# workflow; they do not cover the SEBI corpus and never claim to.
+# --------------------------------------------------------------------------- #
+
+
+class ScenarioId(str, Enum):
+    A_MISSING_TRIGGER = "A_MISSING_TRIGGER"
+    B_ADVISORY_LANGUAGE = "B_ADVISORY_LANGUAGE"
+    C_APPLICABILITY = "C_APPLICABILITY"
+    D_SOURCE_CHANGE = "D_SOURCE_CHANGE"
+
+
+class ScenarioStatus(str, Enum):
+    NOT_RUN = "SCENARIO_NOT_RUN"
+    DEMONSTRATED = "SCENARIO_DEMONSTRATED"
+    UNEXPECTED = "SCENARIO_UNEXPECTED_RESULT"
+
+
+class ScenarioDefinition(StrictModel):
+    id: ScenarioId
+    label: str
+    title: str
+    question: str
+    citation_locator: str
+    citation_quote: str
+    expected_outcome: str
+    seeded_data: str
+    automated_test: str
+    reset_note: str
+    guided: bool = False
+
+
+class ScenarioCheck(StrictModel):
+    id: str
+    question: str
+    expected: str
+    observed: str
+    passed: bool
+
+
+class ApplicabilityDecision(StrictModel):
+    """Why one obligation reaches this entity and another does not."""
+
+    id: str
+    subject: str
+    applies: bool
+    entity_fact: str
+    rule: str
+    reason: str
+    provenance: Provenance
+    citation: Citation
+
+
+class SourceChangeKind(str, Enum):
+    ADDED = "ADDED"
+    CHANGED = "CHANGED"
+    SUPERSEDED = "SUPERSEDED"
+    UNCHANGED = "UNCHANGED"
+
+
+class SourceChange(StrictModel):
+    id: str
+    kind: SourceChangeKind
+    subject: str
+    subject_key: str
+    before_locator: Optional[str] = None
+    before_quote: Optional[str] = None
+    before_strength: Optional[DeonticForce] = None
+    after_locator: Optional[str] = None
+    after_quote: Optional[str] = None
+    after_strength: Optional[DeonticForce] = None
+    impact_summary: str
+    impacted_control_ids: List[str] = Field(default_factory=list)
+    evidence_ids_for_review: List[str] = Field(default_factory=list)
+    creates_mandatory_work: bool = False
+    review_required: bool = False
+    applied_automatically: bool = False
+    provenance: Provenance
+    note: str
+
+
+class SourceRevision(StrictModel):
+    id: str
+    from_version: str
+    to_version: str
+    authority: str
+    legal_state: str
+    scope_note: str
+    disclaimer: str
+    base_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    revision_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    synthetic: bool = True
+
+
+class ScenarioOutcome(StrictModel):
+    scenario_id: ScenarioId
+    status: ScenarioStatus
+    phase: str
+    headline: str
+    checks: List[ScenarioCheck] = Field(default_factory=list)
+    facts: List[str] = Field(default_factory=list)
+    citations: List[Citation] = Field(default_factory=list)
+    applicability_decisions: List[ApplicabilityDecision] = Field(default_factory=list)
+    source_revision: Optional[SourceRevision] = None
+    source_changes: List[SourceChange] = Field(default_factory=list)
+    ran_at: str
+    provenance: Provenance = Provenance.DETERMINISTIC
+
+
+# --------------------------------------------------------------------------- #
+# AI assurance — the hybrid split, made visible
+# --------------------------------------------------------------------------- #
+
+
+class PipelineActor(str, Enum):
+    SOURCE = "SOURCE"
+    AI = "AI"
+    DETERMINISTIC = "DETERMINISTIC"
+    HUMAN = "HUMAN"
+
+
+class PipelineStage(StrictModel):
+    id: str
+    name: str
+    actor: PipelineActor
+    plain: str
+
+
+class ResponsibilitySplit(StrictModel):
+    ai_does: List[str]
+    deterministic_does: List[str]
+    human_does: List[str]
+
+
+class CandidateFieldOutcome(StrictModel):
+    candidate_id: str
+    field: str
+    proposed: str
+    accepted: bool
+    resolution: str
+    provenance_after_gates: Optional[Provenance] = None
+
+
+class AbstentionRecord(StrictModel):
+    candidate_id: str
+    field: str
+    model_abstained: bool
+    gate_upheld_abstention: bool
+    note: str
+
+
+class AiAssuranceReport(StrictModel):
+    statement: str
+    pipeline: List[PipelineStage]
+    split: ResponsibilitySplit
+    receipt: ModelRunReceipt
+    candidate_count: int = Field(ge=0)
+    field_outcomes: List[CandidateFieldOutcome]
+    accepted_field_count: int = Field(ge=0)
+    rejected_field_count: int = Field(ge=0)
+    abstentions: List[AbstentionRecord]
+    benchmark: Optional[BenchmarkResult] = None
+    limitation: str
+
+
+# --------------------------------------------------------------------------- #
+# Measured prototype metrics
+# --------------------------------------------------------------------------- #
+
+
+class MeasuredMetric(StrictModel):
+    id: str
+    name: str
+    value: str
+    unit: str
+    dataset_scope: str
+    test_command: str
+    limitation: str
+
+
+class MetricsReport(StrictModel):
+    dataset_id: str
+    dataset_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    case_count: int = Field(ge=1)
+    measured_at: str
+    label: str
+    metrics: List[MeasuredMetric]
+    limitation: str
+
+
 class WorkspaceState(StrictModel):
     schema_version: str
     ruleset_version: str
@@ -532,6 +767,7 @@ class WorkspaceState(StrictModel):
     model_run_receipt: ModelRunReceipt
     latest_manifest: Optional[Manifest] = None
     latest_benchmark: Optional[BenchmarkResult] = None
+    scenario_outcomes: List[ScenarioOutcome] = Field(default_factory=list)
 
 
 class ReviewRequest(StrictModel):

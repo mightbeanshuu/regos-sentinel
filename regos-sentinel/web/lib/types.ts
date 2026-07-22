@@ -37,6 +37,7 @@ export interface SourceSpan {
   text: string;
   normative_signal: boolean;
   source_url: string;
+  subject_key: string;
 }
 
 export interface LiveSourceVerificationReceipt {
@@ -180,11 +181,16 @@ export interface WorkspaceState {
     published_at: string;
     document_id: string;
     source_url: string;
-    status: "HERO_SCOPE_ACTIVE" | "SOURCE_REGISTERED_NOT_COMPILED";
+    status: CorpusState;
     scope_note: string;
     indexed_span_count: number;
     compiled_candidate_count: number;
     content_identity_sha256: string;
+    authority: string;
+    legal_state: string;
+    extraction_scope: string;
+    source_span_ids: string[];
+    validation_tests: string[];
   }>;
   source_spans: SourceSpan[];
   coverage: CoverageEntry[];
@@ -208,6 +214,8 @@ export interface WorkspaceState {
     operational_effect: string;
     classification_provenance: string;
     review_note: string;
+    subject: string;
+    subject_key: string;
   }>;
   findings: Array<{
     id: string;
@@ -370,6 +378,7 @@ export interface WorkspaceState {
       deferred_pct: number;
     }>;
   } | null;
+  scenario_outcomes: ScenarioOutcome[];
 }
 
 // --------------------------------------------------------------------------
@@ -465,4 +474,220 @@ export interface DocumentLimits {
   ocr_available: boolean;
   model_extraction_available: boolean;
   retention: string;
+}
+
+// --------------------------------------------------------------------------
+// Demonstration scenarios A–D
+//
+// Four cases from the reviewed prototype corpus. Case A is the guided review and
+// stays the default path; B, C and D each add a kind of regulatory problem that
+// A alone cannot show.
+// --------------------------------------------------------------------------
+
+export type ScenarioId =
+  | "A_MISSING_TRIGGER"
+  | "B_ADVISORY_LANGUAGE"
+  | "C_APPLICABILITY"
+  | "D_SOURCE_CHANGE";
+
+export type ScenarioStatus =
+  | "SCENARIO_NOT_RUN"
+  | "SCENARIO_DEMONSTRATED"
+  | "SCENARIO_UNEXPECTED_RESULT";
+
+export type DeonticForce =
+  | "MANDATORY"
+  | "RECOMMENDED"
+  | "PERMITTED"
+  | "PROHIBITED"
+  | "DEFINITIONAL";
+
+export interface ScenarioDefinition {
+  id: ScenarioId;
+  label: string;
+  title: string;
+  question: string;
+  citation_locator: string;
+  citation_quote: string;
+  expected_outcome: string;
+  seeded_data: string;
+  automated_test: string;
+  reset_note: string;
+  guided: boolean;
+}
+
+export interface ScenarioCheck {
+  id: string;
+  question: string;
+  expected: string;
+  observed: string;
+  passed: boolean;
+}
+
+export interface ApplicabilityDecision {
+  id: string;
+  subject: string;
+  applies: boolean;
+  entity_fact: string;
+  rule: string;
+  reason: string;
+  provenance: Provenance;
+  citation: Citation;
+}
+
+export type SourceChangeKind = "ADDED" | "CHANGED" | "SUPERSEDED" | "UNCHANGED";
+
+export interface SourceChange {
+  id: string;
+  kind: SourceChangeKind;
+  subject: string;
+  subject_key: string;
+  before_locator: string | null;
+  before_quote: string | null;
+  before_strength: DeonticForce | null;
+  after_locator: string | null;
+  after_quote: string | null;
+  after_strength: DeonticForce | null;
+  impact_summary: string;
+  impacted_control_ids: string[];
+  evidence_ids_for_review: string[];
+  creates_mandatory_work: boolean;
+  review_required: boolean;
+  applied_automatically: boolean;
+  provenance: Provenance;
+  note: string;
+}
+
+export interface SourceRevision {
+  id: string;
+  from_version: string;
+  to_version: string;
+  authority: string;
+  legal_state: string;
+  scope_note: string;
+  disclaimer: string;
+  base_content_sha256: string;
+  revision_content_sha256: string;
+  synthetic: boolean;
+}
+
+export interface ScenarioOutcome {
+  scenario_id: ScenarioId;
+  status: ScenarioStatus;
+  phase: string;
+  headline: string;
+  checks: ScenarioCheck[];
+  facts: string[];
+  citations: Citation[];
+  applicability_decisions: ApplicabilityDecision[];
+  source_revision: SourceRevision | null;
+  source_changes: SourceChange[];
+  ran_at: string;
+  provenance: Provenance;
+}
+
+export interface ScenarioCatalogue {
+  label: string;
+  note: string;
+  scenarios: ScenarioDefinition[];
+  outcomes: ScenarioOutcome[];
+}
+
+// --------------------------------------------------------------------------
+// Corpus packs and the eight gates
+// --------------------------------------------------------------------------
+
+export type CorpusState =
+  | "HERO_SCOPE_ACTIVE"
+  | "SOURCE_REGISTERED_NOT_COMPILED"
+  | "UPLOAD_SANDBOX_AVAILABLE";
+
+export type CorpusGateStatus = "GATE_PASSED" | "GATE_NOT_RUN" | "GATE_NOT_APPLICABLE";
+
+export interface CorpusGate {
+  id: string;
+  name: string;
+  plain: string;
+  status: CorpusGateStatus;
+  observed: string;
+  test_id: string | null;
+}
+
+export interface CorpusPackReport {
+  pack: WorkspaceState["corpus_packs"][number];
+  gates: CorpusGate[];
+  gates_passed: number;
+  gates_total: number;
+}
+
+// --------------------------------------------------------------------------
+// AI assurance — the hybrid split, made visible
+// --------------------------------------------------------------------------
+
+export type PipelineActor = "SOURCE" | "AI" | "DETERMINISTIC" | "HUMAN";
+
+export interface PipelineStage {
+  id: string;
+  name: string;
+  actor: PipelineActor;
+  plain: string;
+}
+
+export interface CandidateFieldOutcome {
+  candidate_id: string;
+  field: string;
+  proposed: string;
+  accepted: boolean;
+  resolution: string;
+  provenance_after_gates: Provenance | null;
+}
+
+export interface AbstentionRecord {
+  candidate_id: string;
+  field: string;
+  model_abstained: boolean;
+  gate_upheld_abstention: boolean;
+  note: string;
+}
+
+export interface AiAssuranceReport {
+  statement: string;
+  pipeline: PipelineStage[];
+  split: {
+    ai_does: string[];
+    deterministic_does: string[];
+    human_does: string[];
+  };
+  receipt: WorkspaceState["model_run_receipt"];
+  candidate_count: number;
+  field_outcomes: CandidateFieldOutcome[];
+  accepted_field_count: number;
+  rejected_field_count: number;
+  abstentions: AbstentionRecord[];
+  benchmark: WorkspaceState["latest_benchmark"];
+  limitation: string;
+}
+
+// --------------------------------------------------------------------------
+// Measured prototype metrics
+// --------------------------------------------------------------------------
+
+export interface MeasuredMetric {
+  id: string;
+  name: string;
+  value: string;
+  unit: string;
+  dataset_scope: string;
+  test_command: string;
+  limitation: string;
+}
+
+export interface MetricsReport {
+  dataset_id: string;
+  dataset_sha256: string;
+  case_count: number;
+  measured_at: string;
+  label: string;
+  metrics: MeasuredMetric[];
+  limitation: string;
 }
