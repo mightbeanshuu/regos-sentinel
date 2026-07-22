@@ -119,19 +119,22 @@ export function Agents({
       >
         <div className="stack-s">
           {PLAN_SOURCES.map((item) => (
-            <label key={item.id} className="passage" style={{ display: "block", cursor: "pointer" }}>
-              <span className="passage-head">
-                <input
-                  type="radio"
-                  name="plan-source"
-                  value={item.id}
-                  checked={source === item.id}
-                  onChange={() => setSource(item.id)}
-                />
-                <strong className="strong-ink">{item.label}</strong>
+            <label
+              key={item.id}
+              className={`choice${source === item.id ? " choice--on" : ""}`}
+            >
+              <input
+                type="radio"
+                name="plan-source"
+                value={item.id}
+                checked={source === item.id}
+                onChange={() => setSource(item.id)}
+              />
+              <span className="choice-title">
+                {item.label}
                 {item.id === planner?.default && <Tag value="Default" tone="neutral" />}
               </span>
-              <span className="passage-why">{item.hint}</span>
+              <span className="choice-hint">{item.hint}</span>
             </label>
           ))}
         </div>

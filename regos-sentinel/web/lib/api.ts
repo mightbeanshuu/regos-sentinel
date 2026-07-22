@@ -48,9 +48,20 @@ function requestHeaders(init?: RequestInit): HeadersInit {
   };
 }
 
+/**
+ * Every call carries credentials so the API's session cookie is actually stored.
+ *
+ * The header token is still the primary identifier and is what these calls are matched
+ * on. The cookie matters for one thing: the live agent console uses `EventSource`,
+ * which cannot set a request header, so the cookie is its only way to reach the same
+ * workspace. Without this the browser silently discarded the Set-Cookie on every
+ * cross-origin response, and a streamed run landed in a throwaway session — the console
+ * showed a real run against a workspace nothing else could see.
+ */
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
     ...init,
+    credentials: "include",
     headers: requestHeaders(init),
   });
   persistSession(response);
@@ -65,6 +76,7 @@ const request = (path: string, init?: RequestInit) => requestJson<WorkspaceState
 
 async function downloadPdf(path: string, filename: string): Promise<void> {
   const response = await fetch(`${apiOrigin}/api/v1${path}`, {
+    credentials: "include",
     headers: requestHeaders(),
   });
   persistSession(response);
@@ -155,6 +167,7 @@ export const regosApi = {
     const token = sessionToken();
     const response = await fetch(`${apiOrigin}/api/v1/documents?${query.toString()}`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/pdf",
         ...(token ? { "X-RegOS-Session": token } : {}),
@@ -171,6 +184,7 @@ export const regosApi = {
   deleteDocument: async (documentId: string): Promise<void> => {
     const response = await fetch(`${apiOrigin}/api/v1/documents/${documentId}`, {
       method: "DELETE",
+      credentials: "include",
       headers: requestHeaders(),
     });
     persistSession(response);

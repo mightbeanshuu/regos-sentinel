@@ -56,9 +56,13 @@ export function AgentConsole({
   const counter = useRef(0);
 
   const push = useCallback((kind: LineKind, text: string) => {
-    counter.current += 1;
+    // The id is taken here, not inside the updater. Reading the counter inside would
+    // make the updater impure: React may re-run it, and two lines pushed in the same
+    // batch would then read the same value and collide on their keys.
+    const id = (counter.current += 1);
+    const time = clockOf();
     setLines((current) => {
-      const next = [...current, { id: counter.current, kind, time: clockOf(), text }];
+      const next = [...current, { id, kind, time, text }];
       // A console that grows without bound eventually janks the tab. Keep the tail.
       return next.length > 400 ? next.slice(-400) : next;
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import { checkLabel, formatDate } from "../lib/presentation";
+import { checkLabel, formatDate, labelOf } from "../lib/presentation";
 import type { LiveSourceVerificationReceipt, WorkspaceState } from "../lib/types";
 import { Callout, Counts, Panel, StateLabel } from "./ui";
 
@@ -46,7 +46,7 @@ export function Dashboard({
       <section className="stack-s">
         <h1 className="page-title">Where your firm stands</h1>
         <p className="lede">
-          {state.entity_profile.legal_name} · {state.entity_profile.entity_type}
+          {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
           {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
         </p>
       </section>
@@ -131,10 +131,12 @@ export function Dashboard({
         >
           <ul className="stack-s">
             {waiting.map((item) => (
+              // No status badge per row: every item in this list has the same status,
+              // and the panel already says what the list is. Repeating it eleven times
+              // is noise standing where the actual difference between items should be.
               <li key={item.id} className="outcome">
                 <p className="outcome-title">
-                  <StateLabel value={item.status} />
-                  <span className="strong-ink"> {checkLabel(item.id, item.name)}</span>
+                  <span className="strong-ink">{checkLabel(item.id, item.name)}</span>
                 </p>
                 <div className="outcome-body">
                   <p>{item.message}</p>
