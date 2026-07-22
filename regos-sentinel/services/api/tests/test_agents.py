@@ -478,6 +478,34 @@ def test_an_unreachable_model_falls_back_and_says_so() -> None:
     assert run["steps"], "a run with no steps must never be presented as a result"
     if run["planner"] == "DETERMINISTIC_PLAN":
         assert run["model_id"] is None, "a deterministic plan must not claim a model"
+        # And the operator is told why, rather than left to infer it from a label.
+        assert run["planner_note"], "a fallback must explain itself"
+        assert "requested" in run["planner_note"]
+
+
+def test_watching_a_run_streams_each_call_and_still_records_it() -> None:
+    """The live console is a view onto a run, not a different kind of run."""
+    client = client_for()
+
+    with client.stream(
+        "GET", "/api/v1/agents/EXTRACTOR/stream", params={"planner": "DETERMINISTIC_PLAN"}
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        body = "".join(response.iter_text())
+
+    # The calls arrive as they happen, and the gate verdicts follow them.
+    assert "event: call" in body
+    assert "event: result" in body
+    assert "event: finding" in body
+    assert "event: done" in body
+    assert "analyse_span_timing" in body
+
+    # And the workspace holds the same run it would have held without anyone watching.
+    runs = client.get("/api/v1/agents/runs").json()
+    extractor = next(item for item in runs if item["agent_id"] == "EXTRACTOR")
+    assert extractor["chain_verified"] is True
+    assert extractor["steps"]
 
 
 def test_resetting_the_demo_clears_agent_runs() -> None:

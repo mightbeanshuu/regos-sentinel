@@ -13,7 +13,7 @@ about itself.
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from ..advisory import advisory_spans, advisory_statements
 from ..models import AgentId, AgentRun, AuditEvent, PlannerKind, WorkspaceState
@@ -104,38 +104,62 @@ def run_agent(
     agent_id: AgentId,
     actor: str = "demo.operator",
     planner_kind: Optional[PlannerKind] = None,
+    on_event: Optional[Callable[[Dict[str, object]], None]] = None,
 ) -> WorkspaceState:
     """Run one agent and record the run. Nothing else changes.
 
     ``planner_kind`` forces a plan source; leaving it ``None`` takes the best available.
+    ``on_event`` receives each call and result as it happens, for the live console. It
+    is a view onto the run, not a hook into it — nothing an observer does can change
+    what the agent finds.
     """
     agent = build_agent(state, agent_id)
     plan: Optional[List[Dict[str, object]]] = None
     planner: Optional[ModelPlanner] = None
+    note: Optional[str] = None
 
-    if planner_kind == PlannerKind.MODEL and model_planning_available():
-        try:
-            planner = ModelPlanner(agent.goal, agent.toolbox.names)
-        except PlannerUnavailable:
-            planner = None
+    if planner_kind == PlannerKind.MODEL:
+        if model_planning_available():
+            try:
+                planner = ModelPlanner(agent.goal, agent.toolbox.names)
+            except PlannerUnavailable as error:
+                note = f"A model plan was requested but could not start: {error}"
+        else:
+            note = (
+                "A model plan was requested. This deployment has no planner key "
+                "configured, or is running offline, so the fixed sequence ran instead."
+            )
     elif planner_kind == PlannerKind.RECORDED:
         cassette = load_cassette(agent_id)
         plan = cassette["plan"] if cassette else None
+        if plan is None:
+            note = (
+                "A recorded model run was requested, but none has been committed for "
+                "this agent. The fixed sequence ran instead."
+            )
 
     try:
-        run: AgentRun = agent.run(plan=plan, planner=planner)
-    except PlannerUnavailable:
+        run: AgentRun = agent.run(plan=plan, planner=planner, on_event=on_event)
+    except PlannerUnavailable as error:
         # The model became unreachable mid-run. Rather than ship half a plan, fall back
-        # and label the result honestly as deterministic.
+        # and label the result honestly as deterministic — and say why, because an
+        # operator who asked for a model plan should not have to infer this from a label.
+        note = f"A model plan was requested but the model was unreachable: {error}"
         agent = build_agent(state, agent_id)
-        run = agent.run()
+        run = agent.run(on_event=on_event)
 
     if run.planner == PlannerKind.MODEL and not run.steps:
         # A plan with no calls in it is not a plan. This happens with small models, and
         # the right response is to fall back and say so rather than to present an empty
         # trace as an AI result.
+        note = (
+            "The model was reached but chose no tool calls at all. An empty plan is not "
+            "an AI result, so the fixed sequence ran instead."
+        )
         agent = build_agent(state, agent_id)
-        run = agent.run()
+        run = agent.run(on_event=on_event)
+
+    run.planner_note = note
 
     realised = getattr(agent, "realised_plan", [])
     if (
@@ -159,6 +183,7 @@ def run_agent(
             details={
                 "agent_id": agent_id.value,
                 "planner": run.planner.value,
+                "planner_note": run.planner_note or "",
                 "model_id": run.model_id or "none",
                 "tool_calls": run.tool_call_count,
                 "findings": len(run.findings),

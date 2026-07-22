@@ -241,10 +241,19 @@ class ModelPlanner:
                 },
                 timeout=self.timeout,
             )
+            if response.status_code == 429:
+                # The common case on a free tier, and worth naming plainly rather than
+                # reporting as a generic failure — the deployment is fine, the quota is not.
+                raise PlannerUnavailable(
+                    "the planner model is rate limited right now (HTTP 429). "
+                    "This is a quota limit on the free tier, not a fault in the run."
+                )
             response.raise_for_status()
             envelope = response.json()
         except httpx.HTTPError as error:
-            raise PlannerUnavailable(f"{type(error).__name__}: {error}") from error
+            # Keep the first line only; the rest is library boilerplate.
+            detail = str(error).strip().splitlines()[0]
+            raise PlannerUnavailable(f"{type(error).__name__}: {detail}") from error
         if "choices" not in envelope:
             raise PlannerUnavailable(
                 f"Planner returned no choices: {str(envelope)[:200]}"

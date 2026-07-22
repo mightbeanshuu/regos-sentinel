@@ -785,3 +785,122 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   Live console — watching an agent work
+   --------------------------------------------------------------------------
+   The one surface in this product that is deliberately dark and glassy. It is
+   a terminal, and it reads as one: a translucent slab lifted off the page, so
+   it is legible as a live instrument rather than another document panel. The
+   glass is confined here and to the figures above it. Applying it to the
+   compliance surfaces would cost contrast on exactly the text a regulator has
+   to read, which is a trade this product should never make.
+   ========================================================================== */
+
+.console {
+  --console-ink: oklch(0.93 0.012 258);
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid oklch(0.42 0.030 258 / 0.55);
+  background:
+    linear-gradient(
+      165deg,
+      oklch(0.28 0.035 262 / 0.94),
+      oklch(0.20 0.030 258 / 0.97)
+    );
+  box-shadow:
+    0 18px 40px -22px oklch(0.22 0.030 258 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.07);
+  overflow: hidden;
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .console { backdrop-filter: blur(20px) saturate(150%); }
+}
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  background: oklch(1 0 0 / 0.03);
+}
+
+.console-dots { display: inline-flex; gap: 6px; }
+.console-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: oklch(1 0 0 / 0.16);
+}
+
+.console-title {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: oklch(0.78 0.020 258);
+}
+
+/* A live run is the only thing on this page that animates. */
+.console-live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: oklch(0.82 0.090 179);
+}
+.console-live::before {
+  content: "";
+  width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor;
+  animation: console-pulse 1.4s ease-in-out infinite;
+}
+@keyframes console-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-live::before { animation: none; opacity: 1; }
+}
+
+.console-body {
+  margin: 0;
+  padding: var(--s4);
+  max-height: 420px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--console-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.console-line { display: block; }
+.console-time { color: oklch(0.60 0.020 258); margin-right: var(--s2); }
+.console-line--call    { color: oklch(0.86 0.070 267); }
+.console-line--result  { color: var(--console-ink); }
+.console-line--error   { color: oklch(0.75 0.130 27); }
+.console-line--finding { color: oklch(0.86 0.080 179); }
+.console-line--review  { color: oklch(0.85 0.110 78); }
+.console-line--meta    { color: oklch(0.66 0.020 258); }
+.console-line--done    { color: oklch(0.82 0.090 179); }
+
+.console-empty { color: oklch(0.62 0.020 258); }
+
+/* The figures above the console pick up a lighter version of the same glass. */
+.counts--glass .count {
+  border-radius: var(--radius-lg);
+  border: 1px solid oklch(1 0 0 / 0.55);
+  background: linear-gradient(
+    170deg,
+    oklch(1 0 0 / 0.85),
+    oklch(0.98 0.004 258 / 0.60)
+  );
+  box-shadow: var(--shadow-2), inset 0 1px 0 oklch(1 0 0 / 0.8);
+  padding: var(--s4);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .counts--glass .count { backdrop-filter: blur(12px) saturate(130%); }
+}

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import queue
+import threading
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
 from .agents.crew import CATALOGUE as AGENT_CATALOGUE
 from .agents.orchestrator import (
@@ -272,6 +274,61 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             lambda state: run_agent(
                 state, agent_id, actor="demo.operator", planner_kind=planner
             )
+        )
+
+    @application.get("/api/v1/agents/{agent_id}/stream")
+    def stream_agent(
+        request: Request,
+        agent_id: AgentId,
+        planner: PlannerKind = PlannerKind.DETERMINISTIC,
+    ) -> StreamingResponse:
+        """Run one agent, streaming each call and result as it happens.
+
+        This is the same run as the POST endpoint, watched rather than awaited. The
+        agent is driven on a worker thread and its events are drained onto the response
+        as server-sent events; the workspace is written once, at the end, exactly as it
+        would be otherwise. An observer cannot change what the agent finds — the
+        callback only reads.
+        """
+        enforce_rate_limit(request, "agent-run", limit=20)
+        store = store_for(request)
+        events: queue.Queue[Optional[dict]] = queue.Queue()
+
+        def drive() -> None:
+            try:
+                store.mutate(
+                    lambda state: run_agent(
+                        state,
+                        agent_id,
+                        actor="demo.operator",
+                        planner_kind=planner,
+                        on_event=events.put,
+                    )
+                )
+            except Exception as error:  # a failure is reported, not swallowed
+                events.put({"event": "error", "message": f"{type(error).__name__}: {error}"})
+            finally:
+                events.put(None)
+
+        worker = threading.Thread(target=drive, daemon=True)
+
+        def emit():
+            yield f"event: open\ndata: {json.dumps({'agent_id': agent_id.value})}\n\n"
+            worker.start()
+            while True:
+                item = events.get()
+                if item is None:
+                    break
+                name = item.get("event", "message")
+                payload = json.dumps(item, default=str)
+                yield f"event: {name}\ndata: {payload}\n\n"
+            worker.join(timeout=5)
+            yield f"event: done\ndata: {json.dumps({'agent_id': agent_id.value})}\n\n"
+
+        return StreamingResponse(
+            emit(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @application.post("/api/v1/agents/run-all", response_model=WorkspaceState)

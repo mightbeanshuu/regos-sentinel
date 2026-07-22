@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Agents } from "../components/Agents";
 import { AuditTrail } from "../components/AuditTrail";
+import { Dashboard } from "../components/Dashboard";
 import { DocumentReview } from "../components/DocumentReview";
 import { GuidedReview } from "../components/GuidedReview";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
@@ -17,10 +19,17 @@ import type {
   WorkspaceState,
 } from "../lib/types";
 
+/**
+ * Ordered by who is asking. The dashboard answers "where do we stand" and is where
+ * anyone accountable lands; the working tabs come next; the technical record is last
+ * and is named for what it is rather than for how it is built.
+ */
 const TABS = [
-  { id: "guided", label: "Guided review" },
-  { id: "document", label: "Review your document" },
-  { id: "audit", label: "Audit trail" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "guided", label: "Review a requirement" },
+  { id: "document", label: "Your own document" },
+  { id: "agents", label: "AI agents" },
+  { id: "audit", label: "Full record" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -32,7 +41,7 @@ export default function Home() {
   const [receipt, setReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
   const [catalogue, setCatalogue] = useState<ScenarioCatalogue | null>(null);
   const [scenario, setScenario] = useState<ScenarioId>("A_MISSING_TRIGGER");
-  const [tab, setTab] = useState<TabId>("guided");
+  const [tab, setTab] = useState<TabId>("dashboard");
   const [busy, setBusy] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +270,26 @@ export default function Home() {
 
         <div
           role="tabpanel"
+          id="panel-dashboard"
+          aria-labelledby="tab-dashboard"
+          hidden={tab !== "dashboard"}
+        >
+          {tab === "dashboard" && (
+            <Dashboard
+              state={state}
+              receipt={receipt}
+              busy={busy || sourceBusy}
+              onRunCheck={() => void act(regosApi.runBuild, "top")}
+              onOpenDecision={() => setTab("guided")}
+              onVerifySource={verifySource}
+              onDownloadReport={() =>
+                void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
           id="panel-guided"
           aria-labelledby="tab-guided"
           hidden={tab !== "guided"}
@@ -323,6 +352,15 @@ export default function Home() {
               onUseGuidedExample={() => setTab("guided")}
             />
           )}
+        </div>
+
+        <div
+          role="tabpanel"
+          id="panel-agents"
+          aria-labelledby="tab-agents"
+          hidden={tab !== "agents"}
+        >
+          {tab === "agents" && <Agents state={state} busy={busy} onRun={act} />}
         </div>
 
         <div

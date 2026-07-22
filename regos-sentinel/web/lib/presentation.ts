@@ -128,6 +128,62 @@ const STATES: Record<string, StateMeta> = {
   READY_FOR_APPROVAL: meta("Ready for approval", "accent"),
   COULD_NOT_READ_DOCUMENT: meta("Could not read document", "fail"),
 
+  // ---- Who planned an agent run ---------------------------------------
+  // These are "accent", not "review". The planner chooses which tool to call; it
+  // does not decide anything, and the findings under it are produced by fixed
+  // rules. Marking a model-planned route as needing review would say something
+  // untrue about what the model contributed.
+  MODEL_PLANNED: meta(
+    "Route chosen by a model",
+    "accent",
+    "A model picked which tools to call. Fixed rules produced every finding below.",
+  ),
+  RECORDED_MODEL_TRACE: meta(
+    "Replay of a recorded model run",
+    "accent",
+    "The same calls a model chose earlier, replayed with no network.",
+  ),
+  DETERMINISTIC_PLAN: meta(
+    "Fixed sequence — not AI",
+    "accent",
+    "Written in code. Nothing here was chosen by a model.",
+  ),
+
+  // ---- Agent step outcomes ---------------------------------------------
+  OK: meta("Ran", "ok"),
+  TOOL_ERROR: meta(
+    "Refused",
+    "fail",
+    "The tool would not accept the call. It is recorded, not hidden.",
+  ),
+  REJECTED_BY_GATE: meta("Rejected by a gate", "review"),
+
+  // ---- What an agent found ---------------------------------------------
+  REFERENCE_RESOLVED: meta("Pointer resolved", "ok"),
+  REFERENCE_UNRESOLVED: meta("Pointer left unresolved", "review"),
+  REFERENCE_UNVERIFIED: meta("Candidate could not be verified", "review"),
+  CHALLENGE_LANDED: meta(
+    "Challenge landed",
+    "review",
+    "Publication is blocked until a person rules on it.",
+  ),
+  CHALLENGE_SURVIVED: meta(
+    "Withstood every challenge",
+    "ok",
+    "Evidence that nothing was found. Not proof of correctness.",
+  ),
+  CHALLENGE_NOT_ASSESSED: meta(
+    "Not examined",
+    "review",
+    "The cited passage was never read, so no conclusion is available.",
+  ),
+  NOTHING_TO_CHALLENGE: meta("Nothing compiled to challenge", "neutral"),
+  TIMING_COMPUTABLE: meta("A date can be computed", "ok"),
+  TIMING_BLOCKED: meta("No date can be computed", "review"),
+  TIMING_NOT_ASSESSED: meta("Timing not assessed", "review"),
+  SOURCE_VERSION_DELTA: meta("Comparison between two sources", "accent"),
+  UNTIMED_DUTY_DETECTED: meta("Duty with no measurable period", "review"),
+
   // ---- Uploaded passage classification --------------------------------
   POSSIBLE_REQUIREMENT: meta("Possible requirement", "accent"),
   RECOMMENDATION: meta("Recommended — no mandatory task", "neutral"),
@@ -161,6 +217,32 @@ export function changeKindOf(value: string): StateMeta {
 
 export function actorOf(value: string): StateMeta {
   return ACTORS[value] ?? stateOf(value);
+}
+
+/**
+ * The twelve checks, said the way a compliance officer would say them.
+ *
+ * The backend names them precisely — "No unresolved material source spans" — which is
+ * right for the audit record and wrong for the front page. A reader who has to decode
+ * the check cannot judge whether it matters to them.
+ */
+const CHECKS: Record<string, string> = {
+  "TEST-COVERAGE-001": "Every part of the SEBI text has been dealt with",
+  "TEST-PATCH-BRANCH-001": "The rule for high-severity security holes has been drafted",
+  "TEST-HUMAN-REVIEW-001": "A compliance officer has approved the interpretation",
+  "TEST-INDEPENDENT-READING-001": "The reviewer wrote down their own reading first",
+  "TEST-CITATION-001": "Every figure points to the exact SEBI wording it came from",
+  "TEST-REFERENCE-CLOSURE-001": "Every cross-reference to the main framework has been followed",
+  "TEST-DEONTIC-FORCE-001": "Things SEBI recommends are not treated as things it requires",
+  "TEST-DEADLINE-TRACE-001": "Every date shows where it came from",
+  "TEST-IMPACT-001": "The knock-on effects have been worked out",
+  "TEST-FY-PERIODICITY-001": "Reporting periods follow the Indian financial year",
+  "TEST-APPLICABILITY-HARD-CASES-001": "What applies to this firm matches its registrations",
+  "TEST-ADVERSARY-001": "Nothing has been flagged as doubtful",
+};
+
+export function checkLabel(id: string, fallback: string): string {
+  return CHECKS[id] ?? fallback;
 }
 
 /** Nouns and product terms that must never reach the primary workflow in raw form. */

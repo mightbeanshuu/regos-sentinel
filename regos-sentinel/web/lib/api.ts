@@ -1,10 +1,15 @@
 import type {
+  AgentCatalogueEntry,
+  AgentChallenges,
+  AgentId,
   AiAssuranceReport,
   CorpusPackReport,
   DocumentLimits,
   LiveSourceVerificationReceipt,
   MetricsReport,
   PassageClass,
+  PlannerKind,
+  PlannerStatus,
   ScenarioCatalogue,
   ScenarioId,
   UploadedDocument,
@@ -15,7 +20,8 @@ interface ApiErrorPayload {
   detail?: string | { message?: string };
 }
 
-const apiOrigin = (process.env.NEXT_PUBLIC_REGOS_API_ORIGIN ?? "").replace(/\/$/, "");
+/** Exported because the live console opens its own EventSource against this origin. */
+export const apiOrigin = (process.env.NEXT_PUBLIC_REGOS_API_ORIGIN ?? "").replace(/\/$/, "");
 const sessionStorageKey = "regos.session.v1";
 
 function sessionToken(): string | null {
@@ -124,6 +130,17 @@ export const regosApi = {
   // ---- Demonstration scenarios A–D -----------------------------------
   scenarios: () => requestJson<ScenarioCatalogue>("/scenarios", { cache: "no-store" }),
   runScenario: (id: ScenarioId) => request(`/scenarios/${id}/run`, { method: "POST" }),
+
+  // ---- Agents ---------------------------------------------------------
+  // The planner is a request, not a guarantee. The response carries the plan
+  // source that actually ran, which is what the interface must display.
+  agentCatalogue: () => requestJson<AgentCatalogueEntry[]>("/agents", { cache: "no-store" }),
+  plannerStatus: () => requestJson<PlannerStatus>("/agents/planner", { cache: "no-store" }),
+  agentChallenges: () => requestJson<AgentChallenges>("/agents/challenges", { cache: "no-store" }),
+  runAgent: (id: AgentId, planner: PlannerKind) =>
+    request(`/agents/${id}/run?planner=${planner}`, { method: "POST" }),
+  runAllAgents: (planner: PlannerKind) =>
+    request(`/agents/run-all?planner=${planner}`, { method: "POST" }),
 
   // ---- Technical detail for the audit trail ---------------------------
   corpusPacks: () => requestJson<CorpusPackReport[]>("/corpus/packs", { cache: "no-store" }),

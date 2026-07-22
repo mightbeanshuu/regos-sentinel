@@ -786,6 +786,10 @@ class AgentRun(StrictModel):
     agent_id: AgentId
     goal: str
     planner: PlannerKind
+    #: Why the planner is not the one that was asked for. Populated only on a fallback,
+    #: because "the model was unreachable" is something the operator who asked for a
+    #: model plan is entitled to be told rather than left to infer from a label.
+    planner_note: Optional[str] = None
     model_id: Optional[str] = None
     prompt_version: Optional[str] = None
     started_at: str

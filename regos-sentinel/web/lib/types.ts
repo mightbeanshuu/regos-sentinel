@@ -343,6 +343,7 @@ export interface WorkspaceState {
     generated_at: string;
     extraction_scope: string;
   };
+  agent_runs: AgentRun[];
   latest_manifest: {
     build_id: string;
     manifest_sha256: string;
@@ -690,4 +691,90 @@ export interface MetricsReport {
   label: string;
   metrics: MeasuredMetric[];
   limitation: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * Agents. They read, deterministic rules decide, a person judges.
+ * Every run is a hash-chained trace of the tool calls that were made.
+ * ------------------------------------------------------------------------- */
+
+export type AgentId = "REFERENCE_RESOLVER" | "SOURCE_SCOUT" | "ADVERSARY" | "EXTRACTOR";
+
+/**
+ * Who chose the next tool call. A deterministic plan is never labelled AI —
+ * the provenance vocabulary would be a lie if it were.
+ */
+export type PlannerKind = "MODEL_PLANNED" | "RECORDED_MODEL_TRACE" | "DETERMINISTIC_PLAN";
+
+export interface AgentStep {
+  index: number;
+  tool: string;
+  rationale: string;
+  tool_input: Record<string, unknown>;
+  tool_output_summary: string;
+  status: "OK" | "TOOL_ERROR" | "REJECTED_BY_GATE";
+  planner: PlannerKind;
+  input_sha256: string;
+  output_sha256: string;
+  previous_step_sha256: string | null;
+  step_sha256: string;
+}
+
+export interface AgentFinding {
+  id: string;
+  kind: string;
+  summary: string;
+  detail: string;
+  citations: Citation[];
+  provenance: string;
+  accepted_by_gate: boolean;
+  gate_reason: string;
+  requires_human_review: boolean;
+}
+
+export interface AgentRun {
+  agent_id: AgentId;
+  goal: string;
+  planner: PlannerKind;
+  /** Why the planner is not the one that was asked for. Set only on a fallback. */
+  planner_note: string | null;
+  model_id: string | null;
+  prompt_version: string | null;
+  started_at: string;
+  completed_at: string;
+  steps: AgentStep[];
+  findings: AgentFinding[];
+  tools_available: string[];
+  tool_call_count: number;
+  chain_head_sha256: string;
+  chain_verified: boolean;
+  autonomy: string;
+  limitation: string;
+}
+
+export interface AgentCatalogueEntry {
+  id: AgentId;
+  name: string;
+  reads: string;
+  proposes: string;
+  never_does: string;
+  gated_by: string;
+  tools: string[];
+  autonomy: string;
+}
+
+export interface PlannerStatus {
+  model_available: boolean;
+  model_id: string | null;
+  offline: boolean;
+  recorded_available: AgentId[];
+  default: PlannerKind;
+  note: string;
+}
+
+export interface AgentChallenges {
+  landed: string[];
+  blocking: boolean;
+  autonomy: Record<string, string>;
+  note: string;
 }

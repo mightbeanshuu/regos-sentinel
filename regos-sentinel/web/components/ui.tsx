@@ -212,9 +212,16 @@ export function Field({
  * Counts — figures read from live state. Never a hardcoded total.
  * ------------------------------------------------------------------------- */
 
-export function Counts({ items }: { items: Array<{ value: ReactNode; label: string }> }) {
+export function Counts({
+  items,
+  glass = false,
+}: {
+  items: Array<{ value: ReactNode; label: string }>;
+  /** Lifts the figures onto a light glass slab. For the dashboard, not for dense tables. */
+  glass?: boolean;
+}) {
   return (
-    <div className="counts">
+    <div className={glass ? "counts counts--glass" : "counts"}>
       {items.map((item) => (
         <div className="count" key={item.label}>
           <span className="count-value">{item.value}</span>
