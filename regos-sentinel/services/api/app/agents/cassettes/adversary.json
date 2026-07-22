@@ -1,0 +1,34 @@
+{
+  "agent_id": "ADVERSARY",
+  "goal": "Find a reason each compiled obligation should not be trusted.",
+  "model_id": "gemini-3.5-flash-lite",
+  "plan": [
+    {
+      "input": {},
+      "rationale": "Model planner chose list_active_obligations.",
+      "tool": "list_active_obligations"
+    },
+    {
+      "input": {
+        "quote": "high severity ... patch management timelines (1 week)",
+        "span_id": "CSCRF-PR-MA-S3"
+      },
+      "rationale": "Model planner chose verify_quote.",
+      "tool": "verify_quote"
+    },
+    {
+      "input": {
+        "quote": "within three (3) months of submission of VAPT report",
+        "span_id": "CSCRF-TABLE-19"
+      },
+      "rationale": "Model planner chose verify_quote.",
+      "tool": "verify_quote"
+    },
+    {
+      "input": {},
+      "rationale": "Model planner chose read_entity_facts.",
+      "tool": "read_entity_facts"
+    }
+  ],
+  "prompt_version": "regos-agent-planner/v1"
+}

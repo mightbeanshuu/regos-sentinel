@@ -1,0 +1,55 @@
+{
+  "agent_id": "EXTRACTOR",
+  "goal": "Decide, per passage, whether the wording supports a computable deadline.",
+  "model_id": "gemini-3.5-flash-lite",
+  "plan": [
+    {
+      "input": {},
+      "rationale": "Model planner chose list_statements.",
+      "tool": "list_statements"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q15"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q17-A"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q17-B"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q20"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q24"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    },
+    {
+      "input": {
+        "span_id": "FAQ-Q25"
+      },
+      "rationale": "Model planner chose analyse_span_timing.",
+      "tool": "analyse_span_timing"
+    }
+  ],
+  "prompt_version": "regos-agent-planner/v1"
+}

@@ -1,12 +1,40 @@
 {
   "agent_id": "REFERENCE_RESOLVER",
   "goal": "Resolve each unresolved outbound reference to a pinned, hash-verified passage.",
-  "model_id": "openai/gpt-oss-20b:free",
+  "model_id": "gemini-3.5-flash-lite",
   "plan": [
     {
       "input": {},
       "rationale": "Model planner chose list_unresolved_references.",
       "tool": "list_unresolved_references"
+    },
+    {
+      "input": {
+        "query": "CSCRF Part I \u00b7 PDF page 49 \u00b7 Table 19"
+      },
+      "rationale": "Model planner chose search_corpus.",
+      "tool": "search_corpus"
+    },
+    {
+      "input": {
+        "query": "CSCRF Part II \u00b7 PDF page 116 \u00b7 PR.MA Guideline 6"
+      },
+      "rationale": "Model planner chose search_corpus.",
+      "tool": "search_corpus"
+    },
+    {
+      "input": {
+        "query": "CSCRF Part III \u00b7 PDF pages 133\u2013141 \u00b7 Annexure-A"
+      },
+      "rationale": "Model planner chose search_corpus.",
+      "tool": "search_corpus"
+    },
+    {
+      "input": {
+        "query": "CSCRF Part II \u00b7 PDF pages 116\u2013117 \u00b7 PR.MA.S3"
+      },
+      "rationale": "Model planner chose search_corpus.",
+      "tool": "search_corpus"
     },
     {
       "input": {
@@ -25,6 +53,13 @@
     {
       "input": {
         "span_id": "CSCRF-ANNEXURE-A"
+      },
+      "rationale": "Model planner chose fetch_span.",
+      "tool": "fetch_span"
+    },
+    {
+      "input": {
+        "span_id": "CSCRF-PR-MA-S3"
       },
       "rationale": "Model planner chose fetch_span.",
       "tool": "fetch_span"

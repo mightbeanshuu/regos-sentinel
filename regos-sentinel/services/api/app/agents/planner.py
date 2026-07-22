@@ -96,18 +96,38 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 #: ``OPENAI_API_KEY`` is last and points at OpenRouter deliberately: on this project
 #: that variable has always held an ``sk-or-`` key, and honouring the name over the
 #: value would post it to OpenAI and fail in a way nobody would diagnose quickly.
+
+#: Best first. The planner walks down this until one answers, so a run always gets the
+#: strongest model the account's quota will actually serve — and the trace records which
+#: one that turned out to be, because "we used the best available" is only a meaningful
+#: claim if you can say what it was on the day.
+#:
+#: This exists because free quotas are per-model. A key can be exhausted on
+#: ``gemini-2.5-pro`` and completely fresh on ``gemini-flash-lite-latest``, and giving
+#: up at the first 429 throws away a working model for no reason.
+GEMINI_LADDER = (
+    "gemini-2.5-pro",
+    "gemini-flash-latest",
+    "gemini-2.0-flash",
+    "gemini-flash-lite-latest",
+)
+
+OPENAI_LADDER = ("openai/gpt-oss-20b:free",)
+
 PROVIDERS = (
     {
         "env": "GEMINI_API_KEY",
         "url": "https://generativelanguage.googleapis.com/v1beta/models",
-        "model": "gemini-flash-latest",
+        "model": GEMINI_LADDER[0],
+        "ladder": GEMINI_LADDER,
         "label": "Google AI Studio",
         "dialect": "gemini",
     },
     {
         "env": "GOOGLE_API_KEY",
         "url": "https://generativelanguage.googleapis.com/v1beta/models",
-        "model": "gemini-flash-latest",
+        "model": GEMINI_LADDER[0],
+        "ladder": GEMINI_LADDER,
         "label": "Google AI Studio",
         "dialect": "gemini",
     },
@@ -115,6 +135,7 @@ PROVIDERS = (
         "env": "GROQ_API_KEY",
         "url": "https://api.groq.com/openai/v1/chat/completions",
         "model": "llama-3.3-70b-versatile",
+        "ladder": ("llama-3.3-70b-versatile",),
         "label": "Groq",
         "dialect": "openai",
     },
@@ -122,20 +143,23 @@ PROVIDERS = (
         "env": "CEREBRAS_API_KEY",
         "url": "https://api.cerebras.ai/v1/chat/completions",
         "model": "llama-3.3-70b",
+        "ladder": ("llama-3.3-70b",),
         "label": "Cerebras",
         "dialect": "openai",
     },
     {
         "env": "OPENROUTER_API_KEY",
         "url": OPENROUTER_URL,
-        "model": "openai/gpt-oss-20b:free",
+        "model": OPENAI_LADDER[0],
+        "ladder": OPENAI_LADDER,
         "label": "OpenRouter",
         "dialect": "openai",
     },
     {
         "env": "OPENAI_API_KEY",
         "url": OPENROUTER_URL,
-        "model": "openai/gpt-oss-20b:free",
+        "model": OPENAI_LADDER[0],
+        "ladder": OPENAI_LADDER,
         "label": "OpenRouter",
         "dialect": "openai",
     },
@@ -279,6 +303,8 @@ class ModelPlanner:
     ) -> None:
         self.goal = goal
         self.model = model or planner_model()
+        #: An explicit REGOS_PLANNER_MODEL pins one model; otherwise the ladder runs.
+        self._pinned = model or os.environ.get("REGOS_PLANNER_MODEL") or None
         self.max_steps = max_steps
         self.timeout = timeout
         self.tools = planner_visible(tool_names)
@@ -316,33 +342,47 @@ class ModelPlanner:
             )
         return provider
 
-    def _send(self, provider: Dict[str, str], url: str, headers: Dict[str, str], body: Any):
-        """POST once, and give a rate limit exactly one second chance.
+    def ladder(self) -> List[str]:
+        """Models to try, best first. An explicit override pins a single one."""
+        if self._pinned:
+            return [self._pinned]
+        provider = resolve_provider() or {}
+        return list(provider.get("ladder") or (self.model,))
 
-        Every free tier meters requests per minute, and a planner makes several calls in
-        quick succession by design — so a 429 mid-run is ordinary rather than
-        exceptional, and giving up on the first one throws away a working model. The
-        provider usually says how long to wait; that is honoured up to a cap, because a
-        demo cannot stall on a minute-long backoff. A second 429 is taken at its word.
+    def _send(self, url_for, headers: Dict[str, str], body_for):
+        """Walk the ladder until a model answers, retrying a rate limit once each.
+
+        Free quotas are metered per model, so a 429 says "not this model, now" rather
+        than "no model". Trying the next one down costs a round trip and is the
+        difference between a live agent run and a fallback. Whichever model answers is
+        recorded, because claiming the best available model is only meaningful if the
+        trace says which one that was.
         """
-        for attempt in (0, 1):
-            try:
-                response = httpx.post(url, headers=headers, json=body, timeout=self.timeout)
-                if response.status_code == 429:
-                    if attempt == 0:
-                        time.sleep(min(self._retry_after(response), MAX_RETRY_WAIT))
-                        continue
-                    raise PlannerUnavailable(
-                        "the planner model is rate limited right now (HTTP 429). This is "
-                        "a quota limit on the free tier, not a fault in the run."
+        last: Optional[str] = None
+        for model in self.ladder():
+            for attempt in (0, 1):
+                try:
+                    response = httpx.post(
+                        url_for(model), headers=headers, json=body_for(model),
+                        timeout=self.timeout,
                     )
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPError as error:
-                # Keep the first line only; the rest is library boilerplate.
-                detail = str(error).strip().splitlines()[0]
-                raise PlannerUnavailable(f"{type(error).__name__}: {detail}") from error
-        raise PlannerUnavailable("the planner model is rate limited right now (HTTP 429).")
+                    if response.status_code == 429:
+                        wait = self._retry_after(response)
+                        if attempt == 0 and wait <= MAX_RETRY_WAIT:
+                            time.sleep(wait)
+                            continue
+                        last = f"{model} is rate limited"
+                        break  # next model down the ladder
+                    response.raise_for_status()
+                    self.model = model
+                    return response.json()
+                except httpx.HTTPError as error:
+                    detail = str(error).strip().splitlines()[0]
+                    last = f"{type(error).__name__}: {detail}"
+                    break
+        raise PlannerUnavailable(
+            last or "no model on the ladder answered"
+        )
 
     @staticmethod
     def _retry_after(response: httpx.Response) -> float:
@@ -368,8 +408,7 @@ class ModelPlanner:
 
     def _post_openai(self, provider: Dict[str, str]) -> Dict[str, Any]:
         envelope = self._send(
-            provider,
-            provider["url"],
+            lambda model: provider["url"],
             {
                 "Authorization": f"Bearer {provider['key']}",
                 "Content-Type": "application/json",
@@ -377,8 +416,8 @@ class ModelPlanner:
                 "HTTP-Referer": "https://regos-sentinel.vercel.app",
                 "X-Title": "RegOS Sentinel",
             },
-            {
-                "model": self.model,
+            lambda model: {
+                "model": model,
                 "temperature": 0,
                 "max_tokens": 700,
                 "tools": [
@@ -459,10 +498,9 @@ class ModelPlanner:
             body["systemInstruction"] = {"parts": [{"text": system}]}
 
         envelope = self._send(
-            provider,
-            f"{provider['url']}/{self.model}:generateContent",
+            lambda model: f"{provider['url']}/{model}:generateContent",
             {"x-goog-api-key": provider["key"], "Content-Type": "application/json"},
-            body,
+            lambda model: body,
         )
         candidates = envelope.get("candidates") or []
         if not candidates:

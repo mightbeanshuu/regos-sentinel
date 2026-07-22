@@ -1,0 +1,25 @@
+{
+  "agent_id": "SOURCE_SCOUT",
+  "goal": "Detect what a newer real SEBI source changes about the reviewed corpus.",
+  "model_id": "gemini-3.5-flash-lite",
+  "plan": [
+    {
+      "input": {},
+      "rationale": "Model planner chose list_known_sources.",
+      "tool": "list_known_sources"
+    },
+    {
+      "input": {},
+      "rationale": "Model planner chose list_statements.",
+      "tool": "list_statements"
+    },
+    {
+      "input": {
+        "relationship": "SUPERSEDES"
+      },
+      "rationale": "Model planner chose compare_registered_sources.",
+      "tool": "compare_registered_sources"
+    }
+  ],
+  "prompt_version": "regos-agent-planner/v1"
+}
