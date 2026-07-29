@@ -93,7 +93,12 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
                   <td>{pack.compiled_candidate_count}</td>
                   <td><Hash value={pack.content_identity_sha256} /></td>
                   <td>
-                    <a href={pack.source_url} target="_blank" rel="noreferrer">
+                    <a
+                      className="proof-link"
+                      href={pack.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       Open official source ↗
                     </a>
                   </td>

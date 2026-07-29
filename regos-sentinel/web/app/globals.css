@@ -421,12 +421,43 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 .datalist-row dt { font-size: 0.8125rem; color: var(--ink-3); }
 .datalist-row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
-/* ---------- Hash with copy ------------------------------------------------ */
+/* ---------- Hash with copy ------------------------------------------------
+   Proof artifacts. Fingerprints, hashes and official-source links share one
+   quiet mono chip grammar: inspectable, machine-identity, never decorative.
+   ------------------------------------------------------------------------- */
 
 .hash {
   display: inline-flex; align-items: center; gap: var(--s2);
   font-family: var(--mono); font-size: 0.8125rem; color: var(--ink-2);
 }
+.hash-value {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-2);
+  overflow-wrap: anywhere;
+}
+
+/* The link that invites verification. Mono, chip-formed, quietly distinct
+   from prose links: this is a security artifact, not navigation. */
+.proof-link {
+  display: inline-flex; align-items: center; gap: 0.4em;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--t-micro) var(--ease),
+              background-color var(--t-micro) var(--ease);
+}
+.proof-link:hover { border-color: var(--accent-line); background: var(--accent-wash); }
 .hash-copy {
   min-height: 28px; padding: 2px 6px;
   border: 1px solid var(--line); border-radius: 4px;
@@ -920,6 +951,10 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   .counts--glass .count { backdrop-filter: blur(12px) saturate(130%); }
 }
 
+/* On the dashboard the five figures are focal objects; give the numerals
+   projection scale. The base 1.5rem stays for dense, non-glass uses. */
+.counts--glass .count-value { font-size: 2rem; letter-spacing: -0.02em; }
+
 /* ---------- Choice row — a radio, its name, and what it means -------------
    Its own component rather than a reused passage row: passage-head pushes its
    two children apart, which is right for a heading-and-status pair and wrong
@@ -958,43 +993,94 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
    Control centre
    ========================================================================== */
 
-/* ---------- "What this is doing", three steps ----------------------------- */
+/* ---------- Hero band ------------------------------------------------------
+   The establishing view: one amber (or teal, or red) call-to-decision and the
+   live score, side by side, forming a single visual sentence above the fold.
+   State dominates; explanation is demoted to the compact strip below.
+   ------------------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: var(--s4);
+  align-items: stretch;
+}
+.hero--solo { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+
+.callout--hero {
+  padding: var(--s5);
+  border-radius: var(--radius-lg);
+  justify-content: center;
+  gap: var(--s3);
+}
+
+/* The headline keeps the callout's tone colour; only scale changes. */
+.hero-headline {
+  font-size: 1.25rem;
+  font-weight: 660;
+  letter-spacing: -0.014em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+/* The focal figure. Numerals only — matches the cci-score precedent. */
+.hero-figure {
+  font-size: clamp(2.25rem, 1.8rem + 1.4vw, 3rem);
+  font-weight: 650;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-dial {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4) var(--s4) var(--s5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.hero-dial-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+/* ---------- "What this is doing", three steps -----------------------------
+   Compact by design: a quiet hairline strip, not three competing panels.
+   The state above it is the story; this is the caption.
+   ------------------------------------------------------------------------- */
 
 .how {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--s3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
 }
-.how-step {
-  position: relative;
-  padding: var(--s4);
-  border-radius: var(--radius-lg);
-  border: 1px solid oklch(1 0 0 / 0.6);
-  background: linear-gradient(168deg, oklch(1 0 0 / 0.9), oklch(0.98 0.006 258 / 0.65));
-  box-shadow: var(--shadow-2), inset 0 1px 0 oklch(1 0 0 / 0.85);
-}
-@supports (backdrop-filter: blur(1px)) {
-  .how-step { backdrop-filter: blur(12px) saturate(130%); }
+.how-step { padding: var(--s3) var(--s4); }
+.how-step + .how-step { border-left: 1px solid var(--line); }
+@media (max-width: 900px) {
+  .how { grid-template-columns: 1fr; }
+  .how-step + .how-step { border-left: 0; border-top: 1px solid var(--line); }
 }
 .how-num {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--accent); color: #fff;
-  font-size: 0.8125rem; font-weight: 600;
-  margin-bottom: var(--s3);
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--line-2);
+  background: var(--surface); color: var(--ink-3);
+  font-size: 0.6875rem; font-weight: 700;
+  margin-right: var(--s2);
+  vertical-align: -0.3em;
 }
-.how-title { font-weight: 600; color: var(--ink); margin-bottom: var(--s2); }
-.how-body  { font-size: 0.875rem; line-height: 1.55; color: var(--ink-3); }
+.how-title { display: inline; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+.how-body  { font-size: 0.8125rem; line-height: 1.5; color: var(--ink-3); margin-top: var(--s1); }
 
 /* ---------- Cyber Capability Index --------------------------------------- */
-
-.cci-layout {
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
-  gap: var(--s5);
-  align-items: center;
-}
-@media (max-width: 720px) { .cci-layout { grid-template-columns: 1fr; } }
 
 .cci { display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
 .cci-dial { position: relative; width: 100%; max-width: 240px; }
@@ -1045,8 +1131,9 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   background: var(--line); overflow: hidden;
 }
 .cci-bar-fill {
-  display: block; height: 100%; border-radius: 3px;
-  transition: width var(--t-enter) var(--ease);
+  display: block; height: 100%; width: 100%; border-radius: 3px;
+  transform-origin: left center;
+  transition: transform var(--t-enter) var(--ease);
 }
 .cci-bar-fill--ok     { background: var(--ok); }
 .cci-bar-fill--review { background: var(--review); }
@@ -1210,6 +1297,8 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .live-strip--live .live-strip-state { color: var(--ok); }
 .live-strip-meta { font-variant-numeric: tabular-nums; }
 .live-strip-mode { flex-basis: 100%; }
+/* The digest is machine identity: mono, like every other proof artifact. */
+.live-strip-hash { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-2); }
 
 @keyframes live-dot-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--ok) 35%, transparent); }
@@ -1230,9 +1319,12 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 
 :root {
   --motion-tick: 200ms;      /* peripheral acknowledgement */
-  --motion-flash: 600ms;     /* changed-value highlight, attack then decay */
+  --motion-flash: 750ms;     /* changed-value highlight, attack then decay */
   --motion-entrance: 150ms;  /* console line arrival */
   --ease-settle: cubic-bezier(0.2, 0, 0, 1);
+  /* One notch deeper than --accent-wash so the attack reads at projection
+     distance; still the accent hue, never a semantic state colour. */
+  --flash-wash: oklch(0.925 0.050 267);
 }
 
 /* A value that just changed: brief wash, then back to the resting ink.
@@ -1242,7 +1334,7 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   animation: value-flash var(--motion-flash) var(--ease-settle);
 }
 @keyframes value-flash {
-  0%   { background-color: var(--accent-wash); box-shadow: 0 0 0 3px var(--accent-wash); }
+  0%   { background-color: var(--flash-wash); box-shadow: 0 0 0 3px var(--flash-wash); }
   100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; }
 }
 

@@ -110,7 +110,12 @@ export function AskPanel() {
                 <blockquote className="quote-text">{answer.answer}</blockquote>
                 {answer.citations[0] && (
                   <p className="quote-source">
-                    <a href={answer.citations[0].source_url} target="_blank" rel="noreferrer">
+                    <a
+                      className="proof-link"
+                      href={answer.citations[0].source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       Open the official SEBI document ↗
                     </a>
                   </p>

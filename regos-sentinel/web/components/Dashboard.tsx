@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { regosApi } from "../lib/api";
+import { useChangeKey } from "../lib/liveness";
 import { checkLabel, formatDate, labelOf } from "../lib/presentation";
 import type {
   AgentId,
@@ -111,6 +112,11 @@ export function Dashboard({
   const failed = build?.tests.filter((item) => item.status === "FAIL") ?? [];
   const passed = build?.tests.filter((item) => item.status === "PASS") ?? [];
 
+  // The hero figure flashes only when its own value moves — same grammar as
+  // every other live figure on this page. Unchanged values stay still.
+  const waitingFlash = useChangeKey(build ? waiting.length : null);
+  const failedFlash = useChangeKey(build ? failed.length : null);
+
   const active = state.obligations.filter((item) => item.status.startsWith("ACTIVE"));
   const blockedDates = state.deadline_computations.filter((item) => !item.computable);
   const evidenceCurrent = state.evidence.filter((item) => item.status === "CURRENT");
@@ -127,118 +133,82 @@ export function Dashboard({
         <LiveStrip onChange={() => { loadCci(); onRefresh(); }} />
       </section>
 
-      {/* ---- What this thing is doing, in three sentences ---------------- */}
-      <div className="how">
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">1</span>
-          <p className="how-title">It reads the SEBI document</p>
-          <p className="how-body">
-            The published CSCRF FAQ and the May 2026 AI advisory, fetched from
-            sebi.gov.in and fingerprinted so you can prove they have not changed.
-          </p>
-        </div>
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">2</span>
-          <p className="how-title">Fixed rules check your controls against it</p>
-          <p className="how-body">
-            Twelve checks compare what SEBI requires with what this firm actually does,
-            and each answer points at the sentence it came from.
-          </p>
-        </div>
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">3</span>
-          <p className="how-title">Where the text is silent, it stops and asks you</p>
-          <p className="how-body">
-            SEBI sometimes says how long you have but not when the clock starts. Rather
-            than invent a date, it hands you the gap to decide.
-          </p>
-        </div>
-      </div>
-
-      {/* ---- The one thing worth saying first ---------------------------- */}
-      {!build ? (
-        <Callout tone="accent" title="No check has been run yet.">
-          <p>Run it to see where this firm stands against the SEBI text.</p>
-          <div className="btn-row">
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={onRunCheck}>
-              Run the check
-            </button>
-          </div>
-        </Callout>
-      ) : failed.length > 0 ? (
-        <Callout tone="fail" title={`${failed.length} check did not pass.`}>
-          <p>This points to a problem in the data rather than in your compliance.</p>
-        </Callout>
-      ) : waiting.length > 0 ? (
-        <Callout tone="review" title={`${waiting.length} decisions are yours to make.`}>
-          <p>
-            The system has gone as far as the SEBI wording allows. What is left needs a
-            person, because the text does not answer it.
-          </p>
-          <div className="btn-row">
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
-              Make the decision
-            </button>
-            <button type="button" className="btn btn--quiet" disabled={busy} onClick={onRunCheck}>
-              Run the check again
-            </button>
-          </div>
-        </Callout>
-      ) : (
-        <Callout tone="ok" title="Everything that can be settled is settled.">
-          <p>All checks passed. The record is ready to hand to an auditor.</p>
-          <div className="btn-row">
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={onDownloadReport}>
-              Download the report
-            </button>
-          </div>
-        </Callout>
-      )}
-
-      {/* ---- The score SEBI asks for ------------------------------------- */}
-      {cci && (
-        <Panel
-          title="Your cyber capability score"
-          description="SEBI asks larger regulated entities for this score — every six months for market infrastructure institutions, every year for qualified entities. It is worked out live from the evidence in this workspace."
-        >
-          <div className="cci-layout">
-            <CciDial report={cci} />
-            <div className="stack-s">
-              {cci.parameters.filter((item) => item.assessed).map((item) => (
-                <div className="cci-row" key={item.id}>
-                  <span className="cci-row-title">{item.title}</span>
-                  <span className="cci-bar" aria-hidden="true">
-                    <span
-                      className={`cci-bar-fill${(item.score ?? 0) >= 80 ? " cci-bar-fill--ok" : (item.score ?? 0) >= 40 ? " cci-bar-fill--review" : " cci-bar-fill--fail"}`}
-                      style={{ width: `${item.score ?? 0}%` }}
-                    />
-                  </span>
-                  <span className="cci-row-score">{item.score}</span>
-                </div>
-              ))}
+      {/* ---- The establishing view: the decision and the score, one visual
+              sentence above the fold. State first; explanation demoted below. */}
+      <div className={cci ? "hero" : "hero hero--solo"}>
+        {!build ? (
+          <div className="callout callout--accent callout--hero">
+            <p className="callout-title hero-headline">No check has been run yet.</p>
+            <p>Run it to see where this firm stands against the SEBI text.</p>
+            <div className="btn-row">
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={onRunCheck}>
+                Run the check
+              </button>
             </div>
           </div>
+        ) : failed.length > 0 ? (
+          <div className="callout callout--fail callout--hero">
+            <p className="callout-title hero-headline">
+              <span aria-hidden="true">✕</span>
+              <span
+                className={failedFlash > 0 ? "hero-figure flash-change" : "hero-figure"}
+                key={failedFlash}
+              >
+                {failed.length}
+              </span>{" "}
+              check did not pass.
+            </p>
+            <p>This points to a problem in the data rather than in your compliance.</p>
+          </div>
+        ) : waiting.length > 0 ? (
+          <div className="callout callout--review callout--hero">
+            <p className="callout-title hero-headline">
+              <span aria-hidden="true">!</span>
+              <span
+                className={waitingFlash > 0 ? "hero-figure flash-change" : "hero-figure"}
+                key={waitingFlash}
+              >
+                {waiting.length}
+              </span>{" "}
+              decisions are yours to make.
+            </p>
+            <p>
+              The system has gone as far as the SEBI wording allows. What is left needs a
+              person, because the text does not answer it.
+            </p>
+            <div className="btn-row">
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
+                Make the decision
+              </button>
+              <button type="button" className="btn btn--quiet" disabled={busy} onClick={onRunCheck}>
+                Run the check again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="callout callout--ok callout--hero">
+            <p className="callout-title hero-headline">
+              <span aria-hidden="true">✓</span>
+              Everything that can be settled is settled.
+            </p>
+            <p>All checks passed. The record is ready to hand to an auditor.</p>
+            <div className="btn-row">
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={onDownloadReport}>
+                Download the report
+              </button>
+            </div>
+          </div>
+        )}
 
-          <Disclosure summary="What each part means, and what is not counted">
-            <ul className="stack-s">
-              {cci.parameters.map((item) => (
-                <li key={item.id}>
-                  <p>
-                    <strong className="strong-ink">{item.title}</strong>
-                    {!item.assessed && <span className="meta"> — not assessed</span>}
-                  </p>
-                  <p className="meta">{item.meaning}</p>
-                  <p className="meta">{item.evidence}</p>
-                </li>
-              ))}
-            </ul>
-            <Callout tone="neutral" title="Why this is a partial score">
-              <p>{cci.limitation}</p>
-              <p>{cci.obligation}</p>
-            </Callout>
-          </Disclosure>
-        </Panel>
-      )}
+        {cci && (
+          <section className="hero-dial" aria-labelledby="hero-dial-title">
+            <h2 className="hero-dial-title" id="hero-dial-title">
+              Your cyber capability score
+            </h2>
+            <CciDial report={cci} />
+          </section>
+        )}
+      </div>
 
       {/* ---- Five numbers, no more -------------------------------------- */}
       <Counts
@@ -276,6 +246,77 @@ export function Dashboard({
           </ul>
         </Panel>
       )}
+
+      {/* ---- What the score is made of ----------------------------------- */}
+      {cci && (
+        <Panel
+          title="What makes up the score"
+          description="SEBI asks larger regulated entities for this score — every six months for market infrastructure institutions, every year for qualified entities. It is worked out live from the evidence in this workspace."
+        >
+          <div className="stack-s">
+            {cci.parameters.filter((item) => item.assessed).map((item) => (
+              <div className="cci-row" key={item.id}>
+                <span className="cci-row-title">{item.title}</span>
+                <span className="cci-bar" aria-hidden="true">
+                  <span
+                    className={`cci-bar-fill${(item.score ?? 0) >= 80 ? " cci-bar-fill--ok" : (item.score ?? 0) >= 40 ? " cci-bar-fill--review" : " cci-bar-fill--fail"}`}
+                    style={{ transform: `scaleX(${(item.score ?? 0) / 100})` }}
+                  />
+                </span>
+                <span className="cci-row-score">{item.score}</span>
+              </div>
+            ))}
+          </div>
+
+          <Disclosure summary="What each part means, and what is not counted">
+            <ul className="stack-s">
+              {cci.parameters.map((item) => (
+                <li key={item.id}>
+                  <p>
+                    <strong className="strong-ink">{item.title}</strong>
+                    {!item.assessed && <span className="meta"> — not assessed</span>}
+                  </p>
+                  <p className="meta">{item.meaning}</p>
+                  <p className="meta">{item.evidence}</p>
+                </li>
+              ))}
+            </ul>
+            <Callout tone="neutral" title="Why this is a partial score">
+              <p>{cci.limitation}</p>
+              <p>{cci.obligation}</p>
+            </Callout>
+          </Disclosure>
+        </Panel>
+      )}
+
+      {/* ---- What this thing is doing, in three sentences — a caption now,
+              not a competitor to the live state above it. ------------------ */}
+      <div className="how">
+        <div className="how-step">
+          <span className="how-num" aria-hidden="true">1</span>
+          <p className="how-title">It reads the SEBI document</p>
+          <p className="how-body">
+            The published CSCRF FAQ and the May 2026 AI advisory, fetched from
+            sebi.gov.in and fingerprinted so you can prove they have not changed.
+          </p>
+        </div>
+        <div className="how-step">
+          <span className="how-num" aria-hidden="true">2</span>
+          <p className="how-title">Fixed rules check your controls against it</p>
+          <p className="how-body">
+            Twelve checks compare what SEBI requires with what this firm actually does,
+            and each answer points at the sentence it came from.
+          </p>
+        </div>
+        <div className="how-step">
+          <span className="how-num" aria-hidden="true">3</span>
+          <p className="how-title">Where the text is silent, it stops and asks you</p>
+          <p className="how-body">
+            SEBI sometimes says how long you have but not when the clock starts. Rather
+            than invent a date, it hands you the gap to decide.
+          </p>
+        </div>
+      </div>
 
       {/* ---- Ask it something ------------------------------------------- */}
       <AskPanel />
@@ -397,7 +438,12 @@ export function Dashboard({
               <p><strong className="strong-ink">{document.title}</strong></p>
               <p className="meta">
                 Published {formatDate(document.published_at)} ·{" "}
-                <a href={document.source_url} target="_blank" rel="noreferrer">
+                <a
+                  className="proof-link"
+                  href={document.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   open the original ↗
                 </a>
               </p>

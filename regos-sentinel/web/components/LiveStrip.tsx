@@ -159,7 +159,9 @@ export function LiveStrip({ onChange }: { onChange: () => void }) {
           <span className="live-strip-meta" title="A fingerprint of the whole workspace, recomputed on every pulse. If it holds still, this page is still true.">
             fingerprint{" "}
             <span
-              className={fingerprintFlash > 0 ? "flash-change" : undefined}
+              className={
+                fingerprintFlash > 0 ? "live-strip-hash flash-change" : "live-strip-hash"
+              }
               key={fingerprintFlash}
             >
               {pulse.digest.slice(0, 8)}

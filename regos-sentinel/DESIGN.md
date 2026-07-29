@@ -108,6 +108,15 @@ centred relation glyph. Used for existing control vs source, and before vs after
 **Data list** — label/value rows on hairlines. Replaces card grids for metadata. Long hashes
 truncate visually via mono + ellipsis with a copy action exposing the full value.
 
+**Hero band (dashboard)** — the establishing view: one call-to-decision callout (its count as
+the focal numeral, capped at 3rem to match the dial score) beside the live CCI dial, forming a
+single sentence above the fold. Explanation ("how this works") is demoted to a compact hairline
+strip lower on the page; the score's parameter breakdown moves to its own panel below.
+
+**Proof artifact** — fingerprints, hashes and official-source links share one grammar: mono,
+small, chip-formed on a hairline border. Quiet but visually distinct from prose links — they
+read as verifiable machine identity and invite inspection, never decoration.
+
 **Buttons** — 44px min height, 6px radius. One primary per stage. Primary is solid `--accent`;
 secondary is `--accent` text on `--accent-wash` with a hairline; quiet is text-only.
 

@@ -127,7 +127,7 @@ export function Hash({ value, label = "fingerprint" }: { value: string; label?: 
 
   return (
     <span className="hash">
-      <span title={value}>{shortHash(value)}</span>
+      <span className="hash-value" title={value}>{shortHash(value)}</span>
       <button type="button" className="hash-copy" onClick={copy}>
         {copied ? "Copied" : "Copy"}
         <span className="visually-hidden"> full {label}</span>
@@ -157,7 +157,7 @@ export function Quote({
       <blockquote className="quote-text">{text}</blockquote>
       {sourceUrl && (
         <p className="quote-source">
-          <a href={sourceUrl} target="_blank" rel="noreferrer">
+          <a className="proof-link" href={sourceUrl} target="_blank" rel="noreferrer">
             {sourceLabel} ↗
           </a>
         </p>

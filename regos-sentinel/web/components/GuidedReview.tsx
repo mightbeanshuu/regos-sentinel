@@ -275,7 +275,12 @@ function StepSource({
           <DataRow label="Document">{document.title}</DataRow>
           <DataRow label="Published">{formatDate(document.published_at)}</DataRow>
           <DataRow label="Official URL">
-            <a href={document.source_url} target="_blank" rel="noreferrer">
+            <a
+              className="proof-link"
+              href={document.source_url}
+              target="_blank"
+              rel="noreferrer"
+            >
               Open official source ↗
             </a>
           </DataRow>

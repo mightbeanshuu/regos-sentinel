@@ -314,7 +314,12 @@ function RunDetail({ run }: { run: AgentRun }) {
                 {finding.citations.map((citation) => (
                   <p className="meta" key={citation.span_id}>
                     {citation.locator} —{" "}
-                    <a href={citation.source_url} target="_blank" rel="noreferrer">
+                    <a
+                      className="proof-link"
+                      href={citation.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       official source ↗
                     </a>
                   </p>
