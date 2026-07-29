@@ -1903,3 +1903,107 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 
 /* Brand mark now carries its own gradient artwork — the chip goes quiet. */
 .brand-mark { background: transparent; border: 0; box-shadow: none; }
+
+/* ==========================================================================
+   Unified skin — glass + neo-soft across the light tabs so the whole product
+   reads as one system with the dark command board. One blue family (SEBI),
+   pills everywhere, gradient reserved for the primary action and the active
+   tab ring. The dark board's .cmd scope keeps its own overrides.
+   ========================================================================== */
+
+/* The field: a soft blue-tinted page wash instead of flat grey. */
+body {
+  background:
+    radial-gradient(90% 40% at 8% -5%, oklch(0.945 0.020 258 / 0.65), transparent 60%),
+    radial-gradient(70% 35% at 95% -5%, oklch(0.950 0.016 200 / 0.45), transparent 60%),
+    var(--bg);
+}
+
+/* Header goes glass and stays legible over the wash. */
+.app-header {
+  background: oklch(1 0 0 / 0.72);
+  backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid oklch(0.35 0.03 258 / 0.10);
+}
+
+/* Main nav — gradient-ring pill tabs, reference style. */
+.tabs { background: transparent; border-bottom: 0; }
+.tablist { gap: var(--s2); padding: var(--s3) 0; }
+.tab {
+  padding: 9px 18px;
+  min-height: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.65);
+  backdrop-filter: blur(10px);
+  color: var(--ink-2);
+  transition: color var(--t-micro) var(--ease), box-shadow var(--t-micro) var(--ease),
+              background var(--t-micro) var(--ease);
+}
+.tab:hover { background: oklch(1 0 0 / 0.9); color: var(--ink); }
+.tab[aria-selected="true"] {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(oklch(1 0 0), oklch(1 0 0)) padding-box,
+    linear-gradient(135deg, oklch(0.455 0.125 257), oklch(0.640 0.100 255)) border-box;
+  color: var(--ink);
+  font-weight: 640;
+  box-shadow: 0 2px 10px -4px oklch(0.455 0.125 257 / 0.35);
+}
+
+/* Panels — glass card with a soft neo shadow pair: tight contact + wide ambient. */
+.panel {
+  background: linear-gradient(176deg, oklch(1 0 0 / 0.86), oklch(0.985 0.006 258 / 0.72));
+  backdrop-filter: blur(14px) saturate(135%);
+  border: 1px solid oklch(0.35 0.03 258 / 0.10);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.85),
+    0 1px 2px oklch(0.25 0.03 258 / 0.05),
+    0 16px 40px -28px oklch(0.25 0.05 258 / 0.35);
+  border-radius: 16px;
+}
+
+/* Buttons — pills; the primary carries the one gradient. */
+.btn { border-radius: 999px; }
+.btn--primary {
+  background: linear-gradient(135deg, oklch(0.455 0.125 257), oklch(0.600 0.110 255));
+  border-color: transparent;
+  box-shadow: 0 6px 18px -10px oklch(0.455 0.125 257 / 0.65);
+}
+.btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, oklch(0.415 0.125 257), oklch(0.560 0.115 255));
+  border-color: transparent;
+}
+
+/* Scenario case tabs — same glass card + gradient ring when active. */
+.scenario-bar {
+  background: linear-gradient(176deg, oklch(1 0 0 / 0.86), oklch(0.985 0.006 258 / 0.72));
+  backdrop-filter: blur(14px) saturate(135%);
+  border: 1px solid oklch(0.35 0.03 258 / 0.10);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.85), 0 16px 40px -28px oklch(0.25 0.05 258 / 0.30);
+  overflow: hidden;
+}
+.scenario-tab--on {
+  background:
+    linear-gradient(oklch(1 0 0), oklch(1 0 0)) padding-box,
+    linear-gradient(135deg, oklch(0.455 0.125 257), oklch(0.640 0.100 255)) border-box;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px -4px oklch(0.455 0.125 257 / 0.30);
+}
+
+/* Neo-soft tiles: gently extruded, light from the top. */
+.counts--glass .count,
+.choice {
+  background: linear-gradient(178deg, oklch(1 0 0 / 0.95), oklch(0.98 0.006 258 / 0.85));
+  border: 1px solid oklch(0.35 0.03 258 / 0.09);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.9),
+    0 1px 2px oklch(0.25 0.03 258 / 0.05),
+    0 10px 24px -18px oklch(0.25 0.05 258 / 0.35);
+  border-radius: 14px;
+}
+
+/* Footer sits on the wash quietly. */
+.app-footer { background: transparent; border-top: 1px solid oklch(0.35 0.03 258 / 0.08); }
