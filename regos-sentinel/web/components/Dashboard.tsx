@@ -564,21 +564,39 @@ export function Dashboard({
                         <td className="meta">No fingerprint recorded</td>
                       </tr>
                     ))}
-                  {state.documents.map((doc) => (
-                    <tr key={doc.id}>
-                      <td>
-                        {doc.title}
-                        <p className="meta">
-                          <a className="proof-link" href={doc.source_url} target="_blank" rel="noreferrer">
-                            official source ↗
-                          </a>
-                        </p>
-                      </td>
-                      <td><StateLabel value="CURRENT" /></td>
-                      <td className="meta">{formatDate(doc.published_at)}</td>
-                      <td><span className="mono meta">{doc.content_hash.slice(0, 16)}…</span></td>
-                    </tr>
-                  ))}
+                  {state.documents.map((doc) => {
+                    const stale = receipt !== null && !receipt.hash_matches_expected;
+                    return (
+                      <tr key={doc.id}>
+                        <td>
+                          {doc.title}
+                          <p className="meta">
+                            <a className="proof-link" href={doc.source_url} target="_blank" rel="noreferrer">
+                              official source ↗
+                            </a>
+                          </p>
+                        </td>
+                        <td>
+                          {stale ? (
+                            <span className="vault-stale">
+                              STALE
+                              <span className="meta">source changed upstream</span>
+                            </span>
+                          ) : (
+                            <StateLabel value={receipt ? "CURRENT" : "NOT_CHECKED"} />
+                          )}
+                        </td>
+                        <td className="meta">
+                          {receipt ? formatDate(receipt.checked_at) : formatDate(doc.published_at)}
+                        </td>
+                        <td>
+                          <span className="vault-hash mono" title={doc.content_hash}>
+                            ⌾ SHA-256: {doc.content_hash.slice(0, 8)}…
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -622,7 +640,18 @@ export function Dashboard({
               const run = runsById.get(id);
               return (
                 <div className="b-context-agent" key={id}>
-                  <span>{AGENT_PLAIN[id].name}</span>
+                  <span>
+                    {AGENT_PLAIN[id].name}
+                    {run && (
+                      <span className="b-context-bar" aria-hidden="true">
+                        <span
+                          style={{
+                            transform: `scaleX(${Math.min(1, run.tool_call_count / Math.max(1, ...state.agent_runs.map((r) => r.tool_call_count)))})`,
+                          }}
+                        />
+                      </span>
+                    )}
+                  </span>
                   <span className="meta">
                     {run ? `${run.findings.length} findings · ${run.tool_call_count} steps` : "Not run yet"}
                   </span>

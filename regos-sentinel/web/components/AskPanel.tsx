@@ -60,8 +60,9 @@ function AnswerBody({ answer }: { answer: AssistantAnswer }) {
         </Callout>
       )}
       <figure className="quote">
-        <figcaption className="quote-locator">
-          {answer.citations[0]?.locator}
+        <figcaption className="quote-locator quote-locator--split">
+          <span>Quoted evidence</span>
+          <span>{answer.citations[0]?.locator}</span>
         </figcaption>
         <blockquote className="quote-text">{answer.answer}</blockquote>
         {answer.citations[0] && (
@@ -127,10 +128,10 @@ export function AskPanel() {
   return (
     <div className="chat">
       <div className="chat-intro">
-        <h2 className="chat-hero">RegOS Intelligence — AI Compliance Assistant</h2>
+        <h2 className="chat-hero">Ask RegOS</h2>
         <p className="chat-hero-sub">
-          Compliance command centre for a SEBI-regulated stockbroker. Answers are quoted
-          or computed — never guessed.
+          Your compliance assistant for SEBI regulations. Type a query below or explore
+          topics — answers are quoted or computed, never guessed.
         </p>
       </div>
 

@@ -2800,3 +2800,51 @@ body {
 @media (max-width: 700px) { .vault-kpis { grid-template-columns: 1fr; } }
 .vault-check { width: 100%; justify-content: center; }
 .vault-table { padding: var(--s4); }
+
+/* ---------- Agents: one card, switchable ------------------------------------ */
+
+.agent-switch { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.agent-switch-pill {
+  display: inline-flex; align-items: baseline; gap: var(--s2);
+  padding: var(--s2) var(--s4);
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.8125rem; font-weight: 620; color: var(--ink-2);
+  transition: all var(--t-base) var(--ease);
+}
+.agent-switch-pill:hover { border-color: var(--accent-line); }
+.agent-switch-pill--on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.agent-switch-pill--on .meta { color: oklch(0.8 0.01 258); }
+.agent-switch .btn { margin-left: auto; }
+
+/* ---------- Ask: quoted-evidence header ------------------------------------- */
+
+.quote-locator--split { display: flex; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+
+/* ---------- Ask sidebar: agent progress bars -------------------------------- */
+
+.b-context-bar {
+  display: block; width: 120px; height: 4px; margin-top: 5px;
+  border-radius: 999px; background: var(--line); overflow: hidden;
+}
+.b-context-bar span {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--accent); transform-origin: left;
+  transition: transform var(--t-enter) var(--ease);
+}
+
+/* ---------- Evidence vault: fingerprint pills + stale ----------------------- */
+
+.vault-hash {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  font-size: 0.71875rem; padding: 3px 10px;
+  border-radius: 999px; border: 1px solid var(--line-2);
+  background: var(--bg-2); color: var(--ink-2); white-space: nowrap;
+}
+.vault-stale { display: inline-flex; flex-direction: column; gap: 2px; }
+.vault-stale > :first-child,
+.vault-stale {
+  color: var(--fail); font-size: 0.71875rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.vault-stale .meta { font-weight: 480; letter-spacing: 0; }

@@ -55,6 +55,7 @@ export function Agents({
   const [planner, setPlanner] = useState<PlannerStatus | null>(null);
   const [challenges, setChallenges] = useState<AgentChallenges | null>(null);
   const [source, setSource] = useState<PlannerKind>("DETERMINISTIC_PLAN");
+  const [active, setActive] = useState<AgentId | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -187,9 +188,39 @@ export function Agents({
         </div>
       </Panel>
 
-      {/* ---- The four agents, and what each is allowed to be -------------- */}
-      <div className="agents-grid">
-        {catalogue?.map((entry) => {
+      {/* ---- The four assistants, one card, switchable -------------------- */}
+      {catalogue && catalogue.length > 0 && (
+        <div className="agent-switch" role="tablist" aria-label="Pick an assistant">
+          {catalogue.map((item) => {
+            const itemRun = runsById.get(item.id);
+            const on = (active ?? catalogue[0].id) === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                className={`agent-switch-pill${on ? " agent-switch-pill--on" : ""}`}
+                onClick={() => setActive(item.id)}
+              >
+                {item.name}
+                <span className="meta">{itemRun ? `${itemRun.findings.length}` : "·"}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="btn btn--primary btn--small"
+            disabled={busy}
+            onClick={() => void onRun(() => regosApi.runAllAgents(source))}
+          >
+            Run all
+          </button>
+        </div>
+      )}
+      {catalogue
+        ?.filter((entry) => entry.id === (active ?? catalogue[0].id))
+        .map((entry) => {
           const run = runsById.get(entry.id);
           return (
             <Panel
@@ -247,7 +278,6 @@ export function Agents({
             </Panel>
           );
         })}
-      </div>
 
       {/* ---- Agent health: recorded counts only --------------------------- */}
       <div className="agent-health">
