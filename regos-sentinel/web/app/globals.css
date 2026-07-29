@@ -2069,3 +2069,38 @@ body {
 .timeline-event { font-size: 0.875rem; color: var(--ink); }
 .timeline-event::first-letter { text-transform: uppercase; }
 .timeline-id { font-size: 0.71875rem; color: var(--ink-3); margin-left: var(--s2); }
+
+/* ---------- Stitch work-queue: cases · trail · actions --------------------- */
+
+.b-queue   { grid-column: span 4; }
+.b-trail   { grid-column: span 5; }
+.b-actions { grid-column: span 3; }
+@media (max-width: 1080px) { .b-queue, .b-trail, .b-actions { grid-column: span 12; } }
+
+.b-queue-list { display: flex; flex-direction: column; gap: var(--s2); }
+.b-case {
+  padding: var(--s3) var(--s4);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.b-case--review { border-left: 2px solid var(--review); }
+.b-case--fail   { border-left: 2px solid var(--fail); }
+.b-case--ok     { border-left: 2px solid var(--ok); }
+.b-case-title { font-size: 0.8125rem; line-height: 1.4; color: var(--ink); }
+.b-case-chip {
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 640;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.b-case-chip--review { background: var(--review-wash); color: var(--review); border: 1px solid var(--review-line); }
+.b-case-chip--fail   { background: var(--fail-wash); color: var(--fail); border: 1px solid var(--fail-line); }
+.b-case-chip--ok     { background: var(--ok-wash); color: var(--ok); border: 1px solid var(--ok-line); }
+
+.b-actions-col { display: flex; flex-direction: column; gap: var(--s2); }
+.b-actions-col .btn { width: 100%; justify-content: center; }

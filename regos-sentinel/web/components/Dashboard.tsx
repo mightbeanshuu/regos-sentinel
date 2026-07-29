@@ -297,24 +297,83 @@ export function Dashboard({
 
       {view === "work" && (
       <div className="bento">
-        {/* ---- What needs you ------------------------------------------ */}
-        {waiting.length > 0 && (
-          <section className="b-card b-needs">
-            <p className="b-label"><IconDecision /> Needs you</p>
-            <ul className="b-needs-list">
-              {waiting.map((item) => (
-                <li key={item.id}>
-                  <span className="strong-ink">{checkLabel(item.id, item.name)}</span>
+        {/* ---- Pending cases (Stitch work-queue pattern) ---------------- */}
+        <section className="b-card b-queue">
+          <p className="b-label"><IconDecision /> Pending</p>
+          <ul className="b-queue-list">
+            {failed.map((item) => (
+              <li className="b-case b-case--fail" key={item.id}>
+                <p className="b-case-title">{checkLabel(item.id, item.name)}</p>
+                <span className="b-case-chip b-case-chip--fail">✕ Did not pass</span>
+              </li>
+            ))}
+            {waiting.map((item) => (
+              <li className="b-case b-case--review" key={item.id}>
+                <p className="b-case-title">{checkLabel(item.id, item.name)}</p>
+                <span className="b-case-chip b-case-chip--review">! Needs you</span>
+              </li>
+            ))}
+            {blockedDates.map((item) => (
+              <li className="b-case b-case--review" key={item.id}>
+                <p className="b-case-title">
+                  {state.obligations.find((o) => o.id === item.obligation_id)
+                    ? `${state.obligations.find((o) => o.id === item.obligation_id)!.action} ${state.obligations.find((o) => o.id === item.obligation_id)!.object}`
+                    : item.obligation_id}
+                </p>
+                <span className="b-case-chip b-case-chip--review">! No start date</span>
+              </li>
+            ))}
+            {failed.length + waiting.length + blockedDates.length === 0 && (
+              <li className="b-case b-case--ok">
+                <p className="b-case-title">Nothing is waiting on anyone.</p>
+                <span className="b-case-chip b-case-chip--ok">✓ Clear</span>
+              </li>
+            )}
+          </ul>
+        </section>
+
+        {/* ---- Audit trail timeline ------------------------------------ */}
+        <section className="b-card b-trail">
+          <p className="b-label"><IconLedger /> Audit trail</p>
+          {state.audit_events.length === 0 ? (
+            <p className="b-empty">No events recorded yet.</p>
+          ) : (
+            <ol className="timeline">
+              {state.audit_events.slice(-7).reverse().map((event) => (
+                <li className="timeline-row" key={event.id}>
+                  <span className="timeline-node" aria-hidden="true" />
+                  <div className="timeline-body">
+                    <p className="timeline-event">
+                      {event.event_type.replaceAll("_", " ").toLowerCase()}
+                    </p>
+                    <p className="meta">{event.actor}</p>
+                  </div>
                 </li>
               ))}
-            </ul>
-            <div className="btn-row">
-              <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
-                Make the decision
+            </ol>
+          )}
+        </section>
+
+        {/* ---- Quick actions ------------------------------------------- */}
+        <section className="b-card b-actions">
+          <p className="b-label">Quick actions</p>
+          <div className="b-actions-col">
+            <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
+              Make the decision
+            </button>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={onRunCheck}>
+              Run the check again
+            </button>
+            <button type="button" className="btn btn--secondary" disabled={busy} onClick={onVerifySource}>
+              Verify the SEBI source
+            </button>
+            {build && failed.length === 0 && waiting.length === 0 && (
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={onDownloadReport}>
+                Download the report
               </button>
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
 
         {/* ---- Incident clocks ---------------------------------------- */}
         {state.findings.length > 0 && (
