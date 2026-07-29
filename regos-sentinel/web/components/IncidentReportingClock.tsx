@@ -75,10 +75,6 @@ function ClockFace({
   const circumference = 2 * Math.PI * radius;
   const sweep = 0.72;
   const arcLen = circumference * sweep;
-  const offset =
-    progress === null
-      ? circumference
-      : circumference - arcLen * progress;
 
   const tone = !row.computable
     ? "review"
@@ -86,27 +82,44 @@ function ClockFace({
       ? "fail"
       : "ok";
 
+  // The dial sweeps 0.72 of the circle starting at 126° — ticks sit on that arc.
+  const ticks = Array.from({ length: 13 }, (_, i) => {
+    const angle = ((126 + 360 * sweep * (i / 12)) * Math.PI) / 180;
+    return {
+      x1: 70 + Math.cos(angle) * (radius + 7),
+      y1: 70 + Math.sin(angle) * (radius + 7),
+      x2: 70 + Math.cos(angle) * (radius + (i % 3 === 0 ? 12 : 10)),
+      y2: 70 + Math.sin(angle) * (radius + (i % 3 === 0 ? 12 : 10)),
+    };
+  });
+
   return (
     <div className="irc-clock" aria-hidden={false}>
       <svg viewBox="0 0 140 140" role="img" aria-label={`Reporting clock for ${row.findingId}`}>
+        {ticks.map((t, i) => (
+          <line key={i} className="irc-tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />
+        ))}
         <circle
-          className="irc-track"
+          className={`irc-track${row.computable ? "" : " irc-track--idle"}`}
           cx="70"
           cy="70"
           r={radius}
           strokeDasharray={`${arcLen} ${circumference}`}
           transform="rotate(126 70 70)"
         />
-        <circle
-          className={`irc-arc irc-arc--${tone}`}
-          cx="70"
-          cy="70"
-          r={radius}
-          strokeDasharray={`${arcLen} ${circumference}`}
-          strokeDashoffset={offset}
-          transform="rotate(126 70 70)"
-          style={reducedMotion ? undefined : { transition: "stroke-dashoffset 0.4s var(--ease)" }}
-        />
+        {/* A clock with no stated trigger draws NO arc — an empty dial is the
+            honest rendering, not a partial sweep. */}
+        {progress !== null && (
+          <circle
+            className={`irc-arc irc-arc--${tone}`}
+            cx="70"
+            cy="70"
+            r={radius}
+            strokeDasharray={`${arcLen * Math.max(0.015, progress)} ${circumference}`}
+            transform="rotate(126 70 70)"
+            style={reducedMotion ? undefined : { transition: "stroke-dasharray 0.4s var(--ease)" }}
+          />
+        )}
       </svg>
       <div className="irc-centre">
         {!row.computable ? (

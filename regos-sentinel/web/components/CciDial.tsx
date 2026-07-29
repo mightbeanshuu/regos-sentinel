@@ -31,8 +31,10 @@ export function CciDial({ report }: { report: CciReport }) {
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Offset only within the sweep: the dash pattern already ends at the
+    // bottom gap, so shifting by the gap as well under-draws every score.
     const offsetFor = (score: number) =>
-      circumference * sweep * (1 - score / 100) + circumference * (1 - sweep);
+      circumference * sweep * (1 - score / 100);
     const from = settledScore.current;
     settledScore.current = report.score;
 

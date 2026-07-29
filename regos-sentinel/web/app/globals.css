@@ -18,20 +18,22 @@
   --line:     oklch(0.905 0.008 258);
   --line-2:   oklch(0.845 0.012 258);
 
-  /* Accent — preserved RegOS royal blue, deepened to pass AA as text ------ */
-  --accent:       oklch(0.425 0.180 267);
-  --accent-deep:  oklch(0.360 0.165 267);
-  --accent-wash:  oklch(0.965 0.022 267);
-  --accent-line:  oklch(0.860 0.055 267);
+  /* Accent — SEBI's own institutional blues, sampled from sebi.gov.in:
+     #205DB1 (interactive royal) and #154063 (deep navy). AA as text on white. */
+  --accent:       oklch(0.455 0.125 257);
+  --accent-deep:  oklch(0.345 0.075 248);
+  --accent-wash:  oklch(0.965 0.016 252);
+  --accent-line:  oklch(0.860 0.045 252);
 
   /* Semantic states ------------------------------------------------------ */
   --ok:           oklch(0.495 0.085 179);
   --ok-wash:      oklch(0.968 0.020 179);
   --ok-line:      oklch(0.870 0.045 179);
 
-  --review:       oklch(0.515 0.110 68);
-  --review-wash:  oklch(0.972 0.030 78);
-  --review-line:  oklch(0.870 0.060 78);
+  /* Attention — SEBI's burnt sienna #923F17, its own accent colour. */
+  --review:       oklch(0.470 0.110 45);
+  --review-wash:  oklch(0.972 0.022 55);
+  --review-line:  oklch(0.870 0.050 55);
 
   --fail:         oklch(0.500 0.170 27);
   --fail-wash:    oklch(0.966 0.022 27);
@@ -100,10 +102,10 @@
      strip-level is the stronger wash a raised card needs directly behind it.
      Accent-wash family only — never behind operational text on its own. */
   --glass-field-page:
-    radial-gradient(110% 60% at 12% -8%, oklch(0.94 0.024 267 / 0.45), transparent 55%),
+    radial-gradient(110% 60% at 12% -8%, oklch(0.94 0.020 252 / 0.45), transparent 55%),
     radial-gradient(80% 50% at 96% -4%, oklch(0.95 0.018 179 / 0.30), transparent 60%);
   --glass-field-wash:
-    radial-gradient(58% 130% at 10% 0%, oklch(0.86 0.085 267 / 0.50), transparent 62%),
+    radial-gradient(58% 130% at 10% 0%, oklch(0.86 0.065 252 / 0.50), transparent 62%),
     radial-gradient(52% 130% at 92% 100%, oklch(0.88 0.070 179 / 0.42), transparent 64%),
     linear-gradient(180deg, oklch(0.96 0.010 258), oklch(0.98 0.004 258));
 }
@@ -1450,3 +1452,326 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   font-variant-numeric: tabular-nums;
 }
 .live-ledger-body li:first-child { color: var(--ink-2); }
+
+/* ==========================================================================
+   Command centre — the dashboard tab only. A dark navy board floating on the
+   light page: control room dark, working tabs light. Tokens are re-scoped so
+   every child component (dial, clocks, console, tables, tags) rethemes itself.
+   Palette is SEBI's own: navy #154063 field, royal #205DB1 action, sienna
+   #923F17 attention — brightened where they must pass AA on dark.
+   ========================================================================== */
+
+.cmd {
+  /* Four-step navy-tinted ramp (hue of SEBI #154063, low chroma). Depth on the
+     board is a lightness step, not a shadow or a border. */
+  --ink:      oklch(0.965 0.005 252);
+  --ink-2:    oklch(0.855 0.012 252);
+  --ink-3:    oklch(0.680 0.018 252);
+
+  --surface:  oklch(0.235 0.026 250);   /* card */
+  --bg-2:     oklch(0.285 0.028 249);   /* elevated inner */
+  --line:     oklch(1 0 0 / 0.06);
+  --line-2:   oklch(1 0 0 / 0.14);
+
+  /* Royal #205DB1 lifted for dark data ink; navy stays in the field. */
+  --accent:       oklch(0.680 0.105 255);
+  --accent-deep:  oklch(0.560 0.120 255);
+  --accent-wash:  oklch(0.300 0.045 251);
+  --accent-line:  oklch(0.600 0.100 252 / 0.40);
+
+  --ok:           oklch(0.740 0.095 175);
+  --ok-wash:      oklch(0.290 0.035 180);
+  --ok-line:      oklch(0.560 0.070 178 / 0.50);
+
+  /* Sienna #923F17 lifted — trend tags and attention only. */
+  --review:       oklch(0.740 0.105 55);
+  --review-wash:  oklch(0.295 0.038 50);
+  --review-line:  oklch(0.580 0.080 50 / 0.50);
+
+  --fail:         oklch(0.700 0.150 25);
+  --fail-wash:    oklch(0.285 0.045 25);
+  --fail-line:    oklch(0.560 0.100 25 / 0.50);
+
+  --shadow:   none;
+  --shadow-2: none;
+
+  color: var(--ink);
+  background: oklch(0.172 0.022 250);   /* the near-black navy page step */
+  border: 1px solid oklch(1 0 0 / 0.05);
+  border-radius: 24px;
+  padding: var(--s5);
+  box-shadow: 0 28px 64px -36px oklch(0.10 0.03 250 / 0.55);
+}
+
+/* ---------- Head row ------------------------------------------------------ */
+
+.cmd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+}
+.cmd-title {
+  font-size: 1.375rem;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 0;
+}
+.cmd-sub { font-size: 0.8125rem; color: var(--ink-3); margin-top: var(--s1); }
+.cmd-live { min-width: min(380px, 100%); }
+.cmd-foot { margin-top: var(--s4); font-size: 0.8125rem; color: var(--ink-3); }
+.cmd-foot strong { color: var(--ink-2); }
+
+/* ---------- Bento grid ---------------------------------------------------- */
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.b-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: var(--s5);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.b-hero      { grid-column: span 7; }
+.b-dial      { grid-column: span 5; }
+.b-kpis      { grid-column: span 12; }
+.b-score     { grid-column: span 7; }
+.b-clocks    { grid-column: span 5; }
+.b-deadlines { grid-column: span 7; }
+.b-evidence  { grid-column: span 5; }
+.b-ask       { grid-column: span 12; }
+.b-agents    { grid-column: span 12; }
+
+@media (max-width: 1080px) {
+  .b-hero, .b-dial, .b-score, .b-clocks, .b-deadlines, .b-evidence { grid-column: span 12; }
+}
+
+/* ---------- Card label ---------------------------------------------------- */
+
+.b-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 0.875rem;
+  font-weight: 540;
+  color: var(--ink-2);
+}
+.b-label svg { width: 16px; height: 16px; opacity: 0.75; }
+.b-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.b-empty { font-size: 0.8125rem; color: var(--ink-3); }
+
+/* ---------- Hero ---------------------------------------------------------- */
+
+.b-hero {
+  position: relative;
+  overflow: hidden;
+  justify-content: center;
+  min-height: 200px;
+  /* The board's one gradient card — a navy chart-wash, everything else flat. */
+  background:
+    radial-gradient(90% 120% at 88% -10%, oklch(0.30 0.055 252 / 0.85), transparent 58%),
+    var(--surface);
+}
+.b-hero .gridfield {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 68%;
+  height: 100%;
+  color: oklch(1 0 0 / 0.05);
+  pointer-events: none;
+}
+.b-hero-body { position: relative; display: flex; flex-direction: column; gap: var(--s3); }
+.b-hero-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  font-size: 3rem;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.b-hero-glyph { font-size: 1.5rem; transform: translateY(-0.35em); }
+.b-hero-glyph--ok { font-size: 3rem; transform: none; }
+.b-hero-word { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.008em; }
+.b-hero-list { display: flex; flex-direction: column; gap: var(--s1); }
+.b-hero-list li { font-size: 0.8125rem; color: var(--ink-2); }
+.b-hero-list li::before { content: "· "; color: var(--ink-3); }
+
+.b-hero--idle   { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.b-hero--review { box-shadow: inset 0 0 0 1px var(--review-line); }
+.b-hero--review .b-hero-figure { color: var(--review); }
+.b-hero--fail   { box-shadow: inset 0 0 0 1px var(--fail-line); }
+.b-hero--fail .b-hero-figure { color: var(--fail); }
+.b-hero--ok     { box-shadow: inset 0 0 0 1px var(--ok-line); }
+.b-hero--ok .b-hero-glyph--ok { color: var(--ok); }
+
+/* ---------- KPI strip ----------------------------------------------------- */
+
+.b-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--s3);
+}
+@media (max-width: 1080px) { .b-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 680px)  { .b-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Label + icon at the top, the figure bottom-anchored, air between — the air
+   is the aesthetic, per the reference. */
+.b-kpi {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: var(--s4) var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  min-height: 132px;
+}
+.b-kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.b-kpi-icon svg { width: 17px; height: 17px; }
+.b-kpi-value {
+  margin-top: auto;
+  font-size: 2.375rem;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.b-kpi-value--word { font-size: 1.0625rem; font-weight: 560; }
+.b-kpi-of { font-size: 1.0625rem; font-weight: 460; color: var(--ink-3); }
+.b-kpi-label { font-size: 0.75rem; color: var(--ink-3); line-height: 1.35; }
+
+/* ---------- Child components re-themed on the board ----------------------- */
+
+/* The dial reads horizontally in its card and drops its glass frame. */
+.cmd .cci--glass { background: none; border: 0; box-shadow: none; padding: 0; }
+.cmd .cci { flex-direction: row; text-align: left; align-items: center; gap: var(--s4); }
+.cmd .cci-dial { flex: 0 0 148px; width: 148px; }
+.cmd .cci-read { align-items: flex-start; text-align: left; }
+.cmd .cci-track { stroke: oklch(1 0 0 / 0.10); }
+.cmd .cci-coverage { font-size: 0.71875rem; }
+
+/* Score rows spread across the card's height — distributed, not stranded. */
+.cmd .cci-bar { background: oklch(1 0 0 / 0.10); }
+.b-score-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  flex: 1;
+  justify-content: space-evenly;
+}
+
+/* Incident clocks — compact rows inside the board */
+.cmd .irc-grid { grid-template-columns: 1fr; gap: var(--s3); }
+.cmd .irc-card {
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--s3) 0 0;
+  box-shadow: none;
+}
+.cmd .irc-card:first-child { border-top: 0; padding-top: 0; }
+.cmd .irc-clock { flex: 0 0 96px; width: 96px; }
+.irc-tick { stroke: oklch(0.52 0.022 258 / 0.55); stroke-width: 1.5; }
+.cmd .irc-tick { stroke: oklch(1 0 0 / 0.22); }
+.irc-track--idle { stroke-dasharray: 3 6; opacity: 0.7; }
+.cmd .irc-track { stroke: oklch(1 0 0 / 0.10); }
+
+/* Panels nested in bento cards flatten into the card. */
+.cmd .b-ask .panel { background: none; border: 0; box-shadow: none; }
+.cmd .b-ask .panel-head { padding: 0 0 var(--s3); border: 0; }
+.cmd .b-ask .panel-body { padding: 0; }
+
+/* Console: capped so the board stays one screen; scrolls inside itself. */
+.cmd .console-body { max-height: 200px; overflow-y: auto; }
+
+/* Tables on the board */
+.cmd table th { color: var(--ink-3); }
+.cmd .table-scroll { border-color: var(--line); }
+
+.b-doclist { display: flex; flex-direction: column; gap: var(--s1); }
+.b-doclist li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+.b-receipt { font-size: 0.8125rem; }
+.b-receipt--ok { color: var(--ok); }
+.b-receipt--review { color: var(--review); }
+
+/* Buttons on the board: the white pill is the signature CTA; secondaries are
+   one lightness step up, full pill. Brand colour stays in data ink, not chrome. */
+.cmd .btn {
+  border-radius: 999px;
+}
+.cmd .btn--primary {
+  background: oklch(0.97 0.004 252);
+  color: oklch(0.20 0.025 250);
+  border-color: transparent;
+}
+.cmd .btn--primary:hover:not(:disabled) { background: oklch(0.90 0.006 252); }
+.cmd .btn--secondary,
+.cmd .btn--quiet {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.cmd .btn--secondary:hover:not(:disabled),
+.cmd .btn--quiet:hover:not(:disabled) { background: oklch(0.33 0.03 249); }
+
+/* The live pulse flattens onto the board — no glass on dark, one step up. */
+.cmd .live-glass {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  backdrop-filter: none;
+  border-radius: 14px;
+  padding: var(--s3) var(--s4);
+}
+
+/* Compact clock faces: the dial is an instrument, the words stay outside it. */
+.cmd .irc-clock { flex-basis: 104px; width: 104px; }
+.cmd .irc-centre-label { font-size: 0.6875rem; }
+.cmd .irc-centre-meta { font-size: 0.625rem; }
+
+/* The score card's detail drawer sits on the card's bottom edge. */
+.b-score .disclosure { margin-top: auto; }
+
+@media (max-width: 680px) {
+  .cmd { padding: var(--s4); border-radius: 14px; }
+  .cmd .cci { flex-direction: column; text-align: center; }
+  .cmd .cci-read { align-items: center; text-align: center; }
+}
