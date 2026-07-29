@@ -116,23 +116,18 @@ export function DocumentReview({
       <section className="stack-s">
         <h1 className="page-title">Review your regulatory document</h1>
         <p className="lede">
-          Upload a public or sandbox PDF. RegOS will fingerprint it, extract readable passages,
-          identify possible requirements, and ask a human to review anything uncertain.
+          Upload a public or sandbox PDF. Fingerprinted, passages extracted, anything
+          uncertain routed to you.
         </p>
       </section>
 
-      <Callout tone="review" title="What this lane does and does not do">
+      <Callout tone="review">
         <p>
-          Uploaded documents stay in this browser session and are never written to disk. Passages
-          are classified from their language by a fixed rule — no model is called and no legal
-          interpretation is performed. Draft interpretations require human review, and no
-          mandatory work is created until a named person approves a structured requirement.
+          Session-only. Fixed-rule classification, no model call, no legal interpretation.
+          Nothing becomes mandatory work until a named person approves it.
         </p>
         {limits && !limits.ocr_available && (
-          <p className="meta">
-            Scanned pages are not read: this prototype does not perform OCR, and says so per
-            document rather than inventing text.
-          </p>
+          <p className="meta">Scanned pages are not read — no OCR in this prototype.</p>
         )}
       </Callout>
 
@@ -325,7 +320,7 @@ function DocumentDetail({
     <div className="stack-l">
       <Panel
         title={document.filename}
-        description="User-uploaded source. Not validated by SEBI, and carrying no official status here."
+        description="User-uploaded source. No official status."
         aside={<StateLabel value={document.state} showHint />}
       >
         <div className="stack">
@@ -413,7 +408,7 @@ function DocumentDetail({
       {document.requirements.length > 0 && (
         <Panel
           title="Requirements approved by a person"
-          description="Recorded with a named reviewer, a written reason, and the exact passage they were read from."
+          description="Named reviewer · written reason · exact passage."
         >
           <div className="stack">
             {document.requirements.map((requirement) => (
@@ -458,7 +453,7 @@ function DocumentDetail({
 
       <Panel
         title="Passages"
-        description="Every passage is shown with the page it came from. Nothing here creates work on its own."
+        description="Nothing here creates work on its own."
         aside={
           <div className="field" style={{ minWidth: "220px" }}>
             <label className="visually-hidden" htmlFor="passage-filter">

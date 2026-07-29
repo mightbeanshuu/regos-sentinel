@@ -201,8 +201,7 @@ function CaseSummary({
           A SEBI rule changed. Does this broker&rsquo;s existing control still work?
         </h1>
         <p className="lede">
-          RegOS reads the official source, compares it with the control the firm already owns,
-          and stops wherever the source does not say enough to be safe.
+          Source vs the firm&rsquo;s control. It stops wherever the source does not say enough.
         </p>
       </div>
 
@@ -267,7 +266,7 @@ function StepSource({
     <Panel
       id="step-source"
       title="1 · Verify what SEBI published"
-      description="RegOS checks the official document, records its fingerprint, and identifies the reviewed passages used in this case."
+      description="Fetch the official document, record its fingerprint."
       aside={receipt ? <StateLabel value={receipt.status} /> : <StateLabel value="READY" />}
     >
       <div className="stack">
@@ -373,7 +372,7 @@ function StepCompare({
     <Panel
       id="step-compare"
       title={approved ? "2 · The existing control was too broad" : "2 · The existing control is too broad"}
-      description="A factual comparison between the control the firm owns today and what the reviewed source actually says."
+      description="The firm's control vs the source text."
       aside={<StateLabel value={build.status} />}
     >
       <div className="stack">
@@ -541,7 +540,7 @@ function StepHumanDecision({
     <Panel
       id="step-human"
       title="3 · Confirm when the one-week period starts"
-      description="The reviewed source states how long, but not from when. That gap is a firm policy decision, and it is recorded as one."
+      description="The source states how long, not from when. That gap is your policy decision."
       aside={<StateLabel value="BLOCKED_AWAITING_HUMAN" />}
     >
       <div className="stack">
@@ -909,7 +908,7 @@ function StepImpact({
 
         <Panel
           title="Regulation map"
-          description="Blast radius from the approved change — source spans through controls, evidence, and tasks. Every node is a live workspace object."
+          description="Impact of the approved change — spans, controls, evidence, tasks."
           tight
         >
           <RegulationMap state={state} />

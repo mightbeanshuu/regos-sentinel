@@ -31,7 +31,6 @@ export function ScenarioSelector({
     <section className="scenario-bar" aria-label="Demonstration scenarios">
       <div className="scenario-bar-head">
         <p className="micro">{catalogue.label}</p>
-        <p className="meta">{catalogue.note}</p>
       </div>
       <div className="scenario-tabs" role="tablist" aria-label="Choose a case">
         {catalogue.scenarios.map((scenario) => (

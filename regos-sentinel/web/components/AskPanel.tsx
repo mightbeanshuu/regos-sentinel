@@ -45,7 +45,7 @@ export function AskPanel() {
   return (
     <Panel
       title="Ask about your obligations"
-      description="Answers are quotations from the SEBI documents in this workspace. If there is no wording that answers you, it says so rather than guessing."
+      description="Answers are quoted or computed — never guessed."
     >
       <form
         className="ask-form"

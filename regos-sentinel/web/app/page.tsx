@@ -8,7 +8,6 @@ import { Dashboard } from "../components/Dashboard";
 import { DocumentReview } from "../components/DocumentReview";
 import { GuidedReview } from "../components/GuidedReview";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
-import { Disclosure } from "../components/ui";
 import { regosApi } from "../lib/api";
 import type {
   DocumentLimits,
@@ -47,7 +46,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
-  const [showGuide, setShowGuide] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const load = useCallback(async () => {
@@ -189,9 +187,6 @@ export default function Home() {
             </span>
             <span className="brand-text">
               <span className="brand-name">RegOS Sentinel</span>
-              <span className="brand-tagline">
-                Turn regulatory text into reviewable compliance work.
-              </span>
             </span>
           </div>
 
@@ -204,14 +199,6 @@ export default function Home() {
           </p>
 
           <div className="header-actions">
-            <button
-              type="button"
-              className="btn btn--quiet btn--small"
-              onClick={() => setShowGuide((value) => !value)}
-              aria-expanded={showGuide}
-            >
-              {showGuide ? "Hide demo guide" : "Demo guide"}
-            </button>
             <button
               type="button"
               className="btn btn--quiet btn--small"
@@ -247,20 +234,6 @@ export default function Home() {
       </nav>
 
       <main className="page">
-        {showGuide && (
-          <div style={{ marginBottom: "24px" }}>
-            <Disclosure summary="Three-minute presenter path" open>
-              <ol className="stack-s">
-                <li>1. Verify the SEBI source.</li>
-                <li>2. Run the control check.</li>
-                <li>3. Show why RegOS refuses to invent a date.</li>
-                <li>4. Approve the human policy.</li>
-                <li>5. Download the actual report.</li>
-              </ol>
-            </Disclosure>
-          </div>
-        )}
-
         {error && (
           <p className="banner" role="alert" style={{ marginBottom: "24px" }}>
             <span aria-hidden="true">✕</span>
@@ -376,10 +349,9 @@ export default function Home() {
 
       <footer className="app-footer">
         <div className="app-footer-inner">
-          <p>Decision support. Not legal advice. Not a SEBI determination.</p>
           <p>
-            No automated filing · no production write access · synthetic entity and evidence data ·
-            FAQ guidance must be read with the governing SEBI instruments.
+            Decision support · not legal advice · not a SEBI determination · synthetic broker
+            data · no automated filing
           </p>
         </div>
       </footer>

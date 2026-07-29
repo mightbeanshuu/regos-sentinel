@@ -230,7 +230,6 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 
 .brand-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .brand-name { display: block; font-size: 1rem; font-weight: 660; letter-spacing: -0.012em; line-height: 1.25; }
-.brand-tagline { display: block; font-size: 0.8125rem; line-height: 1.35; color: var(--ink-2); }
 
 /* Environment facts. Quiet, single line, never three shouting pills. */
 .env-line {
@@ -1062,6 +1061,8 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   padding: var(--s5);
   border-radius: var(--radius-lg);
   justify-content: center;
+  align-items: center;
+  text-align: center;
   gap: var(--s3);
 }
 
@@ -1099,36 +1100,6 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   color: var(--ink-2);
   text-align: center;
 }
-
-/* ---------- "What this is doing", three steps -----------------------------
-   Compact by design: a quiet hairline strip, not three competing panels.
-   The state above it is the story; this is the caption.
-   ------------------------------------------------------------------------- */
-
-.how {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-2);
-}
-.how-step { padding: var(--s3) var(--s4); }
-.how-step + .how-step { border-left: 1px solid var(--line); }
-@media (max-width: 900px) {
-  .how { grid-template-columns: 1fr; }
-  .how-step + .how-step { border-left: 0; border-top: 1px solid var(--line); }
-}
-.how-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 50%;
-  border: 1px solid var(--line-2);
-  background: var(--surface); color: var(--ink-3);
-  font-size: 0.6875rem; font-weight: 700;
-  margin-right: var(--s2);
-  vertical-align: -0.3em;
-}
-.how-title { display: inline; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
-.how-body  { font-size: 0.8125rem; line-height: 1.5; color: var(--ink-3); margin-top: var(--s1); }
 
 /* ---------- Cyber Capability Index --------------------------------------- */
 
@@ -1249,9 +1220,6 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   background: var(--bg-2);
 }
 .agent-chip-name { font-weight: 600; font-size: 0.875rem; color: var(--ink); }
-.agent-chip-does {
-  font-size: 0.8125rem; line-height: 1.45; color: var(--ink-3); margin-top: var(--s1);
-}
 .agent-chip-state {
   font-size: 0.75rem; color: var(--ink-3); margin-top: var(--s2);
   font-variant-numeric: tabular-nums;

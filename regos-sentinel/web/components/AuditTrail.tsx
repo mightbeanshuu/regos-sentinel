@@ -55,9 +55,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       <section className="stack-s">
         <h1 className="page-title">Audit trail</h1>
         <p className="lede">
-          The technical record behind the review: what was read, how it was decided, which checks
-          ran, and how to reproduce the result. This is the detail a reviewer or auditor needs and
-          the guided workflow deliberately keeps out of the way.
+          What was read, how it was decided, which checks ran, and how to reproduce the result.
         </p>
       </section>
 
@@ -113,7 +111,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {packs && (
         <Panel
           title="What each source has been put through"
-          description="The same eight gates apply to every source. A source that has only been registered shows seven untouched gates — that is the honest answer, and it is what makes the next source predictable rather than a rewrite."
+          description="The same eight gates apply to every source. Untouched gates are shown as untouched."
         >
           <div className="stack">
             {packs.map((report) => (
@@ -164,7 +162,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {/* ---- Source coverage ------------------------------------------ */}
       <Panel
         title="Source coverage"
-        description="Every reviewed passage carries one recorded disposition. Counts describe this declared pack, not the whole FAQ or the wider SEBI corpus."
+        description="Counts describe this declared pack only."
         tight
       >
         <div className="table-scroll">
@@ -204,7 +202,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {/* ---- Requirement strength ------------------------------------- */}
       <Panel
         title="Requirement strength by statement"
-        description="Each statement keeps the strength its own wording carries. Only required language can create mandatory work."
+        description="Only required language creates mandatory work."
         tight
       >
         <div className="table-scroll">
@@ -277,7 +275,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {/* ---- Pipeline & tests ------------------------------------------ */}
       <Panel
         title="Checks executed"
-        description="The eight-stage pipeline every build runs, and the result of each check in the latest run."
+        description="Each check's result in the latest run."
       >
         <div className="stack">
           <div className="table-scroll">
@@ -359,7 +357,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {/* ---- Reproducibility ------------------------------------------- */}
       <Panel
         title="Reproducibility"
-        description="Version identity, model receipt, and replay inputs. The same approved build state re-renders byte for byte."
+        description="Version identity, model receipt, replay inputs."
       >
         <div className="stack">
           <dl className="datalist">
@@ -556,7 +554,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       {metrics && (
         <Panel
           title="Measured on this prototype"
-          description="Every figure is produced by a committed test or harness, with the dataset it came from and the thing it does not prove. Nothing here is an estimate."
+          description="Every figure is measured by a committed test. Nothing is an estimate."
           aside={<span className="meta">n={metrics.case_count}</span>}
         >
           <div className="stack">

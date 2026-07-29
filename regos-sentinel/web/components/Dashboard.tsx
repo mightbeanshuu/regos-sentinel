@@ -40,23 +40,11 @@ const ALL_AGENTS: AgentId[] = [
   "ADVERSARY",
 ];
 
-const AGENT_PLAIN: Record<AgentId, { name: string; does: string }> = {
-  REFERENCE_RESOLVER: {
-    name: "Reference finder",
-    does: "Follows every “see Table 19” pointer to the passage it names, and refuses if it does not match.",
-  },
-  EXTRACTOR: {
-    name: "Deadline reader",
-    does: "Reads a passage and says whether a date can honestly be worked out from it.",
-  },
-  SOURCE_SCOUT: {
-    name: "Change watcher",
-    does: "Compares the reviewed document against newer SEBI text and reports what moved.",
-  },
-  ADVERSARY: {
-    name: "Challenger",
-    does: "Tries to break each requirement before you are asked to approve it.",
-  },
+const AGENT_PLAIN: Record<AgentId, { name: string }> = {
+  REFERENCE_RESOLVER: { name: "Reference finder" },
+  EXTRACTOR: { name: "Deadline reader" },
+  SOURCE_SCOUT: { name: "Change watcher" },
+  ADVERSARY: { name: "Challenger" },
 };
 
 /** Refresh cadence for the live figures. Slow enough to be free, fast enough to be live. */
@@ -139,7 +127,6 @@ export function Dashboard({
         {!build ? (
           <div className="callout callout--accent callout--hero">
             <p className="callout-title hero-headline">No check has been run yet.</p>
-            <p>Run it to see where this firm stands against the SEBI text.</p>
             <div className="btn-row">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={onRunCheck}>
                 Run the check
@@ -158,7 +145,6 @@ export function Dashboard({
               </span>{" "}
               check did not pass.
             </p>
-            <p>This points to a problem in the data rather than in your compliance.</p>
           </div>
         ) : waiting.length > 0 ? (
           <div className="callout callout--review callout--hero">
@@ -171,10 +157,6 @@ export function Dashboard({
                 {waiting.length}
               </span>{" "}
               decisions are yours to make.
-            </p>
-            <p>
-              The system has gone as far as the SEBI wording allows. What is left needs a
-              person, because the text does not answer it.
             </p>
             <div className="btn-row">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
@@ -191,7 +173,6 @@ export function Dashboard({
               <span aria-hidden="true">✓</span>
               Everything that can be settled is settled.
             </p>
-            <p>All checks passed. The record is ready to hand to an auditor.</p>
             <div className="btn-row">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={onDownloadReport}>
                 Download the report
@@ -230,10 +211,7 @@ export function Dashboard({
 
       {/* ---- What needs a person ---------------------------------------- */}
       {waiting.length > 0 && (
-        <Panel
-          title="What needs you"
-          description="Each of these is a question the SEBI text does not answer. Your decision is recorded with your name and your reason."
-        >
+        <Panel title="What needs you">
           <ul className="stack-s">
             {waiting.map((item) => (
               <li key={item.id} className="outcome">
@@ -249,10 +227,7 @@ export function Dashboard({
 
       {/* ---- What the score is made of ----------------------------------- */}
       {cci && (
-        <Panel
-          title="What makes up the score"
-          description="SEBI asks larger regulated entities for this score — every six months for market infrastructure institutions, every year for qualified entities. It is worked out live from the evidence in this workspace."
-        >
+        <Panel title="Score breakdown">
           <div className="stack-s">
             {cci.parameters.filter((item) => item.assessed).map((item) => (
               <div className="cci-row" key={item.id}>
@@ -268,7 +243,7 @@ export function Dashboard({
             ))}
           </div>
 
-          <Disclosure summary="What each part means, and what is not counted">
+          <Disclosure summary="Detail">
             <ul className="stack-s">
               {cci.parameters.map((item) => (
                 <li key={item.id}>
@@ -289,50 +264,17 @@ export function Dashboard({
         </Panel>
       )}
 
-      {/* ---- What this thing is doing, in three sentences — a caption now,
-              not a competitor to the live state above it. ------------------ */}
-      <div className="how">
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">1</span>
-          <p className="how-title">It reads the SEBI document</p>
-          <p className="how-body">
-            The published CSCRF FAQ and the May 2026 AI advisory, fetched from
-            sebi.gov.in and fingerprinted so you can prove they have not changed.
-          </p>
-        </div>
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">2</span>
-          <p className="how-title">Fixed rules check your controls against it</p>
-          <p className="how-body">
-            Twelve checks compare what SEBI requires with what this firm actually does,
-            and each answer points at the sentence it came from.
-          </p>
-        </div>
-        <div className="how-step">
-          <span className="how-num" aria-hidden="true">3</span>
-          <p className="how-title">Where the text is silent, it stops and asks you</p>
-          <p className="how-body">
-            SEBI sometimes says how long you have but not when the clock starts. Rather
-            than invent a date, it hands you the gap to decide.
-          </p>
-        </div>
-      </div>
-
       {/* ---- Ask it something ------------------------------------------- */}
       <AskPanel />
 
       {/* ---- The assistants, working in the open ------------------------- */}
-      <Panel
-        title="Automated checks, running in front of you"
-        description="Four assistants read the SEBI text and raise problems. None of them can change a requirement, set a date, or approve anything. Start one and watch every step it takes."
-      >
+      <Panel title="AI agents" description="Read-only. None can change a requirement, set a date, or approve anything.">
         <div className="agent-strip">
           {ALL_AGENTS.map((id) => {
             const run = runsById.get(id);
             return (
               <div className="agent-chip" key={id}>
                 <p className="agent-chip-name">{AGENT_PLAIN[id].name}</p>
-                <p className="agent-chip-does">{AGENT_PLAIN[id].does}</p>
                 <p className="agent-chip-state">
                   {run
                     ? `${run.findings.length} findings · ${run.tool_call_count} steps`
@@ -347,20 +289,13 @@ export function Dashboard({
 
       {/* ---- Deadlines --------------------------------------------------- */}
       {state.findings.length > 0 && (
-        <Panel
-          title="Incident reporting clocks"
-          description="Each VAPT finding gets a reporting clock only when the workspace has enough to calculate it. Where SEBI does not state when the clock starts, the face stays empty."
-        >
+        <Panel title="Incident reporting clocks">
           <IncidentReportingClock state={state} />
         </Panel>
       )}
 
       {state.deadline_computations.length > 0 && (
-        <Panel
-          title="Your deadlines"
-          description="Where SEBI does not say when a clock starts, no date is shown. A guess in this column would be worse than a gap."
-          tight
-        >
+        <Panel title="Deadlines" tight>
           <div className="table-scroll">
             <table>
               <thead>
@@ -385,10 +320,7 @@ export function Dashboard({
                         ) : (
                           <>
                             <StateLabel value="BLOCK" />
-                            <p className="meta">
-                              SEBI states the period but not what starts it, so no date
-                              can be produced until you set your firm&apos;s policy.
-                            </p>
+                            <p className="meta">Start not stated by SEBI — needs your policy.</p>
                           </>
                         )}
                       </td>
@@ -404,7 +336,6 @@ export function Dashboard({
       {/* ---- Evidence and source ---------------------------------------- */}
       <Panel
         title="Evidence and source"
-        description="The documents behind your controls, and the SEBI text everything traces back to."
         aside={
           <button
             type="button"
@@ -463,8 +394,7 @@ export function Dashboard({
 
       {build && (
         <p className="meta">
-          {passed.length} of {build.tests.length} checks passed. Every check, every
-          quotation and the reasoning behind each figure is under <strong>Full record</strong>.
+          {passed.length} of {build.tests.length} checks passed · detail under <strong>Full record</strong>.
         </p>
       )}
     </div>

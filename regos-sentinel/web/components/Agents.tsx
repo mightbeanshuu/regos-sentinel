@@ -92,11 +92,8 @@ export function Agents({
       <section className="stack-s">
         <h1 className="page-title">AI agents</h1>
         <p className="lede">
-          Four assistants read the SEBI text and point out problems — a pointer that leads
-          nowhere, a duty with no deadline, a figure that does not match the wording they
-          cite. They can raise something. They cannot change anything: none of them is able
-          to edit a requirement, set a date, or sign anything off. Every step they take is
-          written down, so you can check their work instead of trusting it.
+          Read-only. They raise problems; they cannot edit, date, or approve anything.
+          Every step is recorded.
         </p>
       </section>
 
@@ -114,8 +111,8 @@ export function Agents({
 
       {/* ---- What may plan a run ----------------------------------------- */}
       <Panel
-        title="How the assistants decide what to do"
-        description="The record always shows which of these actually ran — not the one you asked for, if the AI could not be reached."
+        title="Planning mode"
+        description="The record shows which mode actually ran."
       >
         <div className="stack-s">
           {PLAN_SOURCES.map((item) => (
@@ -191,10 +188,7 @@ export function Agents({
       </Panel>
 
       {/* ---- Watch one work, live ---------------------------------------- */}
-      <Panel
-        title="Watch it work"
-        description="Start an assistant and every step it takes appears below as it happens — what it looked at, what came back, and what the rules made of it."
-      >
+      <Panel title="Live run">
         <AgentConsole
           agents={catalogue?.map((entry) => entry.id) ?? []}
           planner={source}
