@@ -65,3 +65,6 @@ Thumbs.db
 **/.vercel/
 *.swp
 *.swo
+
+# no-slash form so a node_modules SYMLINK is ignored too (a dir-only pattern misses it)
+node_modules
