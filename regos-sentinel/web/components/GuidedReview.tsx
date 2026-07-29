@@ -163,15 +163,22 @@ export function GuidedReview(props: GuidedReviewProps) {
 
       {approved && build && reading && (
         <div className="decision-sealed" role="status">
+          <span className="decision-sealed-badge" aria-hidden="true">
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" clipRule="evenodd" d="M5 9V7a5 5 0 0 1 10 0v2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Zm8-2v2H7V7a3 3 0 0 1 6 0Z" />
+            </svg>
+            Sealed
+          </span>
           <span className="decision-sealed-check" aria-hidden="true">✓</span>
           <div className="decision-sealed-body">
             <p className="decision-sealed-title">Decision approved</p>
-            <p className="meta">
-              Recorded by: {reading.reviewer_name} ({reading.reviewer_role}) ·
-              policy: {reading.trigger_policy}
-            </p>
           </div>
-          <span className="decision-sealed-chip">⛨ Sealed · run {build.run_id}</span>
+          <span className="decision-sealed-divider" aria-hidden="true" />
+          <p className="decision-sealed-by">
+            Recorded by: <strong>{reading.reviewer_name} ({reading.reviewer_role})</strong>
+            <span className="meta"> · policy: {reading.trigger_policy}</span>
+          </p>
+          <code className="decision-sealed-sha mono">run · {build.run_id}</code>
         </div>
       )}
 
@@ -683,53 +690,67 @@ function StepHumanDecision({
         {!reading ? (
           <div className="stack">
             <div className="decision-grid">
-              {/* -- Left: your independent reading ---------------------- */}
-              <div className="decision-card">
-                <p className="decision-card-title">Your independent reading</p>
-                <Field
-                  label="Your observation"
-                  hint="Write what the cited text supports, and what remains a firm decision."
-                  error={interpretationError}
-                >
-                  {(aria) => (
-                    <textarea
-                      {...aria}
-                      rows={4}
-                      value={interpretation}
-                      onChange={(event) => setInterpretation(event.target.value)}
-                    />
-                  )}
-                </Field>
-                <div className="field-grid">
-                  <Field label="Reviewer name" error={nameError}>
+              {/* -- Left: your independent reading, then the locked draft -- */}
+              <div className="decision-col">
+                <div className="decision-card">
+                  <p className="decision-card-title">Your independent reading</p>
+                  <Field
+                    label="Your observation"
+                    hint="Write what the cited text supports, and what remains a firm decision."
+                    error={interpretationError}
+                  >
                     {(aria) => (
-                      <input
+                      <textarea
                         {...aria}
-                        value={reviewerName}
-                        onChange={(event) => setReviewerName(event.target.value)}
-                        autoComplete="name"
+                        rows={4}
+                        value={interpretation}
+                        onChange={(event) => setInterpretation(event.target.value)}
                       />
                     )}
                   </Field>
-                  <Field label="Role / designation" error={roleError}>
-                    {(aria) => (
-                      <input
-                        {...aria}
-                        value={reviewerRole}
-                        onChange={(event) => setReviewerRole(event.target.value)}
-                      />
-                    )}
-                  </Field>
+                  <div className="field-grid">
+                    <Field label="Reviewer name" error={nameError}>
+                      {(aria) => (
+                        <input
+                          {...aria}
+                          value={reviewerName}
+                          onChange={(event) => setReviewerName(event.target.value)}
+                          autoComplete="name"
+                        />
+                      )}
+                    </Field>
+                    <Field label="Role / designation" error={roleError}>
+                      {(aria) => (
+                        <input
+                          {...aria}
+                          value={reviewerRole}
+                          onChange={(event) => setReviewerRole(event.target.value)}
+                        />
+                      )}
+                    </Field>
+                  </div>
                 </div>
-                <div className="decision-locked" aria-label="System suggestion, hidden until you commit your reading">
-                  <span className="decision-lock-glyph" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="4" y="9" width="12" height="8" rx="1.6" />
-                      <path d="M7 9V6.6a3 3 0 0 1 6 0V9" />
-                    </svg>
-                  </span>
-                  <p className="decision-lock-title">System suggestion</p>
-                  <p className="meta">Hidden until you commit your reading — then revealed with both timestamps.</p>
+
+                {/* The draft stays physically on the page but unreadable —
+                    skeleton lines behind blur, never real (or fake) words. */}
+                <div className="decision-card decision-card--locked" aria-label="System suggestion, hidden until you commit your reading">
+                  <div className="decision-skel" aria-hidden="true">
+                    <span style={{ width: "34%" }} />
+                    <span style={{ width: "96%" }} />
+                    <span style={{ width: "88%" }} />
+                    <span style={{ width: "92%" }} />
+                    <span style={{ width: "56%" }} />
+                  </div>
+                  <div className="decision-lock-overlay">
+                    <span className="decision-lock-glyph" aria-hidden="true">
+                      <svg width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="4" y="9" width="12" height="8" rx="1.6" />
+                        <path d="M7 9V6.6a3 3 0 0 1 6 0V9" />
+                      </svg>
+                    </span>
+                    <p className="decision-lock-title">System suggestion</p>
+                    <p className="meta">(Blurred until you commit your reading)</p>
+                  </div>
                 </div>
               </div>
 
@@ -738,22 +759,27 @@ function StepHumanDecision({
                 <p className="decision-card-title">Set the clock-start policy</p>
                 <p className="meta">The source states the duration, not the start. That gap is yours.</p>
 
-                <div className={`decision-preview${policyChoice === "none" ? " decision-preview--blocked" : ""}`}>
+                <div className={`decision-preview-row${policyChoice === "none" ? " decision-preview-row--blocked" : ""}`}>
+                  <span className="decision-preview-clock" aria-hidden="true">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 8v4l3 3" />
+                    </svg>
+                  </span>
                   {policyChoice === "none" ? (
-                    <>
-                      <span className="decision-preview-value">No date</span>
-                      <span className="meta">RegOS will not compute a due date without a recorded policy.</span>
-                    </>
+                    <span>
+                      Live due date preview: <strong>no date</strong>
+                      <span className="meta"> — RegOS will not compute one without a recorded policy.</span>
+                    </span>
                   ) : (
-                    <>
-                      <span className="decision-preview-value">
-                        {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}
-                      </span>
+                    <span>
+                      Live due date preview:{" "}
+                      <strong>{previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}</strong>
                       <span className="meta">
-                        Preview only — {blockedDeadline?.duration_label ?? "1 week"} from the date below.
-                        The engine computes the recorded date on approval.
+                        {" "}· {blockedDeadline?.duration_label ?? "1 week"} from the date below; the
+                        engine records the real date on approval.
                       </span>
-                    </>
+                    </span>
                   )}
                 </div>
 
@@ -824,42 +850,51 @@ function StepHumanDecision({
               </div>
             </div>
 
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy || policyChoice === "none"}
-                onClick={() => {
-                  setTouched(true);
-                  if (!readingComplete) return;
-                  void onCommitReading({
-                    reviewer_name: reviewerName.trim(),
-                    reviewer_role: reviewerRole.trim(),
-                    independent_interpretation: interpretation.trim(),
-                    trigger_policy: triggerPolicy.trim(),
-                  });
-                }}
-              >
-                {busy && <span className="spinner" aria-hidden="true" />}
-                Record my reading, then show the draft interpretation
-              </button>
-              {policyChoice === "none" && (
-                <p className="meta">Pick a clock-start policy to continue — or the date stays uncomputed.</p>
-              )}
-              <button
-                type="button"
-                className="btn btn--quiet btn--small"
-                disabled={busy}
-                onClick={() => {
-                  setInterpretation(
-                    "Q17(a) supports a one-week maximum for high-severity findings caused by missing patches. It does not state which event starts that clock.",
-                  );
-                  setPolicyChoice("discovery");
-                  setTriggerPolicy(TRIGGER_POLICIES[0].policy);
-                }}
-              >
-                Fill a synthetic demo response
-              </button>
+            <div className="decision-commit">
+              <p className="decision-commit-title">This decision is recorded against your name.</p>
+              <p className="decision-commit-sub">
+                Your reading is time-stamped before the draft is revealed and cannot be
+                rewritten later in this session.
+              </p>
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn--primary decision-commit-btn"
+                  disabled={busy || policyChoice === "none"}
+                  onClick={() => {
+                    setTouched(true);
+                    if (!readingComplete) return;
+                    void onCommitReading({
+                      reviewer_name: reviewerName.trim(),
+                      reviewer_role: reviewerRole.trim(),
+                      independent_interpretation: interpretation.trim(),
+                      trigger_policy: triggerPolicy.trim(),
+                    });
+                  }}
+                >
+                  {busy && <span className="spinner" aria-hidden="true" />}
+                  Record my reading, then show the draft interpretation
+                </button>
+                {policyChoice === "none" && (
+                  <p className="decision-commit-hint">
+                    Pick a clock-start policy to continue — or the date stays uncomputed.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--quiet btn--small decision-commit-quiet"
+                  disabled={busy}
+                  onClick={() => {
+                    setInterpretation(
+                      "Q17(a) supports a one-week maximum for high-severity findings caused by missing patches. It does not state which event starts that clock.",
+                    );
+                    setPolicyChoice("discovery");
+                    setTriggerPolicy(TRIGGER_POLICIES[0].policy);
+                  }}
+                >
+                  Fill a synthetic demo response
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -959,21 +994,27 @@ function StepHumanDecision({
                 </Field>
                 <Field label="Trigger event date" hint="The date your policy points at, for the demo finding F-001.">
                   {(aria) => (
-                    <input
-                      {...aria}
-                      type="date"
-                      value={triggerDate}
-                      onChange={(event) => setTriggerDate(event.target.value)}
-                    />
+                    <span className="decision-date">
+                      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" />
+                      </svg>
+                      <input
+                        {...aria}
+                        type="date"
+                        value={triggerDate}
+                        onChange={(event) => setTriggerDate(event.target.value)}
+                      />
+                    </span>
                   )}
                 </Field>
-                <div className="decision-preview">
+                <div className="decision-preview decision-preview--calc">
+                  <span className="micro">Due date preview</span>
                   <span className="decision-preview-value">
                     {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}
                   </span>
                   <span className="meta">
-                    Preview — {blockedDeadline?.duration_label ?? "1 week"} from the trigger date.
-                    The engine records the real date on approval.
+                    {blockedDeadline?.duration_label ?? "1 week"} from the trigger date — the
+                    engine records the real date on approval.
                   </span>
                 </div>
               </div>
