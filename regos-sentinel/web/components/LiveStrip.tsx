@@ -135,7 +135,7 @@ export function LiveStrip({ onChange }: { onChange: () => void }) {
       : `Live model available: ${planner.model_id}`;
 
   return (
-    <div className="stack-s">
+    <div className="stack-s live-glass">
       <div
         className={`live-strip live-strip--${channel}`}
         role="status"
