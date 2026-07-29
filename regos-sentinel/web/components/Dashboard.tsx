@@ -8,8 +8,10 @@ import { agentNameOf, checkLabel, formatDate, labelOf } from "../lib/presentatio
 import type {
   AgentId,
   CciReport,
+  DocumentScore,
   LiveSourceVerificationReceipt,
   PlannerKind,
+  UploadedDocument,
   WorkspaceState,
 } from "../lib/types";
 import { AgentConsole } from "./AgentConsole";
@@ -57,6 +59,7 @@ const REFRESH_MS = 20_000;
 
 export function Dashboard({
   state,
+  documents = [],
   receipt,
   busy,
   onRunCheck,
@@ -64,8 +67,10 @@ export function Dashboard({
   onDownloadReport,
   onVerifySource,
   onRefresh,
+  onOpenDocuments,
 }: {
   state: WorkspaceState;
+  documents?: UploadedDocument[];
   receipt: LiveSourceVerificationReceipt | null;
   busy: boolean;
   onRunCheck: () => void;
@@ -73,11 +78,26 @@ export function Dashboard({
   onDownloadReport: () => void;
   onVerifySource: () => void;
   onRefresh: () => void;
+  onOpenDocuments?: () => void;
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   const [planner] = useState<PlannerKind>("DETERMINISTIC_PLAN");
   const [view, setView] = useState<"overview" | "work" | "evidence" | "ask" | "agents">("overview");
   const [evidenceKinds, setEvidenceKinds] = useState<Set<string>>(new Set());
+  const [lens, setLens] = useState<"demo" | "document">("demo");
+  const [docScore, setDocScore] = useState<DocumentScore | null>(null);
+
+  const activeDoc = documents.at(-1) ?? null;
+
+  // The document lens scores live off the committed model, refreshed with the doc.
+  useEffect(() => {
+    if (lens !== "document" || !activeDoc) { setDocScore(null); return; }
+    let cancelled = false;
+    void regosApi.documentScore(activeDoc.id)
+      .then((value) => { if (!cancelled) setDocScore(value); })
+      .catch(() => { if (!cancelled) setDocScore(null); });
+    return () => { cancelled = true; };
+  }, [lens, activeDoc, activeDoc?.passages.length]);
 
   const loadCci = useCallback(() => {
     void regosApi.cci().then(setCci).catch(() => setCci(null));
@@ -130,6 +150,31 @@ export function Dashboard({
         </div>
       </header>
 
+      <div className="cmd-lens" role="group" aria-label="Workspace lens">
+        <button
+          type="button"
+          className={`cmd-lens-pill${lens === "demo" ? " cmd-lens-pill--on" : ""}`}
+          aria-pressed={lens === "demo"}
+          onClick={() => setLens("demo")}
+        >
+          Demo corpus
+        </button>
+        <button
+          type="button"
+          className={`cmd-lens-pill${lens === "document" ? " cmd-lens-pill--on" : ""}`}
+          aria-pressed={lens === "document"}
+          onClick={() => {
+            if (!activeDoc) { onOpenDocuments?.(); return; }
+            setLens("document");
+          }}
+        >
+          My document{activeDoc ? ` · ${activeDoc.filename}` : ""}
+        </button>
+        {!activeDoc && (
+          <span className="meta">Upload a PDF under “Your own document” to switch this lens.</span>
+        )}
+      </div>
+
       <nav className="cmd-nav" aria-label="Command centre sections">
         {([
           ["overview", "Overview"],
@@ -153,7 +198,102 @@ export function Dashboard({
         ))}
       </nav>
 
-      {view === "overview" && (
+      {view === "overview" && lens === "document" && activeDoc && (
+      <div className="bento">
+        {/* ---- Document hero ------------------------------------------ */}
+        <section className={`b-card b-hero b-hero--${activeDoc.scope.passages_needing_review > 0 ? "review" : activeDoc.state === "APPROVED" ? "ok" : "idle"}`}>
+          <GridField />
+          <div className="b-hero-body">
+            <p className="b-hero-word">{activeDoc.filename}</p>
+            <p className="cmd-sub">
+              {activeDoc.scope.passages_needing_review > 0
+                ? `${activeDoc.scope.passages_needing_review} passages are waiting for a person.`
+                : activeDoc.state === "APPROVED"
+                  ? "A named person has approved a requirement from this document."
+                  : "Extracted and classified — nothing becomes work until a person approves it."}
+            </p>
+            <div className="btn-row">
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDocuments}>
+                Open the review
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Model score dial substitute ----------------------------- */}
+        <section className="b-card b-dial">
+          <p className="b-label"><IconGauge /> Deadline clarity — committed model</p>
+          {docScore ? (
+            <div className="stack-s">
+              <p className="scorecard-value">
+                {docScore.deadline_clarity === null ? "—" : `${Math.round(docScore.deadline_clarity * 100)}%`}
+              </p>
+              <p className="meta clamp2" title={docScore.limitation}>{docScore.limitation}</p>
+            </div>
+          ) : (
+            <p className="b-empty">Score loads once the model reads this document.</p>
+          )}
+        </section>
+
+        {/* ---- Document figures ---------------------------------------- */}
+        <section className="b-kpis">
+          <div className="b-kpi">
+            <span className="b-kpi-value">{activeDoc.passages.length}</span>
+            <span className="b-kpi-label">Passages extracted</span>
+          </div>
+          <div className={activeDoc.scope.passages_needing_review > 0 ? "b-kpi b-kpi--attention" : "b-kpi"}>
+            <span className="b-kpi-value">{activeDoc.scope.passages_needing_review}</span>
+            <span className="b-kpi-label">Waiting on you</span>
+          </div>
+          <div className="b-kpi">
+            <span className="b-kpi-value">{activeDoc.passages.filter((p) => p.reviewed_by).length}</span>
+            <span className="b-kpi-label">Readings recorded</span>
+          </div>
+          <div className="b-kpi">
+            <span className="b-kpi-value">{activeDoc.requirements.length}</span>
+            <span className="b-kpi-label">Approvals recorded</span>
+          </div>
+          <div className="b-kpi">
+            <span className="b-kpi-value">
+              {activeDoc.scope.pages_read}
+              <span className="b-kpi-of">/{activeDoc.scope.page_count}</span>
+            </span>
+            <span className="b-kpi-label">Pages read</span>
+          </div>
+        </section>
+
+        {/* ---- Timing classes from the committed model ------------------ */}
+        {docScore && (
+          <section className="b-card b-score">
+            <p className="b-label"><IconGauge /> What the model read, by timing class</p>
+            <div className="b-score-rows">
+              {Object.entries(docScore.timing_counts).map(([label, count]) => {
+                const max = Math.max(...Object.values(docScore.timing_counts), 1);
+                return (
+                  <div className="cci-row" key={label}>
+                    <span className="cci-row-title">{labelOf(label)}</span>
+                    <span className="cci-bar" aria-hidden="true">
+                      <span
+                        className={`cci-bar-fill${label === "PERIOD_AND_TRIGGER" ? " cci-bar-fill--ok" : label === "NO_TIMING" ? "" : " cci-bar-fill--review"}`}
+                        style={{ transform: `scaleX(${count / max})` }}
+                      />
+                    </span>
+                    <span className="cci-row-score">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="meta">
+              The cyber capability score stays on the demo corpus — its parameters need
+              workspace evidence an uploaded document does not carry. No number is invented
+              under this lens.
+            </p>
+          </section>
+        )}
+      </div>
+      )}
+
+      {view === "overview" && !(lens === "document" && activeDoc) && (
       <div className="bento">
         {/* ---- Status hero -------------------------------------------- */}
         <section className={`b-card b-hero b-hero--${heroTone}`}>

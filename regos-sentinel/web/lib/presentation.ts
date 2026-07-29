@@ -76,6 +76,11 @@ const STATES: Record<string, StateMeta> = {
   // ---- Evidence and operational state ---------------------------------
   CURRENT: meta("Up to date", "ok"),
   NEEDS_REVALIDATION: meta("Review again", "review"),
+  MACHINE_READ_OCR: meta(
+    "Machine-read (OCR)",
+    "review",
+    "Text recovered from a scanned page by OCR — verify against the original before relying on it.",
+  ),
   ADVISORY_GAP: meta("Advisory gap", "review", "Recorded as guidance. No mandatory task."),
   NOT_EVALUATED: meta("Not checked yet", "neutral"),
   OPEN: meta("Open", "review"),

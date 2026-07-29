@@ -392,7 +392,9 @@ def initial_state() -> WorkspaceState:
                 authority="Stated by the uploader, not verified by RegOS",
                 legal_state="UNKNOWN — SUPPLIED BY A VISITOR",
                 extraction_scope=(
-                    "Text-layer pages only. No OCR, no model call, no live source verification."
+                    "Text-layer pages, plus machine-read (OCR) text for scanned pages when an "
+                    "OCR key is configured — always labelled machine-read. No model call, no "
+                    "live source verification."
                 ),
                 source_span_ids=[],
                 validation_tests=[

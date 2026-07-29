@@ -2967,3 +2967,36 @@ body {
   color: transparent;
 }
 .step--blocked .step-marker { box-shadow: 0 0 0 4px var(--bg), 0 0 0 8px oklch(0.47 0.11 45 / 0.12); }
+
+/* ---------- Phase C: lens toggle + scan animation --------------------------- */
+
+.cmd-lens { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s3); }
+.cmd-lens-pill {
+  padding: 5px 16px;
+  border-radius: 999px;
+  border: 1px solid oklch(1 0 0 / 0.14);
+  background: transparent;
+  color: oklch(0.78 0.01 255);
+  font-size: 0.8125rem;
+  font-weight: 620;
+  transition: all var(--t-base) var(--ease);
+}
+.cmd-lens-pill:hover { border-color: oklch(1 0 0 / 0.3); }
+.cmd-lens-pill--on { background: #fff; border-color: #fff; color: #10131a; }
+.cmd .cmd-lens .meta { color: oklch(0.62 0.015 255); }
+
+.dropzone--scanning { position: relative; overflow: hidden; }
+.dropzone--scanning::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: scanline 1.6s var(--ease) infinite;
+}
+@keyframes scanline {
+  0% { top: 0; opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { top: calc(100% - 2px); opacity: 0.2; }
+}
+@media (prefers-reduced-motion: reduce) { .dropzone--scanning::after { animation: none; } }

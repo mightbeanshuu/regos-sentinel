@@ -70,6 +70,12 @@ def build_pdf(paragraphs: list[list[str]]) -> bytes:
     return buffer.getvalue()
 
 
+@pytest.fixture(autouse=True)
+def _no_ocr_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests pin the no-OCR path. A developer's real key must not change it."""
+    monkeypatch.delenv("OCR_SPACE_API_KEY", raising=False)
+
+
 def client() -> TestClient:
     return TestClient(create_app(SECRET))
 

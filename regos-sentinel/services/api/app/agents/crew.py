@@ -16,8 +16,9 @@ Extractor               a passage's own wording             whether timing is us
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from ..documents import UploadedDocument
 from ..models import (
     AgentCatalogueEntry,
     AgentFinding,
@@ -30,6 +31,9 @@ from .runtime import Agent, AgentToolbox, PlannedCall, finding
 from .tools import (
     CSCRF_SOURCE_URL,
     analyse_timing,
+    document_pointers,
+    document_tool_specs,
+    document_tools,
     fetch_span,
     identifiers_agree,
     list_known_sources,
@@ -63,8 +67,28 @@ class ReferenceResolver(Agent):
         "cannot resolve a pointer to a passage nobody has committed."
     )
 
-    def __init__(self, state: WorkspaceState) -> None:
+    def __init__(
+        self, state: WorkspaceState, document: Optional[UploadedDocument] = None
+    ) -> None:
         self.state = state
+        self.document = document
+        if document is not None:
+            self.pointers = document_pointers(document)
+            self.goal = (
+                "Resolve any outside reference this uploaded document names to a "
+                f"pinned, hash-verified passage ({document.id} · {document.filename})."
+            )
+            bound = document_tools(document)
+            tools = {
+                "list_unresolved_references": bound["list_unresolved_references"],
+                "read_span": bound["read_span"],
+                "search_corpus": search_corpus,
+                "fetch_span": fetch_span,
+                "verify_quote": verify_quote,
+            }
+            self.planner_tool_specs = document_tool_specs(document, list(tools))
+            super().__init__(AgentToolbox(tools))
+            return
         bound = workspace_tools(state)
         super().__init__(
             AgentToolbox(
@@ -79,15 +103,31 @@ class ReferenceResolver(Agent):
         )
 
     def deterministic_plan(self) -> List[PlannedCall]:
-        pending = self.state.references
         plan: List[PlannedCall] = [
             {
                 "tool": "list_unresolved_references",
                 "input": {},
-                "rationale": "Find every pointer that still has no target.",
+                "rationale": (
+                    "Scan the uploaded document for identifier-shaped pointers to "
+                    "outside sources."
+                    if self.document is not None
+                    else "Find every pointer that still has no target."
+                ),
             }
         ]
-        for reference in pending:
+        if self.document is not None:
+            for pointer in self.pointers:
+                plan.append(
+                    {
+                        "tool": "search_corpus",
+                        "input": {"query": pointer["target_locator"]},
+                        "rationale": (
+                            f"Locate the passage {pointer['reference_id']} points at."
+                        ),
+                    }
+                )
+            return plan
+        for reference in self.state.references:
             if reference.status.value != "UNRESOLVED":
                 continue
             plan.append(
@@ -127,71 +167,106 @@ class ReferenceResolver(Agent):
             if item.get("found") and item.get("sha256") and item.get("span_id"):
                 candidates.setdefault(str(item["span_id"]), 0)
 
+        if self.document is not None:
+            return self._gate_document_pointers(candidates)
+
         findings: List[AgentFinding] = []
         unresolved = [item for item in self.state.references if item.status.value == "UNRESOLVED"]
         for index, reference in enumerate(unresolved, start=1):
-            pointer = reference.target_locator
-            agreeing = sorted(
-                (
-                    (span_id, identifiers_agree(pointer, span_id))
-                    for span_id in candidates
-                ),
-                key=lambda item: -candidates[item[0]],
-            )
-            match = next((item for item in agreeing if item[1]["agrees"]), None)
-
-            if match is None:
-                near = agreeing[0] if agreeing else None
-                findings.append(
-                    finding(
-                        f"REF-{index:02d}",
-                        "REFERENCE_UNRESOLVED",
-                        f"{pointer} → unresolved",
-                        (
-                            f"The closest candidate was {near[0]}, and it was refused: "
-                            f"{near[1]['reason']}"
-                            if near
-                            else "No search in this plan returned a candidate for this "
-                            "pointer, so nothing was matched to it."
-                        ),
-                        Provenance.DETERMINISTIC,
-                        accepted=False,
-                        gate_reason=(
-                            "A near-miss is not a resolution. The pointer stays "
-                            "unresolved rather than being bound to the nearest passage."
-                        ),
-                    )
-                )
-                continue
-
-            span_id, agreement = match
-            fetched = fetch_span(span_id)
-            excerpt = " ".join(str(fetched.get("text", "")).split()[:12])
             findings.append(
+                self._judge_pointer(f"REF-{index:02d}", reference.target_locator, candidates)
+            )
+        return findings
+
+    def _gate_document_pointers(self, candidates: Dict[str, int]) -> List[AgentFinding]:
+        """Judge the pointers an uploaded document names — or record that it names none.
+
+        The identifier shapes this resolver matches are the CSCRF's own (a table,
+        annexure, guideline or control number). A generic document names none of them,
+        and that is recorded as a result rather than papered over with a near-miss.
+        """
+        if not self.pointers:
+            assert self.document is not None
+            return [
                 finding(
-                    f"REF-{index:02d}",
-                    "REFERENCE_RESOLVED",
-                    f"{pointer} → {span_id}",
-                    f"{fetched.get('heading', span_id)}. {agreement['reason']} "
-                    f"Fingerprint {str(fetched.get('sha256', ''))[:16]}…",
+                    "REF-DOC-NONE",
+                    "NO_RESOLVABLE_REFERENCES",
+                    "No resolvable references in this document",
+                    "The resolver looks for identifier-shaped pointers — a table, "
+                    "annexure, guideline or control number. "
+                    f"{self.document.filename} names none, so there is nothing to "
+                    "resolve. Recording that absence honestly beats inventing a match.",
                     Provenance.DETERMINISTIC,
                     accepted=True,
                     gate_reason=(
-                        "Every identifier the pointer names is one this passage answers "
-                        "to, and the passage is pinned at the fingerprint shown."
+                        "An absence is a result. Nothing was matched because nothing "
+                        "was named."
                     ),
-                    citations=[
-                        Citation(
-                            document_id="SEBI-CSCRF-2024-113",
-                            span_id=span_id,
-                            locator=str(fetched.get("locator", "")),
-                            quote=excerpt,
-                            source_url=CSCRF_SOURCE_URL,
-                        )
-                    ],
+                    requires_human_review=False,
                 )
+            ]
+        return [
+            self._judge_pointer(f"REF-DOC-{index:02d}", pointer["target_locator"], candidates)
+            for index, pointer in enumerate(self.pointers, start=1)
+        ]
+
+    @staticmethod
+    def _judge_pointer(
+        finding_id: str, pointer: str, candidates: Dict[str, int]
+    ) -> AgentFinding:
+        """One pointer, one verdict: resolved to a pinned passage, or honestly not."""
+        agreeing = sorted(
+            ((span_id, identifiers_agree(pointer, span_id)) for span_id in candidates),
+            key=lambda item: -candidates[item[0]],
+        )
+        match = next((item for item in agreeing if item[1]["agrees"]), None)
+
+        if match is None:
+            near = agreeing[0] if agreeing else None
+            return finding(
+                finding_id,
+                "REFERENCE_UNRESOLVED",
+                f"{pointer} → unresolved",
+                (
+                    f"The closest candidate was {near[0]}, and it was refused: "
+                    f"{near[1]['reason']}"
+                    if near
+                    else "No search in this plan returned a candidate for this "
+                    "pointer, so nothing was matched to it."
+                ),
+                Provenance.DETERMINISTIC,
+                accepted=False,
+                gate_reason=(
+                    "A near-miss is not a resolution. The pointer stays "
+                    "unresolved rather than being bound to the nearest passage."
+                ),
             )
-        return findings
+
+        span_id, agreement = match
+        fetched = fetch_span(span_id)
+        excerpt = " ".join(str(fetched.get("text", "")).split()[:12])
+        return finding(
+            finding_id,
+            "REFERENCE_RESOLVED",
+            f"{pointer} → {span_id}",
+            f"{fetched.get('heading', span_id)}. {agreement['reason']} "
+            f"Fingerprint {str(fetched.get('sha256', ''))[:16]}…",
+            Provenance.DETERMINISTIC,
+            accepted=True,
+            gate_reason=(
+                "Every identifier the pointer names is one this passage answers "
+                "to, and the passage is pinned at the fingerprint shown."
+            ),
+            citations=[
+                Citation(
+                    document_id="SEBI-CSCRF-2024-113",
+                    span_id=span_id,
+                    locator=str(fetched.get("locator", "")),
+                    quote=excerpt,
+                    source_url=CSCRF_SOURCE_URL,
+                )
+            ],
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -219,10 +294,28 @@ class SourceScout(Agent):
         state: WorkspaceState,
         candidate: List[Dict[str, str]],
         relationship: str = "READ_IN_CONJUNCTION_WITH",
+        document: Optional[UploadedDocument] = None,
     ) -> None:
         self.state = state
         self.candidate = candidate
         self.relationship = relationship
+        self.document = document
+        if document is not None:
+            # An uploaded document has no registered second version to diff against.
+            # The scout's document mode establishes that honestly instead of
+            # comparing the document to a source it is not a version of.
+            self.goal = (
+                "Establish whether a newer registered version exists to compare "
+                f"{document.id} · {document.filename} against."
+            )
+            bound = document_tools(document)
+            tools = {
+                "list_known_sources": lambda: list_known_sources(state),
+                "list_statements": bound["list_statements"],
+            }
+            self.planner_tool_specs = document_tool_specs(document, list(tools))
+            super().__init__(AgentToolbox(tools))
+            return
         bound = workspace_tools(state)
         super().__init__(
             AgentToolbox(
@@ -239,6 +332,25 @@ class SourceScout(Agent):
         )
 
     def deterministic_plan(self) -> List[PlannedCall]:
+        if self.document is not None:
+            return [
+                {
+                    "tool": "list_known_sources",
+                    "input": {},
+                    "rationale": (
+                        "Establish which source versions are registered, and whether "
+                        "any of them is a version of this uploaded document."
+                    ),
+                },
+                {
+                    "tool": "list_statements",
+                    "input": {},
+                    "rationale": (
+                        "Read what this document's human-approved requirements say, "
+                        "so the absence of a comparison is recorded against them."
+                    ),
+                },
+            ]
         plan: List[PlannedCall] = [
             {
                 "tool": "list_known_sources",
@@ -270,6 +382,26 @@ class SourceScout(Agent):
         return plan
 
     def gate(self, results: List[Any]) -> List[AgentFinding]:
+        if self.document is not None:
+            return [
+                finding(
+                    "SCOUT-DOC",
+                    "SOURCE_COMPARISON_NOT_APPLICABLE",
+                    "No registered newer version exists for this uploaded document",
+                    "Version scouting compares two pinned, registered versions of the "
+                    f"same source. {self.document.filename} is a user-uploaded document "
+                    "whose authority is recorded as USER_PROVIDED_METADATA_NOT_VERIFIED; "
+                    "no registered version of it exists in this workspace, so there is "
+                    "nothing to compare it against. No comparison was invented.",
+                    Provenance.DETERMINISTIC,
+                    accepted=True,
+                    gate_reason=(
+                        "An honest absence. Reporting a diff against a source this "
+                        "document is not a version of would manufacture findings."
+                    ),
+                    requires_human_review=False,
+                )
+            ]
         findings: List[AgentFinding] = []
         comparison = next(
             (item for item in results if isinstance(item, dict) and "added" in item), None
@@ -347,8 +479,24 @@ class Adversary(Agent):
         "a defect in a passage nobody compiled."
     )
 
-    def __init__(self, state: WorkspaceState) -> None:
+    def __init__(
+        self, state: WorkspaceState, document: Optional[UploadedDocument] = None
+    ) -> None:
         self.state = state
+        self.document = document
+        if document is not None:
+            self.goal = (
+                "Find a reason each human-approved requirement of "
+                f"{document.id} · {document.filename} should not be trusted."
+            )
+            bound = document_tools(document)
+            tools = {
+                "list_active_obligations": bound["list_active_obligations"],
+                "read_span": bound["read_span"],
+            }
+            self.planner_tool_specs = document_tool_specs(document, list(tools))
+            super().__init__(AgentToolbox(tools))
+            return
         bound = workspace_tools(state)
         super().__init__(
             AgentToolbox(
@@ -363,7 +511,27 @@ class Adversary(Agent):
         )
 
     def deterministic_plan(self) -> List[PlannedCall]:
-        plan: List[PlannedCall] = [
+        if self.document is not None:
+            plan: List[PlannedCall] = [
+                {
+                    "tool": "list_active_obligations",
+                    "input": {},
+                    "rationale": (
+                        "Enumerate the requirements a person approved from this "
+                        "document."
+                    ),
+                }
+            ]
+            for requirement in self.document.requirements:
+                plan.append(
+                    {
+                        "tool": "read_span",
+                        "input": {"span_id": requirement.passage_id},
+                        "rationale": f"Re-read the passage cited for {requirement.id}.",
+                    }
+                )
+            return plan
+        plan = [
             {
                 "tool": "list_active_obligations",
                 "input": {},
@@ -393,13 +561,24 @@ class Adversary(Agent):
             None,
         )
         if not listing or not listing["obligations"]:
+            scoped_to_document = self.document is not None
             return [
                 finding(
                     "ADV-NONE",
                     "NOTHING_TO_CHALLENGE",
-                    "No active obligation to challenge",
-                    "Nothing has been compiled yet, so there is nothing that could be "
-                    "wrong. Silence here is not assurance.",
+                    (
+                        "No approved requirement to challenge"
+                        if scoped_to_document
+                        else "No active obligation to challenge"
+                    ),
+                    (
+                        "This document has no human-approved requirements yet, so "
+                        "there is nothing that could be wrong. Silence here is not "
+                        "assurance."
+                        if scoped_to_document
+                        else "Nothing has been compiled yet, so there is nothing that "
+                        "could be wrong. Silence here is not assurance."
+                    ),
                     Provenance.DETERMINISTIC,
                     accepted=True,
                     gate_reason="Vacuously clean; recorded so the absence is visible.",
@@ -546,19 +725,32 @@ class Extractor(Agent):
         "or what a firm's policy should be."
     )
 
-    def __init__(self, state: WorkspaceState, span_ids: List[str]) -> None:
+    def __init__(
+        self,
+        state: WorkspaceState,
+        span_ids: List[str],
+        document: Optional[UploadedDocument] = None,
+    ) -> None:
         self.state = state
         self.span_ids = span_ids
-        bound = workspace_tools(state)
-        super().__init__(
-            AgentToolbox(
-                {
-                    "read_span": bound["read_span"],
-                    "analyse_span_timing": bound["analyse_span_timing"],
-                    "list_statements": bound["list_statements"],
-                }
+        self.document = document
+        if document is not None:
+            self.goal = (
+                "Decide, per passage of "
+                f"{document.id} · {document.filename}, whether the wording supports a "
+                "computable deadline."
             )
-        )
+            bound = document_tools(document)
+        else:
+            bound = workspace_tools(state)
+        tools = {
+            "read_span": bound["read_span"],
+            "analyse_span_timing": bound["analyse_span_timing"],
+            "list_statements": bound["list_statements"],
+        }
+        if document is not None:
+            self.planner_tool_specs = document_tool_specs(document, list(tools))
+        super().__init__(AgentToolbox(tools))
 
     def deterministic_plan(self) -> List[PlannedCall]:
         plan: List[PlannedCall] = []
@@ -588,6 +780,21 @@ class Extractor(Agent):
         passages in any order, skip one, or judge one twice — so the verdict carries
         its own ``span_id`` and is matched on that.
         """
+        if not self.span_ids:
+            return [
+                finding(
+                    "EXT-NONE",
+                    "NOTHING_TO_ASSESS",
+                    "No requirement-shaped passage to assess",
+                    "None of the passages in scope carries requirement-shaped "
+                    "language, so there is no timing to judge. An empty scope is "
+                    "reported as empty rather than filled with a reassuring verdict.",
+                    Provenance.DETERMINISTIC,
+                    accepted=True,
+                    gate_reason="Vacuously complete; recorded so the absence is visible.",
+                    requires_human_review=False,
+                )
+            ]
         timings = {
             item["span_id"]: item
             for item in results

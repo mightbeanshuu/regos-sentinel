@@ -29,6 +29,10 @@ class Provenance(str, Enum):
     DETERMINISTIC = "DETERMINISTIC"
     AI_SUGGESTED = "AI_SUGGESTED"
     HUMAN_POLICY = "HUMAN_POLICY"
+    #: The text itself was machine-read (OCR) from a scanned page before the fixed
+    #: classification rule ran over it. Kept distinct from ``DETERMINISTIC`` so text a
+    #: machine recognised is never presented as text the document verifiably carried.
+    MACHINE_READ_OCR = "MACHINE_READ_OCR"
 
 
 class CoverageStatus(str, Enum):
@@ -806,6 +810,14 @@ class AgentRun(StrictModel):
     chain_verified: bool
     autonomy: str
     limitation: str
+    #: What this run was anchored on. ``None`` means the pinned demo corpus, which is
+    #: the default. When a run was scoped to an uploaded document, all three fields
+    #: identify it — id, filename and content fingerprint — so a finding can never be
+    #: read as being about a document it did not examine. Optional and additive, so
+    #: recorded runs from before this field existed still validate.
+    anchor_document_id: Optional[str] = None
+    anchor_filename: Optional[str] = None
+    anchor_sha256: Optional[str] = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
 
 class AssistantCitation(StrictModel):

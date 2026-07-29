@@ -563,7 +563,15 @@ def _document_story(
                 ["File SHA-256", document.sha256],
                 ["File size", f"{document.byte_count:,} bytes"],
                 ["State", DOCUMENT_STATE_LABELS[document.state]],
-                ["Extraction", "Deterministic text extraction · no model call · no OCR"],
+                [
+                    "Extraction",
+                    (
+                        "Deterministic text extraction · no model call · machine-read (OCR) "
+                        "pages labelled"
+                        if scope.pages_machine_read
+                        else "Deterministic text extraction · no model call · no OCR"
+                    ),
+                ],
             ],
             [40 * mm, 120 * mm],
             styles,

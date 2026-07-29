@@ -263,6 +263,7 @@ export function Agents({
                     </span>
                     <span className="meta">
                       {run.findings.length} findings · {run.tool_call_count} steps
+                      {run.anchor_filename ? ` · read ${run.anchor_filename}` : ""}
                     </span>
                   </div>
                   <Disclosure summary="Run detail and trace">
@@ -332,6 +333,11 @@ function RunDetail({ run }: { run: AgentRun }) {
 
       <dl className="datalist">
         <DataRow label="Goal">{run.goal}</DataRow>
+        <DataRow label="Read">
+          {run.anchor_filename
+            ? <>Your uploaded document <span className="strong-ink">{run.anchor_filename}</span></>
+            : "The reviewed demo corpus"}
+        </DataRow>
         {run.model_id && (
           <DataRow label="Model">
             <span className="mono">{run.model_id}</span>

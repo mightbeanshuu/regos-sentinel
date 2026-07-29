@@ -507,7 +507,7 @@ def test_committed_golden_manifest_replays_byte_for_byte() -> None:
 
     assert result["match"] is True
     assert result["recomputed_sha256"] == (
-        "7bf7f49d6f93dbdef76c49aebc947fda1a1fe3b928bb821565568682fa4534d3"
+        "4bc8399097ceb61e77998e1aeb1baa0fcaf91f93f500dee499b5a0293195c936"
     )
 
 

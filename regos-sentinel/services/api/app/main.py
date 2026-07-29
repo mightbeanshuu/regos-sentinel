@@ -38,6 +38,7 @@ from .documents import (
     UploadedDocument,
     apply_passage_review,
     approve_requirement,
+    merge_machine_read_text,
 )
 from .engine import (
     approve_q17,
@@ -72,6 +73,7 @@ from .models import (
     ScenarioOutcome,
     WorkspaceState,
 )
+from .ocr import ocr_available, ocr_pages
 from .oscal import generate_assessment_results, validate_assessment_results
 from .report import (
     render_before_after_report,
@@ -200,6 +202,7 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         """
         enforce_rate_limit(request, "live-pulse", limit=12)
         store = store_for(request)
+        documents = documents_for(request)
         count = max(1, min(pulses, 60))
         wait = min(max(interval_seconds, 2.0), 30.0)
 
@@ -208,10 +211,20 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             build = state.builds[-1] if state.builds else None
             tests = build.tests if build else []
             cci = compute_cci(state)
+            # Uploaded documents move the fingerprint too: their identity plus how
+            # far a person has taken each one. Without this, an upload or a passage
+            # review is invisible to a screen watching the stream.
+            doc_facts = "|".join(
+                f"{item.id}:{item.sha256}:{item.state.value}"
+                f":{sum(1 for p in item.passages if p.reviewed_by)}"
+                f":{len(item.requirements)}"
+                for item in documents.list()
+            )
             return {
                 "digest": hashlib.sha256(
-                    state.model_dump_json().encode("utf-8")
+                    (state.model_dump_json() + doc_facts).encode("utf-8")
                 ).hexdigest()[:16],
+                "documents": len(documents.list()),
                 "at": datetime.now(timezone.utc).isoformat(),
                 "decisions_waiting": sum(1 for item in tests if item.status.value == "BLOCK"),
                 "checks_passed": sum(1 for item in tests if item.status.value == "PASS"),
@@ -378,22 +391,40 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         """What can plan a run right now, and what runs by default."""
         return planner_status()
 
+    def document_anchor_for(request: Request, document_id: Optional[str]):
+        """The uploaded document a run should anchor on, or ``None`` for the corpus."""
+        if not document_id:
+            return None
+        try:
+            return documents_for(request).get(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
     @application.post("/api/v1/agents/{agent_id}/run", response_model=WorkspaceState)
     def execute_agent(
         request: Request,
         agent_id: AgentId,
         planner: PlannerKind = PlannerKind.DETERMINISTIC,
+        document_id: Optional[str] = None,
     ) -> WorkspaceState:
         """Run one agent.
 
         ``planner`` asks for a plan source. It is a request, not a guarantee: if a live
         model is unreachable the run falls back and reports the source it actually used,
         because a trace that misnames its own planner is worse than no trace.
+
+        ``document_id`` anchors the run on one uploaded document from this session
+        instead of the pinned demo corpus; the recorded run names that anchor.
         """
         enforce_rate_limit(request, "agent-run", limit=20)
+        document = document_anchor_for(request, document_id)
         return store_for(request).mutate(
             lambda state: run_agent(
-                state, agent_id, actor="demo.operator", planner_kind=planner
+                state,
+                agent_id,
+                actor="demo.operator",
+                planner_kind=planner,
+                document=document,
             )
         )
 
@@ -402,6 +433,7 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         request: Request,
         agent_id: AgentId,
         planner: PlannerKind = PlannerKind.DETERMINISTIC,
+        document_id: Optional[str] = None,
     ) -> StreamingResponse:
         """Run one agent, streaming each call and result as it happens.
 
@@ -412,6 +444,7 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         callback only reads.
         """
         enforce_rate_limit(request, "agent-run", limit=20)
+        document = document_anchor_for(request, document_id)
         store = store_for(request)
         events: queue.Queue[Optional[dict]] = queue.Queue()
 
@@ -424,6 +457,7 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
                         actor="demo.operator",
                         planner_kind=planner,
                         on_event=events.put,
+                        document=document,
                     )
                 )
             except Exception as error:  # a failure is reported, not swallowed
@@ -456,10 +490,14 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     def execute_all_agents(
         request: Request,
         planner: PlannerKind = PlannerKind.DETERMINISTIC,
+        document_id: Optional[str] = None,
     ) -> WorkspaceState:
         enforce_rate_limit(request, "agent-run", limit=20)
+        document = document_anchor_for(request, document_id)
         return store_for(request).mutate(
-            lambda state: run_all_agents(state, actor="demo.operator", planner_kind=planner)
+            lambda state: run_all_agents(
+                state, actor="demo.operator", planner_kind=planner, document=document
+            )
         )
 
     @application.get("/api/v1/agents/challenges")
@@ -497,8 +535,10 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
 
     # ------------------------------------------------------------------ #
     # Review your document — a bounded, session-private lane for a PDF
-    # the visitor supplies. Deterministic only: no model call, no OCR, no
-    # claim that an uploaded file carries official status.
+    # the visitor supplies. Deterministic classification, no model call,
+    # and no claim that an uploaded file carries official status. Scanned
+    # pages are machine-read (OCR) only when a key is configured, and the
+    # recovered text is always labelled machine-read.
     # ------------------------------------------------------------------ #
 
     @application.get("/api/v1/documents/limits")
@@ -507,7 +547,7 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             "accepted_types": ["application/pdf"],
             "max_bytes": MAX_UPLOAD_BYTES,
             "max_pages": MAX_PAGE_COUNT,
-            "ocr_available": False,
+            "ocr_available": ocr_available(),
             "model_extraction_available": False,
             "retention": "This browser session only. Uploads are never written to disk.",
         }
@@ -534,9 +574,24 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             )
         safe_name = os.path.basename(filename).strip()[:120] or "document.pdf"
         try:
-            return documents_for(request).add(safe_name, payload, authority.strip()[:120])
+            document = documents_for(request).add(safe_name, payload, authority.strip()[:120])
         except DocumentRejected as error:
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        if document.scope.pages_unreadable and ocr_available():
+            # The network call runs here, after the workspace lock has been released —
+            # a slow OCR service must never serialize every other request in the
+            # session. The merge itself is pure and reacquires the lock briefly.
+            recovered = ocr_pages(payload, document.scope.pages_unreadable)
+            try:
+                document = documents_for(request).update(
+                    document.id,
+                    lambda working, now: merge_machine_read_text(working, recovered),
+                )
+            except DocumentRejected as error:
+                raise HTTPException(
+                    status_code=error.status_code, detail=error.message
+                ) from error
+        return document
 
     @application.get("/api/v1/documents/{document_id}", response_model=UploadedDocument)
     def read_document(request: Request, document_id: str) -> UploadedDocument:

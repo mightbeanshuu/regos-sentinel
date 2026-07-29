@@ -89,6 +89,7 @@ interface DocumentReviewProps {
   onError: (message: string | null) => void;
   onBusy: (value: boolean) => void;
   onUseGuidedExample: () => void;
+  onRunAssistants?: (documentId: string) => void;
 }
 
 export function DocumentReview({
@@ -100,6 +101,7 @@ export function DocumentReview({
   onError,
   onBusy,
   onUseGuidedExample,
+  onRunAssistants,
 }: DocumentReviewProps) {
   const [dragging, setDragging] = useState(false);
   const [authority, setAuthority] = useState("");
@@ -224,7 +226,7 @@ export function DocumentReview({
       <Panel title="Add a document">
         <div className="stack">
           <div
-            className={`dropzone${dragging ? " dropzone--active" : ""}`}
+            className={`dropzone${dragging ? " dropzone--active" : ""}${busy ? " dropzone--scanning" : ""}`}
             onDragOver={(event) => {
               event.preventDefault();
               setDragging(true);
@@ -321,6 +323,22 @@ export function DocumentReview({
             </table>
           </div>
         </Panel>
+      )}
+
+      {active && onRunAssistants && (
+        <div className="btn-row">
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={busy}
+            onClick={() => onRunAssistants(active.id)}
+          >
+            Run the assistants on this document
+          </button>
+          <p className="meta">
+            All four read this document only; findings appear under AI agents.
+          </p>
+        </div>
       )}
 
       {active && (

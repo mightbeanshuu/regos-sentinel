@@ -152,10 +152,16 @@ export const regosApi = {
   agentCatalogue: () => requestJson<AgentCatalogueEntry[]>("/agents", { cache: "no-store" }),
   plannerStatus: () => requestJson<PlannerStatus>("/agents/planner", { cache: "no-store" }),
   agentChallenges: () => requestJson<AgentChallenges>("/agents/challenges", { cache: "no-store" }),
-  runAgent: (id: AgentId, planner: PlannerKind) =>
-    request(`/agents/${id}/run?planner=${planner}`, { method: "POST" }),
-  runAllAgents: (planner: PlannerKind) =>
-    request(`/agents/run-all?planner=${planner}`, { method: "POST" }),
+  runAgent: (id: AgentId, planner: PlannerKind, documentId?: string) =>
+    request(
+      `/agents/${id}/run?planner=${planner}${documentId ? `&document_id=${encodeURIComponent(documentId)}` : ""}`,
+      { method: "POST" },
+    ),
+  runAllAgents: (planner: PlannerKind, documentId?: string) =>
+    request(
+      `/agents/run-all?planner=${planner}${documentId ? `&document_id=${encodeURIComponent(documentId)}` : ""}`,
+      { method: "POST" },
+    ),
 
   // ---- The index SEBI scores an entity on, and the assistant ----------
   cci: () => requestJson<CciReport>("/cci", { cache: "no-store" }),

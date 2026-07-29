@@ -300,6 +300,7 @@ class ModelPlanner:
         model: Optional[str] = None,
         max_steps: int = MAX_STEPS,
         timeout: float = 45.0,
+        tool_specs: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         self.goal = goal
         self.model = model or planner_model()
@@ -307,7 +308,11 @@ class ModelPlanner:
         self._pinned = model or os.environ.get("REGOS_PLANNER_MODEL") or None
         self.max_steps = max_steps
         self.timeout = timeout
-        self.tools = planner_visible(tool_names)
+        #: ``tool_specs`` overrides the default planner-visible surface — used by
+        #: document-scoped runs, whose span enumeration is the document's own passage
+        #: ids rather than the pinned corpus. The inclusion rule is unchanged: every
+        #: property is an identifier or a closed enumeration.
+        self.tools = tool_specs if tool_specs is not None else planner_visible(tool_names)
         if not self.tools:
             raise PlannerUnavailable(
                 "None of this agent's tools may be offered to a model planner."

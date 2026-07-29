@@ -28,11 +28,13 @@ sources supply the content.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import re
 from typing import Any, Dict, List, Optional
 
-from ..models import SourceSpan, WorkspaceState
+from ..documents import PassageClass, UploadedDocument
+from ..models import Provenance, SourceSpan, WorkspaceState
 
 #: Excerpts of the governing CSCRF that the reference resolver is allowed to search.
 #: Pinned and hashed — the agent searches a fixed corpus, it does not browse the web.
@@ -717,3 +719,229 @@ def planner_visible(tool_names: List[str]) -> List[Dict[str, Any]]:
     return [
         {"name": name, **TOOL_SPECS[name]} for name in sorted(tool_names) if name in TOOL_SPECS
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Document-scoped tools — the same read-only surface, over an uploaded document
+# --------------------------------------------------------------------------- #
+
+#: Passage classes that carry, or may carry, normative force in an uploaded document.
+#: These are the passages whose timing is worth judging; guidance and background are not.
+DOCUMENT_NORMATIVE_CLASSES = {
+    PassageClass.POSSIBLE_REQUIREMENT,
+    PassageClass.NEEDS_REVIEW,
+}
+
+#: What an uploaded document's authority is, everywhere it is read. The uploader typed
+#: a label; nothing verified it. Every span answer repeats this so the trace says so.
+DOCUMENT_AUTHORITY = "USER_PROVIDED_METADATA_NOT_VERIFIED"
+
+#: The workspace-reading tools whose planner-visible span enumeration is rebuilt from
+#: the document's own passage ids. Corpus tools (fetch_span, verify_quote) keep their
+#: pinned-corpus enumeration — quotes are still verified against the pinned corpus.
+_DOCUMENT_SPAN_TOOLS = {"read_span", "analyse_span_timing", "list_statements"}
+
+
+def document_spans(document: UploadedDocument) -> List[SourceSpan]:
+    """Adapt each extracted passage to the :class:`SourceSpan` shape the agents read.
+
+    No ``source_url`` is recorded because none exists: the document's authority is
+    whatever the uploader typed, held as ``USER_PROVIDED_METADATA_NOT_VERIFIED``.
+    """
+    return [
+        SourceSpan(
+            id=passage.id,
+            document_id=document.id,
+            question="",
+            locator=passage.locator,
+            text=passage.text,
+            normative_signal=passage.classification in DOCUMENT_NORMATIVE_CLASSES,
+            source_url="",
+            subject_key="",
+        )
+        for passage in document.passages
+    ]
+
+
+def document_pointers(document: UploadedDocument) -> List[Dict[str, str]]:
+    """Identifier-shaped pointers the document's own text names.
+
+    The same :data:`_IDENTIFIER` shapes the corpus resolver matches — a table,
+    annexure, guideline or control number. A generic document usually names none,
+    and that absence is reported honestly rather than padded with near-misses.
+    """
+    pointers: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    for passage in document.passages:
+        for identifier in _identifiers(passage.text):
+            if identifier in seen:
+                continue
+            seen.add(identifier)
+            pointers.append(
+                {
+                    "reference_id": f"{passage.id}-PTR-{len(pointers) + 1:02d}",
+                    "from_span_id": passage.id,
+                    "target_locator": identifier,
+                }
+            )
+    return pointers
+
+
+def document_tools(document: UploadedDocument) -> Dict[str, Any]:
+    """Read-only views over one uploaded document, mirroring :func:`workspace_tools`.
+
+    Same shapes, same hash chain, and the same boundary: nothing here mutates, and no
+    tool writes. Two honest differences are visible in every answer — the authority is
+    named as user-provided, and a span whose text was machine-read (OCR) says so.
+    """
+    spans = {span.id: span for span in document_spans(document)}
+    provenance_by_id = {
+        passage.id: passage.classification_provenance for passage in document.passages
+    }
+
+    def text_provenance(span_id: str) -> str:
+        if provenance_by_id.get(span_id) == Provenance.MACHINE_READ_OCR:
+            return Provenance.MACHINE_READ_OCR.value
+        return "TEXT_LAYER"
+
+    def read_span(span_id: str) -> Dict[str, Any]:
+        span = spans.get(span_id)
+        if span is None:
+            return {
+                "span_id": span_id,
+                "found": False,
+                "summary": f"{span_id} is not a passage of {document.id}",
+            }
+        return {
+            "span_id": span.id,
+            "found": True,
+            "locator": span.locator,
+            "question": span.question,
+            "text": span.text,
+            "subject_key": span.subject_key,
+            "authority": DOCUMENT_AUTHORITY,
+            "text_provenance": text_provenance(span.id),
+            "summary": f"{span.id} · {span.locator} · authority {DOCUMENT_AUTHORITY}",
+        }
+
+    def analyse_span_timing(span_id: str) -> Dict[str, Any]:
+        span = spans.get(span_id)
+        if span is None:
+            return {
+                "span_id": span_id,
+                "found": False,
+                "summary": f"{span_id} is not a passage of {document.id}; nothing to analyse",
+            }
+        verdict = analyse_timing(span.text)
+        return {
+            **verdict,
+            "span_id": span.id,
+            "found": True,
+            "locator": span.locator,
+            "text_provenance": text_provenance(span.id),
+        }
+
+    def list_statements(span_id: str = "") -> Dict[str, Any]:
+        items = [
+            {
+                "statement_id": item.id,
+                "span_id": item.passage_id,
+                "exact_phrase": item.quote,
+                "deontic_force": "MANDATORY",
+                "subject": item.actor,
+            }
+            for item in document.requirements
+            if not span_id or item.passage_id == span_id
+        ]
+        return {
+            "statements": items,
+            "summary": (
+                f"{len(items)} human-approved requirement statement(s) in {document.id}"
+            ),
+        }
+
+    def list_active_obligations() -> Dict[str, Any]:
+        active = [
+            {
+                "obligation_id": item.id,
+                "actor": item.actor,
+                "action": item.action,
+                "object": item.obligation_object,
+                "condition": "",
+                "control_id": "",
+                "duration": (
+                    f"{item.duration_value} {item.duration_unit}"
+                    if item.duration_value is not None and item.duration_unit
+                    else "not recorded"
+                ),
+                "trigger": item.trigger,
+                "trigger_provenance": (
+                    item.trigger_provenance.value if item.trigger_provenance else None
+                ),
+                "computable": item.computable,
+                "cited_span_id": item.passage_id,
+                "cited_quote": item.quote,
+            }
+            for item in document.requirements
+        ]
+        return {
+            "obligations": active,
+            "summary": f"{len(active)} human-approved requirement(s) in {document.id}",
+        }
+
+    def list_unresolved_references() -> Dict[str, Any]:
+        pointers = [
+            {
+                "reference_id": pointer["reference_id"],
+                "from_span_id": pointer["from_span_id"],
+                "target_locator": pointer["target_locator"],
+                "relationship": "IDENTIFIER_NAMED_IN_TEXT",
+                "note": (
+                    "Named in the passage text. An uploaded document carries no "
+                    "registered reference records."
+                ),
+            }
+            for pointer in document_pointers(document)
+        ]
+        return {
+            "references": pointers,
+            "summary": (
+                f"{len(pointers)} identifier-shaped pointer(s) named in {document.id}"
+                if pointers
+                else f"no resolvable references in {document.id}"
+            ),
+        }
+
+    return {
+        "read_span": read_span,
+        "analyse_span_timing": analyse_span_timing,
+        "list_statements": list_statements,
+        "list_active_obligations": list_active_obligations,
+        "list_unresolved_references": list_unresolved_references,
+    }
+
+
+def document_tool_specs(
+    document: UploadedDocument, tool_names: List[str]
+) -> List[Dict[str, Any]]:
+    """Planner-visible specs for a document-scoped run.
+
+    The inclusion rule is the same as :data:`TOOL_SPECS` — identifiers and closed
+    enumerations only — with the span enumeration of the workspace-reading tools
+    rebuilt from the document's own passage ids instead of the pinned corpus. The
+    corpus tools keep their pinned enumeration: a quotation is still verified against
+    the corpus, never against text a planner typed.
+    """
+    span_ids = sorted(spans.id for spans in document_spans(document))
+    specs: List[Dict[str, Any]] = []
+    for name in sorted(tool_names):
+        base = TOOL_SPECS.get(name)
+        if base is None:
+            continue
+        spec = copy.deepcopy(base)
+        if name in _DOCUMENT_SPAN_TOOLS and span_ids:
+            properties = spec["parameters"].get("properties", {})
+            if "span_id" in properties:
+                properties["span_id"] = {"type": "string", "enum": span_ids}
+        specs.append({"name": name, **spec})
+    return specs

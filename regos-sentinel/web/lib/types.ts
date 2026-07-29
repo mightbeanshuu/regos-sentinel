@@ -748,6 +748,10 @@ export interface AgentRun {
   tool_call_count: number;
   chain_head_sha256: string;
   chain_verified: boolean;
+  /** Set when the run was anchored on an uploaded document instead of the demo corpus. */
+  anchor_document_id?: string | null;
+  anchor_filename?: string | null;
+  anchor_sha256?: string | null;
   autonomy: string;
   limitation: string;
 }

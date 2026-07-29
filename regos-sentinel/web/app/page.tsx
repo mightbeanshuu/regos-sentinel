@@ -316,6 +316,7 @@ export default function Home() {
           {tab === "dashboard" && (
             <Dashboard
               state={state}
+              documents={documents}
               receipt={receipt}
               busy={busy || sourceBusy}
               onRunCheck={() => void act(regosApi.runBuild, "top")}
@@ -324,6 +325,7 @@ export default function Home() {
               onDownloadReport={() =>
                 void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
               onRefresh={() => void load()}
+              onOpenDocuments={() => setTab("document")}
             />
           )}
         </div>
@@ -390,6 +392,10 @@ export default function Home() {
               onError={setDocumentError}
               onBusy={setBusy}
               onUseGuidedExample={() => setTab("guided")}
+              onRunAssistants={(documentId) => {
+                void act(() => regosApi.runAllAgents("DETERMINISTIC_PLAN", documentId) as Promise<WorkspaceState>);
+                setTab("agents");
+              }}
             />
           )}
         </div>

@@ -171,7 +171,7 @@
       "content_identity_sha256": "a05f4a9f8460b0ea8a8cbf5e43e8dc9fc8196b51591b9fe83c1e36637f45b9cb",
       "authority": "Stated by the uploader, not verified by RegOS",
       "legal_state": "UNKNOWN — SUPPLIED BY A VISITOR",
-      "extraction_scope": "Text-layer pages only. No OCR, no model call, no live source verification.",
+      "extraction_scope": "Text-layer pages, plus machine-read (OCR) text for scanned pages when an OCR key is configured — always labelled machine-read. No model call, no live source verification.",
       "source_span_ids": [],
       "validation_tests": [
         "tests/test_documents.py::test_uploaded_pdf_is_segmented_and_classified"
@@ -1173,7 +1173,7 @@
     "model_output_token_limit": 900,
     "state_store": "BOUNDED_SIGNED_IN_MEMORY_SESSION",
     "offline_replay_command": "REGOS_OFFLINE=1 uv run python scripts/replay_build.py",
-    "replay_input_sha256": "41a315ddb876ade129fe08e6c3a88ff091e3f5f241fd38bed896a9468a86a090"
+    "replay_input_sha256": "a10812305a3625f26b7c8d5cc3dc51b39ed0df96f67e4112aef5d0e172cd3c33"
   },
-  "manifest_sha256": "7bf7f49d6f93dbdef76c49aebc947fda1a1fe3b928bb821565568682fa4534d3"
+  "manifest_sha256": "4bc8399097ceb61e77998e1aeb1baa0fcaf91f93f500dee499b5a0293195c936"
 }

@@ -31,6 +31,11 @@ MAX_DOCUMENTS_PER_SESSION = 5
 MIN_PASSAGE_CHARS = 40
 PDF_MAGIC = b"%PDF-"
 
+EXTRACTION_MODE_TEXT = "DETERMINISTIC_TEXT_EXTRACTION_NO_MODEL_CALL"
+EXTRACTION_MODE_TEXT_PLUS_OCR = "DETERMINISTIC_TEXT_EXTRACTION_PLUS_LABELLED_MACHINE_READ_OCR"
+
+MACHINE_READ_LOCATOR_NOTE = "machine-read (OCR)"
+
 DISCLAIMER = "Decision support. Not legal advice. Not a SEBI determination."
 
 
@@ -171,6 +176,10 @@ class DocumentScope(StrictModel):
     page_count: int = Field(ge=0)
     pages_read: int = Field(ge=0)
     pages_unreadable: List[int] = Field(default_factory=list)
+    #: Pages whose text came from machine reading (OCR) rather than a text layer.
+    #: Counted into ``pages_read``, but always listed separately — a machine-read page
+    #: is a page whose wording a person should verify against the original.
+    pages_machine_read: List[int] = Field(default_factory=list)
     passages_reviewed: int = Field(ge=0)
     possible_requirements: int = Field(ge=0)
     recommendations_not_converted: int = Field(ge=0)
@@ -334,7 +343,12 @@ def _segment_page(page_text: str) -> List[str]:
     return passages
 
 
-def _compute_scope(passages: List[ExtractedPassage], page_count: int, unreadable: List[int]):
+def _compute_scope(
+    passages: List[ExtractedPassage],
+    page_count: int,
+    unreadable: List[int],
+    machine_read: Optional[List[int]] = None,
+):
     def count(target: PassageClass) -> int:
         return sum(item.classification == target for item in passages)
 
@@ -342,6 +356,7 @@ def _compute_scope(passages: List[ExtractedPassage], page_count: int, unreadable
         page_count=page_count,
         pages_read=page_count - len(unreadable),
         pages_unreadable=unreadable,
+        pages_machine_read=sorted(machine_read or []),
         passages_reviewed=len(passages),
         possible_requirements=count(PassageClass.POSSIBLE_REQUIREMENT),
         recommendations_not_converted=count(PassageClass.RECOMMENDATION),
@@ -366,6 +381,7 @@ def _limitations(
     scope: DocumentScope,
     filename: str,
     truncated: bool,
+    ocr_attempted: bool = False,
 ) -> List[str]:
     lines = [
         "This document was supplied by the person using this demo. It has not been validated "
@@ -375,12 +391,28 @@ def _limitations(
         "No mandatory work is created from any passage until a named person approves a "
         "structured requirement.",
     ]
+    if scope.pages_machine_read:
+        pages = ", ".join(str(page) for page in scope.pages_machine_read)
+        lines.append(
+            f"Page(s) {pages} carried no text layer and were machine-read (OCR). Machine-read "
+            "text can contain recognition errors, so every passage from those pages is "
+            "labelled machine-read and its wording should be checked against the original "
+            "page before it is relied on."
+        )
     if scope.pages_unreadable:
         pages = ", ".join(str(page) for page in scope.pages_unreadable)
-        lines.append(
-            f"No text could be extracted from page(s) {pages}. Those pages are likely scanned "
-            "images; this prototype does not perform OCR, so they were not reviewed."
-        )
+        if ocr_attempted:
+            lines.append(
+                f"No text could be extracted from page(s) {pages}. Machine reading (OCR) was "
+                "attempted for them but returned no text, so they were not reviewed. No text "
+                "was invented for them."
+            )
+        else:
+            lines.append(
+                f"No text could be extracted from page(s) {pages}. Those pages are likely "
+                "scanned images; this prototype does not perform OCR, so they were not "
+                "reviewed."
+            )
     if truncated:
         lines.append(
             f"Only the first {MAX_PASSAGES} passages of {filename} were reviewed. The remainder "
@@ -487,7 +519,7 @@ def build_uploaded_document(
         state=state,
         authority_label=authority_label,
         authority_provenance="USER_PROVIDED_METADATA_NOT_VERIFIED",
-        extraction_mode="DETERMINISTIC_TEXT_EXTRACTION_NO_MODEL_CALL",
+        extraction_mode=EXTRACTION_MODE_TEXT,
         passages=passages,
         requirements=[],
         scope=scope,
@@ -577,11 +609,93 @@ def approve_requirement(
     return _recompute(document)
 
 
+def merge_machine_read_text(
+    document: UploadedDocument,
+    page_texts: Dict[int, str],
+) -> UploadedDocument:
+    """Fold machine-read (OCR) text into a document, labelled as machine-read.
+
+    Called after :func:`build_uploaded_document` reported pages unreadable and an OCR
+    attempt was made for them. Every merged passage carries
+    ``Provenance.MACHINE_READ_OCR`` and a locator note, so machine-recognised text can
+    never pass for text the document verifiably carried. Pages for which OCR returned
+    nothing stay unreadable, and the limitations record that the attempt was made.
+    """
+    seen_hashes: Dict[str, str] = {}
+    for passage in document.passages:
+        digest = hashlib.sha256(_normalise(passage.text).encode("utf-8")).hexdigest()
+        seen_hashes.setdefault(digest, passage.locator)
+
+    unreadable = list(document.scope.pages_unreadable)
+    machine_read = list(document.scope.pages_machine_read)
+    truncated = len(document.passages) >= MAX_PASSAGES
+
+    for index in sorted(page_texts):
+        if index not in unreadable:
+            continue
+        segments = _segment_page(page_texts[index])
+        if not segments:
+            continue
+        merged_any = False
+        for ordinal, text in enumerate(segments, start=1):
+            if len(document.passages) >= MAX_PASSAGES:
+                truncated = True
+                break
+            locator = f"Page {index} · passage {ordinal} · {MACHINE_READ_LOCATOR_NOTE}"
+            classification, cues, rationale = classify_passage(text, seen_hashes)
+            digest_key = hashlib.sha256(_normalise(text).encode("utf-8")).hexdigest()
+            seen_hashes.setdefault(digest_key, locator)
+            document.passages.append(
+                ExtractedPassage(
+                    id=f"{document.id}-P{index:03d}-{ordinal:02d}",
+                    page=index,
+                    ordinal=ordinal,
+                    locator=locator,
+                    text=text,
+                    classification=classification,
+                    classification_provenance=Provenance.MACHINE_READ_OCR,
+                    matched_cues=cues,
+                    rationale=(
+                        f"{rationale} The text of this passage was machine-read (OCR) from a "
+                        "scanned page, not extracted from a text layer."
+                    ),
+                )
+            )
+            merged_any = True
+        if merged_any:
+            unreadable.remove(index)
+            machine_read.append(index)
+        if truncated:
+            break
+
+    document.passages.sort(key=lambda item: (item.page, item.ordinal))
+    document.scope = _compute_scope(
+        document.passages,
+        document.scope.page_count,
+        unreadable,
+        machine_read,
+    )
+    if document.scope.pages_machine_read:
+        document.extraction_mode = EXTRACTION_MODE_TEXT_PLUS_OCR
+    document.state = _document_state(
+        document.passages,
+        unreadable_all=len(unreadable) == document.scope.page_count,
+    )
+    document.limitations = _limitations(
+        document.scope,
+        document.filename,
+        truncated,
+        ocr_attempted=True,
+    )
+    return document
+
+
 def _recompute(document: UploadedDocument) -> UploadedDocument:
     document.scope = _compute_scope(
         document.passages,
         document.scope.page_count,
         document.scope.pages_unreadable,
+        document.scope.pages_machine_read,
     )
     unresolved = any(item.classification in UNRESOLVED_CLASSES for item in document.passages)
     if unresolved:

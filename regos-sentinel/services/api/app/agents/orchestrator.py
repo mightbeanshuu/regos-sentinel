@@ -16,6 +16,7 @@ import os
 from typing import Callable, Dict, List, Optional
 
 from ..advisory import advisory_spans, advisory_statements
+from ..documents import UploadedDocument
 from ..models import AgentId, AgentRun, AuditEvent, PlannerKind, WorkspaceState
 from .crew import Adversary, Extractor, ReferenceResolver, SourceScout
 from .planner import (
@@ -27,6 +28,7 @@ from .planner import (
     planner_provider,
     save_cassette,
 )
+from .tools import DOCUMENT_NORMATIVE_CLASSES
 
 #: What each agent is permitted to do with its findings. Every value is PROPOSE — the
 #: prototype ships no agent with write authority, and adding one would require changing
@@ -48,14 +50,35 @@ def _advisory_candidate() -> List[Dict[str, str]]:
     ]
 
 
-def build_agent(state: WorkspaceState, agent_id: AgentId):
+def build_agent(
+    state: WorkspaceState,
+    agent_id: AgentId,
+    document: Optional[UploadedDocument] = None,
+):
+    """Build one agent, anchored either on the pinned demo corpus or on one upload.
+
+    Passing ``document`` repoints the same four agents at that document's own
+    passages. The toolboxes stay read-only, the gates stay deterministic, and an
+    agent that has nothing to do on a generic document says so instead of inventing
+    something — see each agent's document mode.
+    """
     if agent_id == AgentId.REFERENCE_RESOLVER:
-        return ReferenceResolver(state)
+        return ReferenceResolver(state, document=document)
     if agent_id == AgentId.SOURCE_SCOUT:
-        return SourceScout(state, _advisory_candidate())
+        return SourceScout(state, _advisory_candidate(), document=document)
     if agent_id == AgentId.ADVERSARY:
-        return Adversary(state)
+        return Adversary(state, document=document)
     if agent_id == AgentId.EXTRACTOR:
+        if document is not None:
+            # The passages that could create work: requirement-shaped language, plus
+            # anything a person still has to rule on. Guidance and background carry
+            # no deadline to judge.
+            span_ids = [
+                passage.id
+                for passage in document.passages
+                if passage.classification in DOCUMENT_NORMATIVE_CLASSES
+            ]
+            return Extractor(state, span_ids, document=document)
         # The passages whose timing the gates actually depend on.
         span_ids = [
             span.id
@@ -107,6 +130,7 @@ def run_agent(
     actor: str = "demo.operator",
     planner_kind: Optional[PlannerKind] = None,
     on_event: Optional[Callable[[Dict[str, object]], None]] = None,
+    document: Optional[UploadedDocument] = None,
 ) -> WorkspaceState:
     """Run one agent and record the run. Nothing else changes.
 
@@ -114,8 +138,12 @@ def run_agent(
     ``on_event`` receives each call and result as it happens, for the live console. It
     is a view onto the run, not a hook into it — nothing an observer does can change
     what the agent finds.
+
+    ``document`` anchors the run on one uploaded document instead of the pinned demo
+    corpus, and the recorded run names that anchor — id, filename and fingerprint —
+    so a finding can never be read as being about material it did not examine.
     """
-    agent = build_agent(state, agent_id)
+    agent = build_agent(state, agent_id, document=document)
     plan: Optional[List[Dict[str, object]]] = None
     planner: Optional[ModelPlanner] = None
     note: Optional[str] = None
@@ -123,7 +151,11 @@ def run_agent(
     if planner_kind == PlannerKind.MODEL:
         if model_planning_available():
             try:
-                planner = ModelPlanner(agent.goal, agent.toolbox.names)
+                planner = ModelPlanner(
+                    agent.goal,
+                    agent.toolbox.names,
+                    tool_specs=getattr(agent, "planner_tool_specs", None),
+                )
             except PlannerUnavailable as error:
                 note = f"A model plan was requested but could not start: {error}"
         else:
@@ -132,13 +164,23 @@ def run_agent(
                 "configured, or is running offline, so the fixed sequence ran instead."
             )
     elif planner_kind == PlannerKind.RECORDED:
-        cassette = load_cassette(agent_id)
-        plan = cassette["plan"] if cassette else None
-        if plan is None:
+        if document is not None:
+            # Cassettes are recordings of demo-corpus runs; replaying one against an
+            # uploaded document would execute calls about passages the document does
+            # not contain and present the result as a recorded AI run over it.
             note = (
-                "A recorded model run was requested, but none has been committed for "
-                "this agent. The fixed sequence ran instead."
+                "A recorded model run was requested, but the committed recordings "
+                "cover the demo corpus, not an uploaded document. The fixed sequence "
+                "ran on this document instead."
             )
+        else:
+            cassette = load_cassette(agent_id)
+            plan = cassette["plan"] if cassette else None
+            if plan is None:
+                note = (
+                    "A recorded model run was requested, but none has been committed "
+                    "for this agent. The fixed sequence ran instead."
+                )
 
     try:
         run: AgentRun = agent.run(plan=plan, planner=planner, on_event=on_event)
@@ -147,7 +189,7 @@ def run_agent(
         # and label the result honestly as deterministic — and say why, because an
         # operator who asked for a model plan should not have to infer this from a label.
         note = f"A model plan was requested but the model was unreachable: {error}"
-        agent = build_agent(state, agent_id)
+        agent = build_agent(state, agent_id, document=document)
         run = agent.run(on_event=on_event)
 
     if run.planner == PlannerKind.MODEL and not run.steps:
@@ -158,7 +200,7 @@ def run_agent(
             "The model was reached but chose no tool calls at all. An empty plan is not "
             "an AI result, so the fixed sequence ran instead."
         )
-        agent = build_agent(state, agent_id)
+        agent = build_agent(state, agent_id, document=document)
         run = agent.run(on_event=on_event)
 
     if run.planner == PlannerKind.MODEL and run.model_planned_calls < run.tool_call_count:
@@ -171,6 +213,10 @@ def run_agent(
         )
 
     run.planner_note = note
+    if document is not None:
+        run.anchor_document_id = document.id
+        run.anchor_filename = document.filename
+        run.anchor_sha256 = document.sha256
 
     realised = getattr(agent, "realised_plan", [])
     if (
@@ -202,6 +248,7 @@ def run_agent(
                 "chain_head_sha256": run.chain_head_sha256,
                 "chain_verified": run.chain_verified,
                 "autonomy": AUTONOMY[agent_id],
+                "anchor_document_id": document.id if document else "none",
             },
         )
     )
@@ -212,6 +259,7 @@ def run_all_agents(
     state: WorkspaceState,
     actor: str = "demo.operator",
     planner_kind: Optional[PlannerKind] = None,
+    document: Optional[UploadedDocument] = None,
 ) -> WorkspaceState:
     for agent_id in (
         AgentId.REFERENCE_RESOLVER,
@@ -219,7 +267,9 @@ def run_all_agents(
         AgentId.SOURCE_SCOUT,
         AgentId.ADVERSARY,
     ):
-        state = run_agent(state, agent_id, actor=actor, planner_kind=planner_kind)
+        state = run_agent(
+            state, agent_id, actor=actor, planner_kind=planner_kind, document=document
+        )
     return state
 
 
