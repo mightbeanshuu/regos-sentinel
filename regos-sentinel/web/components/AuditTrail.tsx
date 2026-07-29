@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 
 import { regosApi } from "../lib/api";
-import { actorOf, formatTimestamp } from "../lib/presentation";
+import { actorOf, formatTimestamp, labelOf } from "../lib/presentation";
+
+/** Enum-shaped values go through the vocabulary map; sentences pass through. */
+function plainValue(value: string): string {
+  return /^[A-Z][A-Z0-9_]+$/.test(value) ? labelOf(value) : value;
+}
 import type {
   AiAssuranceReport,
   CorpusPackReport,
@@ -52,11 +57,22 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
   return (
     <div className="stack-l">
-      <section className="stack-s">
-        <h1 className="page-title">Audit trail</h1>
-        <p className="lede">
-          What was read, how it was decided, which checks ran, and how to reproduce the result.
-        </p>
+      <section className="audit-hero">
+        <div className="stack-s">
+          <h1 className="page-title">Audit trail</h1>
+          <p className="lede">
+            What was read, how it was decided, which checks ran, and how to reproduce the result.
+          </p>
+        </div>
+        {state.agent_runs.length > 0 && state.agent_runs.every((run) => run.chain_verified) ? (
+          <span className="audit-chain-badge">
+            ✓ Hash chain intact — every agent step digests its predecessor
+          </span>
+        ) : (
+          <span className="audit-chain-badge audit-chain-badge--idle">
+            ⛓ Hash-chained record — verified per agent run
+          </span>
+        )}
       </section>
 
       {/* ---- Sources and the gates they have cleared -------------------- */}
@@ -666,8 +682,8 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
                         <span className="strong-ink">{item.name}</span>
                         <p className="meta mono">{item.source_span_id}</p>
                       </td>
-                      <td className="meta">{item.expected}</td>
-                      <td className="meta">{item.actual}</td>
+                      <td className="meta">{plainValue(item.expected)}</td>
+                      <td className="meta">{plainValue(item.actual)}</td>
                       <td><StateLabel value={item.outcome} /></td>
                     </tr>
                   ))}
@@ -679,11 +695,85 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       )}
 
       {/* ---- Audit events ---------------------------------------------- */}
-      <Panel title="Recorded events" tight>
+      <RecordedEvents events={state.audit_events} />
+
+      {/* ---- Reproduce this result -------------------------------------- */}
+      {manifest && (
+        <div className="audit-replay">
+          <div className="audit-replay-body">
+            <p className="micro">Reproduce this result</p>
+            <code className="audit-replay-cmd">
+              python scripts/replay_build.py · replay input{" "}
+              <Hash value={manifest.reproducibility.replay_input_sha256} label="replay input" />
+            </code>
+            <p className="meta">
+              Run the committed replay script against this input and the build must come out
+              byte-identical.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Recorded events — the hash-chained timeline, filterable by what acted.
+ * ------------------------------------------------------------------------- */
+
+const EVENT_FILTERS = [
+  { id: "ALL", label: "All", test: () => true },
+  { id: "DECISIONS", label: "Decisions", test: (t: string) => /READING|POLICY|APPROV|REVIEW|RECLASS/i.test(t) },
+  { id: "CHECKS", label: "Checks", test: (t: string) => /TEST|BUILD|GATE|VERIF|CHECK/i.test(t) },
+  { id: "AGENTS", label: "Agents", test: (t: string) => /AGENT/i.test(t) },
+  { id: "EXPORTS", label: "Exports", test: (t: string) => /EXPORT|REPORT|DOWNLOAD|PACKET/i.test(t) },
+] as const;
+
+function eventTone(eventType: string): string {
+  if (/READING|POLICY|APPROV|REVIEW|RECLASS/i.test(eventType)) return "review";
+  if (/VERIF/i.test(eventType)) return "ok";
+  return "neutral";
+}
+
+function RecordedEvents({
+  events,
+}: {
+  events: WorkspaceState["audit_events"];
+}) {
+  const [filter, setFilter] = useState<(typeof EVENT_FILTERS)[number]["id"]>("ALL");
+  const active = EVENT_FILTERS.find((item) => item.id === filter) ?? EVENT_FILTERS[0];
+  const visible = events.filter((event) => active.test(event.event_type));
+
+  return (
+    <Panel
+      title="Recorded events"
+      aside={
+        <div className="audit-filters" role="group" aria-label="Filter recorded events">
+          {EVENT_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`audit-filter${filter === item.id ? " audit-filter--on" : ""}`}
+              aria-pressed={filter === item.id}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      }
+      tight
+    >
+      {visible.length === 0 ? (
+        <div className="empty"><p className="lede">No events of this kind recorded yet.</p></div>
+      ) : (
         <ol className="timeline">
-          {state.audit_events.map((event) => (
+          {visible.map((event) => (
             <li className="timeline-row" key={event.id}>
-              <span className="timeline-node" aria-hidden="true" />
+              <span
+                className={`timeline-node timeline-node--${eventTone(event.event_type)}`}
+                aria-hidden="true"
+              />
               <div className="timeline-body">
                 <p className="timeline-event">
                   {event.event_type.replaceAll("_", " ").toLowerCase()}
@@ -696,7 +786,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
             </li>
           ))}
         </ol>
-      </Panel>
-    </div>
+      )}
+    </Panel>
   );
 }

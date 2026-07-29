@@ -16,11 +16,12 @@ import { Callout } from "./ui";
  * liability, and one that says it clearly is doing its job.
  */
 
-const SUGGESTIONS = [
-  "How long do I have to close VAPT findings?",
-  "What needs my decision?",
-  "What does SEBI say about patching?",
-  "When is my next deadline?",
+/** Topic pills — each maps to a real question the answers engine can take. */
+const SUGGESTIONS: Array<{ label: string; question: string }> = [
+  { label: "VAPT deadlines", question: "How long do I have to close VAPT findings?" },
+  { label: "SEBI patching rules", question: "What does SEBI say about patching?" },
+  { label: "What needs me", question: "What needs my decision?" },
+  { label: "Next deadline", question: "When is my next deadline?" },
 ];
 
 interface ChatTurn {
@@ -126,82 +127,81 @@ export function AskPanel() {
   return (
     <div className="chat">
       <div className="chat-intro">
-        <p className="sub-title">Ask about your obligations</p>
-        <p className="meta">Answers are quoted or computed — never guessed.</p>
+        <h2 className="chat-hero">RegOS Intelligence — AI Compliance Assistant</h2>
+        <p className="chat-hero-sub">
+          Compliance command centre for a SEBI-regulated stockbroker. Answers are quoted
+          or computed — never guessed.
+        </p>
+      </div>
+
+      <div className="ask-chips">
+        {SUGGESTIONS.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className="ask-chip"
+            disabled={asking}
+            onClick={() => void submit(item.question)}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       <div className="chat-thread" ref={threadRef} aria-live="polite">
         {turns.length === 0 && (
-          <div className="chat-empty">
-            <p className="meta">
-              Try one of these — every reply carries its source or says why none exists.
-            </p>
-            <div className="ask-chips">
-              {SUGGESTIONS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  className="ask-chip"
-                  disabled={asking}
-                  onClick={() => void submit(item)}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="chat-empty meta">
+            Pick a topic above or type a question — every reply carries its source or says
+            why none exists.
+          </p>
         )}
 
         {turns.map((turn) => (
           <div className="chat-turn" key={turn.id}>
             <p className="chat-bubble chat-bubble--user">{turn.question}</p>
-            <div className="chat-reply">
-              {turn.error ? (
-                <Callout tone="fail" title="Could not ask that">{turn.error}</Callout>
-              ) : turn.answer ? (
-                <AnswerBody answer={turn.answer} />
-              ) : (
-                <p className="chat-pending">
-                  <span className="spinner" aria-hidden="true" /> Looking in the reviewed
-                  source…
-                </p>
-              )}
+            <div className="chat-row">
+              <span className="chat-avatar" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <circle cx="10" cy="10" r="7.4" />
+                  <path d="M2.6 10h14.8M10 2.6c2.2 2 3.2 4.6 3.2 7.4S12.2 15.4 10 17.4c-2.2-2-3.2-4.6-3.2-7.4S7.8 4.6 10 2.6Z" />
+                </svg>
+              </span>
+              <div className="chat-reply">
+                {turn.error ? (
+                  <Callout tone="fail" title="Could not ask that">{turn.error}</Callout>
+                ) : turn.answer ? (
+                  <AnswerBody answer={turn.answer} />
+                ) : (
+                  <p className="chat-pending">
+                    <span className="chat-dots" aria-hidden="true"><i /><i /><i /></span>
+                    Looking in the reviewed source…
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       <form
-        className="ask-form chat-composer"
+        className="chat-composer-glow"
         onSubmit={(event) => { event.preventDefault(); void submit(draft); }}
       >
         <input
           className="ask-input"
           type="text"
           value={draft}
-          placeholder="e.g. how long do I have to close VAPT findings?"
+          placeholder="e.g., how long do I have to close VAPT findings?"
           onChange={(event) => setDraft(event.target.value)}
           aria-label="Your question"
         />
-        <button type="submit" className="btn btn--primary" disabled={asking || !draft.trim()}>
-          {asking ? "Looking…" : "Ask"}
+        <button type="submit" className="chat-ask-btn" disabled={asking || !draft.trim()}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {asking ? "Looking…" : "Search/Ask"}
         </button>
       </form>
-      {turns.length > 0 && (
-        <div className="ask-chips">
-          {SUGGESTIONS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className="ask-chip"
-              disabled={asking}
-              onClick={() => void submit(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

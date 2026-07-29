@@ -187,6 +187,78 @@ export function Agents({
         </div>
       </Panel>
 
+      {/* ---- The four agents, and what each is allowed to be -------------- */}
+      <div className="agents-grid">
+        {catalogue?.map((entry) => {
+          const run = runsById.get(entry.id);
+          return (
+            <Panel
+              key={entry.id}
+              title={entry.name}
+              description={entry.autonomy}
+              aside={
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--small"
+                  disabled={busy}
+                  onClick={() => void runOne(entry.id)}
+                >
+                  {run ? "Run again" : "Run this agent"}
+                </button>
+              }
+            >
+              <dl className="datalist">
+                <DataRow label="Reads">{entry.reads}</DataRow>
+                <DataRow label="Proposes">{entry.proposes}</DataRow>
+                <DataRow label="Never does">{entry.never_does}</DataRow>
+                <DataRow label="Gated by">{entry.gated_by}</DataRow>
+              </dl>
+              <div className="agent-tools">
+                {entry.tools.map((tool) => (
+                  <span className="agent-tool-chip mono" key={tool}>{tool}</span>
+                ))}
+              </div>
+
+              {run ? (
+                <>
+                  <div className="agent-runline">
+                    <span className="agent-spark" aria-hidden="true">
+                      {run.steps.map((step) => (
+                        <i
+                          key={step.step_sha256}
+                          className={step.status === "OK" ? "" : "agent-spark--warn"}
+                        />
+                      ))}
+                    </span>
+                    <span className="meta">
+                      {run.findings.length} findings · {run.tool_call_count} steps
+                    </span>
+                  </div>
+                  <Disclosure summary="Run detail and trace">
+                    <RunDetail run={run} />
+                  </Disclosure>
+                </>
+              ) : (
+                <p className="empty">
+                  Not run yet. Nothing is claimed about this agent until it has been run and
+                  its trace recorded.
+                </p>
+              )}
+            </Panel>
+          );
+        })}
+      </div>
+
+      {/* ---- Agent health: recorded counts only --------------------------- */}
+      <div className="agent-health">
+        <span className="micro">Agent health — recorded counts</span>
+        <span>
+          {state.agent_runs.length} runs · {[...runsById.keys()].length} of 4 agents run ·{" "}
+          {state.agent_runs.reduce((sum, run) => sum + run.findings.length, 0)} findings ·{" "}
+          {challenges?.landed.length ?? 0} challenges landed
+        </span>
+      </div>
+
       {/* ---- Watch one work, live ---------------------------------------- */}
       <Panel title="Live run">
         <AgentConsole
@@ -196,45 +268,6 @@ export function Agents({
           onFinished={refresh}
         />
       </Panel>
-
-      {/* ---- The four agents, and what each is allowed to be -------------- */}
-      {catalogue?.map((entry) => {
-        const run = runsById.get(entry.id);
-        return (
-          <Panel
-            key={entry.id}
-            title={entry.name}
-            description={entry.autonomy}
-            aside={
-              <button
-                type="button"
-                className="btn btn--secondary btn--small"
-                disabled={busy}
-                onClick={() => void runOne(entry.id)}
-              >
-                {run ? "Run again" : "Run this agent"}
-              </button>
-            }
-          >
-            <dl className="datalist">
-              <DataRow label="Reads">{entry.reads}</DataRow>
-              <DataRow label="Proposes">{entry.proposes}</DataRow>
-              <DataRow label="Never does">{entry.never_does}</DataRow>
-              <DataRow label="Gated by">{entry.gated_by}</DataRow>
-              <DataRow label="Tools it holds">
-                <span className="mono">{entry.tools.join(", ")}</span>
-              </DataRow>
-            </dl>
-
-            {run ? <RunDetail run={run} /> : (
-              <p className="empty">
-                Not run yet. Nothing is claimed about this agent until it has been run and
-                its trace recorded.
-              </p>
-            )}
-          </Panel>
-        );
-      })}
     </div>
   );
 }

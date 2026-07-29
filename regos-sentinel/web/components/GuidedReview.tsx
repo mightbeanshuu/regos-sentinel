@@ -161,6 +161,20 @@ export function GuidedReview(props: GuidedReviewProps) {
         />
       )}
 
+      {approved && build && reading && (
+        <div className="decision-sealed" role="status">
+          <span className="decision-sealed-check" aria-hidden="true">✓</span>
+          <div className="decision-sealed-body">
+            <p className="decision-sealed-title">Decision approved</p>
+            <p className="meta">
+              Recorded by: {reading.reviewer_name} ({reading.reviewer_role}) ·
+              policy: {reading.trigger_policy}
+            </p>
+          </div>
+          <span className="decision-sealed-chip">⛨ Sealed · run {build.run_id}</span>
+        </div>
+      )}
+
       {approved && build && (
         <>
           <StepImpact state={state} build={build} reducedMotion={Boolean(reducedMotion)} />
@@ -510,6 +524,31 @@ function StepCompare({
  * Step 3 — Human decision (preserves the commit-before-reveal gate)
  * ------------------------------------------------------------------------- */
 
+/** Preset clock-start policies the firm can adopt. The last is the honest default. */
+const TRIGGER_POLICIES = [
+  { id: "discovery", label: "Date of discovery", policy: "Date the finding is recorded in the entity vulnerability register" },
+  { id: "vapt", label: "VAPT report submission", policy: "Date the VAPT report is submitted to the entity" },
+  { id: "patch", label: "OEM patch availability", policy: "Date the missing OEM patch becomes available" },
+  { id: "none", label: "No policy (default)", policy: "" },
+] as const;
+
+/**
+ * Client-side due-date preview: trigger date + the duration the source states.
+ * A preview only — the engine computes and records the real date on approval.
+ */
+function previewDueDate(dateStr: string, durationLabel: string | undefined): string | null {
+  if (!dateStr) return null;
+  const match = /(\d+)\s*(day|week|month)/i.exec(durationLabel ?? "1 week");
+  if (!match) return null;
+  const n = Number(match[1]);
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  if (/day/i.test(match[2])) date.setDate(date.getDate() + n);
+  else if (/week/i.test(match[2])) date.setDate(date.getDate() + n * 7);
+  else date.setMonth(date.getMonth() + n);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function StepHumanDecision({
   state,
   busy,
@@ -531,6 +570,8 @@ function StepHumanDecision({
   const [reviewerName, setReviewerName] = useState("Aditi Rao");
   const [reviewerRole, setReviewerRole] = useState("Compliance Officer");
   const [interpretation, setInterpretation] = useState("");
+  const [policyChoice, setPolicyChoice] = useState<string>("none");
+  const [customPolicy, setCustomPolicy] = useState("");
   const [triggerPolicy, setTriggerPolicy] = useState("");
   const [triggerDate, setTriggerDate] = useState("2026-07-22");
   const [reason, setReason] = useState("");
@@ -641,70 +682,153 @@ function StepHumanDecision({
 
         {!reading ? (
           <div className="stack">
-            <Callout tone="accent" title="Record your own reading first">
-              <p>
-                RegOS keeps its own draft interpretation hidden until you commit yours. Your
-                answer is time-stamped and cannot be rewritten later in this session.
-              </p>
-            </Callout>
+            <div className="decision-grid">
+              {/* -- Left: your independent reading ---------------------- */}
+              <div className="decision-card">
+                <p className="decision-card-title">Your independent reading</p>
+                <Field
+                  label="Your observation"
+                  hint="Write what the cited text supports, and what remains a firm decision."
+                  error={interpretationError}
+                >
+                  {(aria) => (
+                    <textarea
+                      {...aria}
+                      rows={4}
+                      value={interpretation}
+                      onChange={(event) => setInterpretation(event.target.value)}
+                    />
+                  )}
+                </Field>
+                <div className="field-grid">
+                  <Field label="Reviewer name" error={nameError}>
+                    {(aria) => (
+                      <input
+                        {...aria}
+                        value={reviewerName}
+                        onChange={(event) => setReviewerName(event.target.value)}
+                        autoComplete="name"
+                      />
+                    )}
+                  </Field>
+                  <Field label="Role / designation" error={roleError}>
+                    {(aria) => (
+                      <input
+                        {...aria}
+                        value={reviewerRole}
+                        onChange={(event) => setReviewerRole(event.target.value)}
+                      />
+                    )}
+                  </Field>
+                </div>
+                <div className="decision-locked" aria-label="System suggestion, hidden until you commit your reading">
+                  <span className="decision-lock-glyph" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="9" width="12" height="8" rx="1.6" />
+                      <path d="M7 9V6.6a3 3 0 0 1 6 0V9" />
+                    </svg>
+                  </span>
+                  <p className="decision-lock-title">System suggestion</p>
+                  <p className="meta">Hidden until you commit your reading — then revealed with both timestamps.</p>
+                </div>
+              </div>
 
-            <div className="field-grid">
-              <Field label="Reviewer name" error={nameError}>
-                {(aria) => (
-                  <input
-                    {...aria}
-                    value={reviewerName}
-                    onChange={(event) => setReviewerName(event.target.value)}
-                    autoComplete="name"
-                  />
+              {/* -- Right: the clock-start policy, live ----------------- */}
+              <div className="decision-card">
+                <p className="decision-card-title">Set the clock-start policy</p>
+                <p className="meta">The source states the duration, not the start. That gap is yours.</p>
+
+                <div className={`decision-preview${policyChoice === "none" ? " decision-preview--blocked" : ""}`}>
+                  {policyChoice === "none" ? (
+                    <>
+                      <span className="decision-preview-value">No date</span>
+                      <span className="meta">RegOS will not compute a due date without a recorded policy.</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="decision-preview-value">
+                        {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}
+                      </span>
+                      <span className="meta">
+                        Preview only — {blockedDeadline?.duration_label ?? "1 week"} from the date below.
+                        The engine computes the recorded date on approval.
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <div className="decision-radios" role="radiogroup" aria-label="Clock-start policy">
+                  {TRIGGER_POLICIES.map((option) => (
+                    <label
+                      key={option.id}
+                      className={`decision-radio${policyChoice === option.id ? " decision-radio--on" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="trigger-policy"
+                        checked={policyChoice === option.id}
+                        onChange={() => {
+                          setPolicyChoice(option.id);
+                          setTriggerPolicy(option.policy);
+                        }}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                  <label className={`decision-radio${policyChoice === "custom" ? " decision-radio--on" : ""}`}>
+                    <input
+                      type="radio"
+                      name="trigger-policy"
+                      checked={policyChoice === "custom"}
+                      onChange={() => {
+                        setPolicyChoice("custom");
+                        setTriggerPolicy(customPolicy);
+                      }}
+                    />
+                    <span>The firm&rsquo;s own event…</span>
+                  </label>
+                </div>
+                {policyChoice === "custom" && (
+                  <Field label="Describe the event" error={policyError}>
+                    {(aria) => (
+                      <input
+                        {...aria}
+                        value={customPolicy}
+                        onChange={(event) => {
+                          setCustomPolicy(event.target.value);
+                          setTriggerPolicy(event.target.value);
+                        }}
+                        placeholder="For example: the date the finding is recorded in the vulnerability register"
+                      />
+                    )}
+                  </Field>
                 )}
-              </Field>
-              <Field label="Reviewer role" error={roleError}>
-                {(aria) => (
-                  <input
-                    {...aria}
-                    value={reviewerRole}
-                    onChange={(event) => setReviewerRole(event.target.value)}
-                  />
+                {policyChoice !== "none" && (
+                  <Field label="Trigger event date" hint="The date your policy points at, for the demo finding F-001.">
+                    {(aria) => (
+                      <input
+                        {...aria}
+                        type="date"
+                        value={triggerDate}
+                        onChange={(event) => setTriggerDate(event.target.value)}
+                      />
+                    )}
+                  </Field>
                 )}
-              </Field>
+                {policyChoice !== "none" && policyChoice !== "custom" && policyError && (
+                  <p className="field-error"><span aria-hidden="true">✕</span>{policyError}</p>
+                )}
+                <p className="meta">
+                  Recorded as &ldquo;Confirmed by compliance officer&rdquo; — never as wording from SEBI.
+                </p>
+              </div>
             </div>
-
-            <Field
-              label="What does this passage require, in your reading?"
-              hint="Write what the cited text supports, and what remains a firm decision."
-              error={interpretationError}
-            >
-              {(aria) => (
-                <textarea
-                  {...aria}
-                  rows={3}
-                  value={interpretation}
-                  onChange={(event) => setInterpretation(event.target.value)}
-                />
-              )}
-            </Field>
-
-            <Field
-              label="What event starts the one-week period?"
-              hint="This is the firm's documented policy because the reviewed source does not state the trigger. It will be recorded as “Confirmed by compliance officer”, not as wording from SEBI."
-              error={policyError}
-            >
-              {(aria) => (
-                <input
-                  {...aria}
-                  value={triggerPolicy}
-                  onChange={(event) => setTriggerPolicy(event.target.value)}
-                  placeholder="For example: the date the finding is recorded in the vulnerability register"
-                />
-              )}
-            </Field>
 
             <div className="btn-row">
               <button
                 type="button"
                 className="btn btn--primary"
-                disabled={busy}
+                disabled={busy || policyChoice === "none"}
                 onClick={() => {
                   setTouched(true);
                   if (!readingComplete) return;
@@ -719,6 +843,9 @@ function StepHumanDecision({
                 {busy && <span className="spinner" aria-hidden="true" />}
                 Record my reading, then show the draft interpretation
               </button>
+              {policyChoice === "none" && (
+                <p className="meta">Pick a clock-start policy to continue — or the date stays uncomputed.</p>
+              )}
               <button
                 type="button"
                 className="btn btn--quiet btn--small"
@@ -727,9 +854,8 @@ function StepHumanDecision({
                   setInterpretation(
                     "Q17(a) supports a one-week maximum for high-severity findings caused by missing patches. It does not state which event starts that clock.",
                   );
-                  setTriggerPolicy(
-                    "Date the finding is recorded in the entity vulnerability register",
-                  );
+                  setPolicyChoice("discovery");
+                  setTriggerPolicy(TRIGGER_POLICIES[0].policy);
                 }}
               >
                 Fill a synthetic demo response
@@ -778,63 +904,82 @@ function StepHumanDecision({
               </dl>
             )}
 
-            <div className="field-grid">
-              <Field
-                label="Committed trigger policy"
-                hint="Recorded before the draft interpretation was shown, and cannot be edited now."
-              >
-                {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
-              </Field>
-              <Field
-                label="Trigger date for the synthetic finding"
-                hint="The date your policy points at, for the demo finding F-001."
-              >
-                {(aria) => (
-                  <input
-                    {...aria}
-                    type="date"
-                    value={triggerDate}
-                    onChange={(event) => setTriggerDate(event.target.value)}
-                  />
-                )}
-              </Field>
+            <div className="decision-grid">
+              <div className="decision-card">
+                <p className="decision-card-title">Reviewer notes &amp; system alignment</p>
+                <Field
+                  label="Does your reading agree with the draft interpretation?"
+                  error={agreementError}
+                >
+                  {() => (
+                    <div className="decision-agree" role="radiogroup" aria-label="Agreement with the draft interpretation">
+                      <button
+                        type="button"
+                        className={`decision-agree-chip${agreement === "AGREE" ? " decision-agree-chip--on" : ""}`}
+                        aria-pressed={agreement === "AGREE"}
+                        onClick={() => setAgreement("AGREE")}
+                      >
+                        ✓ Agrees
+                      </button>
+                      <button
+                        type="button"
+                        className={`decision-agree-chip decision-agree-chip--differ${agreement === "DISAGREE" ? " decision-agree-chip--on" : ""}`}
+                        aria-pressed={agreement === "DISAGREE"}
+                        onClick={() => setAgreement("DISAGREE")}
+                      >
+                        Differs — reason recorded
+                      </button>
+                    </div>
+                  )}
+                </Field>
+                <Field
+                  label="Reason for this policy"
+                  hint="The exported report must explain why a human decision was used here."
+                  error={reasonError}
+                >
+                  {(aria) => (
+                    <textarea
+                      {...aria}
+                      rows={3}
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
+                      placeholder="Why this trigger is the right one for this firm…"
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div className="decision-card">
+                <p className="decision-card-title">Due date calculator</p>
+                <Field
+                  label="Committed trigger policy"
+                  hint="Recorded before the draft interpretation was shown; cannot be edited now."
+                >
+                  {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
+                </Field>
+                <Field label="Trigger event date" hint="The date your policy points at, for the demo finding F-001.">
+                  {(aria) => (
+                    <input
+                      {...aria}
+                      type="date"
+                      value={triggerDate}
+                      onChange={(event) => setTriggerDate(event.target.value)}
+                    />
+                  )}
+                </Field>
+                <div className="decision-preview">
+                  <span className="decision-preview-value">
+                    {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}
+                  </span>
+                  <span className="meta">
+                    Preview — {blockedDeadline?.duration_label ?? "1 week"} from the trigger date.
+                    The engine records the real date on approval.
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <Field
-              label="Reason for this policy"
-              hint="The exported report must explain why a human decision was used here."
-              error={reasonError}
-            >
-              {(aria) => (
-                <textarea
-                  {...aria}
-                  rows={3}
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="Why this trigger is the right one for this firm…"
-                />
-              )}
-            </Field>
-
-            <Field
-              label="Does your reading agree with the draft interpretation?"
-              error={agreementError}
-            >
-              {(aria) => (
-                <select
-                  {...aria}
-                  value={agreement}
-                  onChange={(event) =>
-                    setAgreement(event.target.value as "" | "AGREE" | "DISAGREE")}
-                >
-                  <option value="">Record agreement or disagreement…</option>
-                  <option value="AGREE">Agrees with the draft interpretation</option>
-                  <option value="DISAGREE">Disagrees — reason recorded above</option>
-                </select>
-              )}
-            </Field>
-
-            <Callout tone="review" title="How this will be stored">
+            <Callout tone="review" title="This decision is recorded against your name">
               <p>
                 The clock-start is recorded as <span className="strong-ink">
                   confirmed by a compliance officer
@@ -863,7 +1008,7 @@ function StepHumanDecision({
                 }}
               >
                 {busy && <span className="spinner" aria-hidden="true" />}
-                Approve policy and continue
+                Approve final decision
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { regosApi } from "../lib/api";
 import { useChangeKey } from "../lib/liveness";
-import { checkLabel, formatDate, labelOf } from "../lib/presentation";
+import { agentNameOf, checkLabel, formatDate, labelOf } from "../lib/presentation";
 import type {
   AgentId,
   CciReport,
@@ -76,7 +76,8 @@ export function Dashboard({
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   const [planner] = useState<PlannerKind>("DETERMINISTIC_PLAN");
-  const [view, setView] = useState<"overview" | "work" | "ask" | "agents">("overview");
+  const [view, setView] = useState<"overview" | "work" | "evidence" | "ask" | "agents">("overview");
+  const [evidenceKinds, setEvidenceKinds] = useState<Set<string>>(new Set());
 
   const loadCci = useCallback(() => {
     void regosApi.cci().then(setCci).catch(() => setCci(null));
@@ -133,6 +134,7 @@ export function Dashboard({
         {([
           ["overview", "Overview"],
           ["work", "Work queue"],
+          ["evidence", "Evidence"],
           ["ask", "Ask"],
           ["agents", "Agents"],
         ] as const).map(([id, label]) => (
@@ -474,6 +476,118 @@ export function Dashboard({
       </div>
       )}
 
+      {view === "evidence" && (
+      <div className="vault">
+        {/* ---- Filters rail ------------------------------------------- */}
+        <aside className="vault-filters">
+          <p className="b-label">Filters</p>
+          <p className="vault-filter-head">Evidence kinds</p>
+          {[...new Set(state.evidence.map((item) => item.kind))].map((kind) => (
+            <label className="vault-filter" key={kind}>
+              <input
+                type="checkbox"
+                checked={evidenceKinds.size === 0 || evidenceKinds.has(kind)}
+                onChange={() => {
+                  const allKinds = [...new Set(state.evidence.map((item) => item.kind))];
+                  setEvidenceKinds((prior) => {
+                    const next = new Set(prior.size === 0 ? allKinds : [...prior]);
+                    if (next.has(kind)) next.delete(kind); else next.add(kind);
+                    return next.size === allKinds.length ? new Set<string>() : next;
+                  });
+                }}
+              />
+              <span>{labelOf(kind)}</span>
+            </label>
+          ))}
+          <p className="vault-filter-head">SEBI sources</p>
+          {state.documents.map((doc) => (
+            <p className="vault-filter meta" key={doc.id}>{doc.title}</p>
+          ))}
+        </aside>
+
+        {/* ---- KPIs + table ------------------------------------------- */}
+        <div className="vault-main">
+          <div className="vault-kpis">
+            <div className="b-kpi">
+              <span className="b-kpi-value">
+                {build ? `${passed.length}/${build.tests.length}` : "—"}
+              </span>
+              <span className="b-kpi-label">Checks passed</span>
+            </div>
+            <div className="b-kpi">
+              <span className="b-kpi-value b-kpi-value--word">
+                {receipt ? formatDate(receipt.checked_at) : "Not checked"}
+              </span>
+              <span className="b-kpi-label">Source last verified</span>
+            </div>
+            <div className="b-kpi">
+              <span className="b-kpi-value">
+                {state.evidence.length > 0
+                  ? `${Math.round((evidenceCurrent.length / state.evidence.length) * 100)}%`
+                  : "—"}
+              </span>
+              <span className="b-kpi-label">Evidence up to date</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn--primary vault-check"
+            disabled={busy}
+            onClick={onVerifySource}
+          >
+            Check source
+          </button>
+
+          <section className="b-card vault-table">
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Document</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Collected</th>
+                    <th scope="col">Fingerprint</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.evidence
+                    .filter((item) => evidenceKinds.size === 0 || evidenceKinds.has(item.kind))
+                    .map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          {item.name}
+                          {item.reason && <p className="meta clamp2" title={item.reason}>{item.reason}</p>}
+                        </td>
+                        <td><StateLabel value={item.status} /></td>
+                        <td className="meta">{formatDate(item.collected_at)}</td>
+                        <td className="meta">No fingerprint recorded</td>
+                      </tr>
+                    ))}
+                  {state.documents.map((doc) => (
+                    <tr key={doc.id}>
+                      <td>
+                        {doc.title}
+                        <p className="meta">
+                          <a className="proof-link" href={doc.source_url} target="_blank" rel="noreferrer">
+                            official source ↗
+                          </a>
+                        </p>
+                      </td>
+                      <td><StateLabel value="CURRENT" /></td>
+                      <td className="meta">{formatDate(doc.published_at)}</td>
+                      <td><span className="mono meta">{doc.content_hash.slice(0, 16)}…</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="meta">Synthetic broker data · fingerprints are real.</p>
+          </section>
+        </div>
+      </div>
+      )}
+
       {view === "ask" && (
       <div className="bento">
         <section className="b-card b-ask">
@@ -483,6 +597,26 @@ export function Dashboard({
         <section className="b-card b-context">
           <p className="b-label"><IconAgents /> Live context</p>
           <LiveStrip onChange={() => { loadCci(); onRefresh(); }} />
+          <div className="b-context-feed">
+            <p className="b-context-feed-head">Engine activity</p>
+            {state.agent_runs.length === 0 ? (
+              <p className="meta">No engine activity yet — run the agents to populate this feed.</p>
+            ) : (
+              <ul className="b-context-feed-list">
+                {state.agent_runs
+                  .at(-1)!
+                  .steps.slice(-4)
+                  .map((step) => (
+                    <li key={step.step_sha256}>
+                      <span className="b-context-feed-dot" aria-hidden="true" />
+                      <span>
+                        {agentNameOf(state.agent_runs.at(-1)!.agent_id)}: {step.tool_output_summary}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
           <div className="b-context-agents">
             {ALL_AGENTS.map((id) => {
               const run = runsById.get(id);

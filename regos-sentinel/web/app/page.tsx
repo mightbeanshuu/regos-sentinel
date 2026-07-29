@@ -10,6 +10,13 @@ import { FlowMap } from "../components/FlowMap";
 import { FlowScene } from "../components/FlowScene";
 import { GuidedReview } from "../components/GuidedReview";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
+import {
+  IconAgents,
+  IconClauses,
+  IconDecision,
+  IconGauge,
+  IconLedger,
+} from "../components/vector";
 import { regosApi } from "../lib/api";
 import type {
   DocumentLimits,
@@ -26,11 +33,11 @@ import type {
  * and is named for what it is rather than for how it is built.
  */
 const TABS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "guided", label: "Review a requirement" },
-  { id: "document", label: "Your own document" },
-  { id: "agents", label: "AI agents" },
-  { id: "audit", label: "Full record" },
+  { id: "dashboard", label: "Dashboard", icon: IconGauge },
+  { id: "guided", label: "Review a requirement", icon: IconDecision },
+  { id: "document", label: "Your own document", icon: IconClauses },
+  { id: "agents", label: "AI agents", icon: IconAgents },
+  { id: "audit", label: "Full record", icon: IconLedger },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -264,23 +271,31 @@ export default function Home() {
 
       <nav className="tabs" aria-label="Main">
         <div className="tablist" role="tablist">
-          {TABS.map((item, index) => (
-            <button
-              key={item.id}
-              ref={(node) => { tabRefs.current[index] = node; }}
-              type="button"
-              role="tab"
-              id={`tab-${item.id}`}
-              className="tab"
-              aria-selected={tab === item.id}
-              aria-controls={`panel-${item.id}`}
-              tabIndex={tab === item.id ? 0 : -1}
-              onClick={() => setTab(item.id)}
-              onKeyDown={(event) => onTabKeyDown(event, index)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {TABS.map((item, index) => {
+            const TabIcon = item.icon;
+            const waiting = item.id === "guided"
+              ? state.builds.at(-1)?.tests.filter((t) => t.status === "BLOCK").length ?? 0
+              : 0;
+            return (
+              <button
+                key={item.id}
+                ref={(node) => { tabRefs.current[index] = node; }}
+                type="button"
+                role="tab"
+                id={`tab-${item.id}`}
+                className="tab"
+                aria-selected={tab === item.id}
+                aria-controls={`panel-${item.id}`}
+                tabIndex={tab === item.id ? 0 : -1}
+                onClick={() => setTab(item.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+              >
+                <span className="tab-icon" aria-hidden="true"><TabIcon /></span>
+                {item.label}
+                {waiting > 0 && <span className="tab-badge">{waiting}</span>}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
