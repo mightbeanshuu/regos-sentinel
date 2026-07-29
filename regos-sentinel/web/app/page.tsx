@@ -7,6 +7,7 @@ import { AuditTrail } from "../components/AuditTrail";
 import { Dashboard } from "../components/Dashboard";
 import { DocumentReview } from "../components/DocumentReview";
 import { FlowMap } from "../components/FlowMap";
+import { FlowScene } from "../components/FlowScene";
 import { GuidedReview } from "../components/GuidedReview";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import { regosApi } from "../lib/api";
@@ -151,32 +152,41 @@ export default function Home() {
   if (!state) {
     return (
       <main className="boot">
-        <span className="boot-mark" aria-hidden="true">
-          <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-            <defs>
-              <linearGradient id="boot-shield" x1="4" y1="3" x2="20" y2="22" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#5B8FE0" />
-                <stop offset="1" stopColor="#1D3F76" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
-              fill="url(#boot-shield)"
-            />
-            <path
-              d="m8.4 12.1 2.5 2.5 4.7-5"
-              stroke="#fff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <span className="boot-halo" aria-hidden="true">
+          <span className="boot-ring" />
+          <span className="boot-mark">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
+              <defs>
+                <linearGradient id="boot-shield" x1="4" y1="3" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#5B8FE0" />
+                  <stop offset="1" stopColor="#1D3F76" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
+                fill="url(#boot-shield)"
+              />
+              <path
+                className="boot-check"
+                d="m8.4 12.1 2.5 2.5 4.7-5"
+                stroke="#fff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
         </span>
         <p className="micro">RegOS Sentinel</p>
         <h1 className="page-title">
           {error ? "The API is not reachable" : "Loading the demo workspace…"}
         </h1>
         <p className="lede">{error ?? "Connecting to the prototype state."}</p>
+        {!error && (
+          <span className="boot-track" aria-hidden="true">
+            <span className="boot-track-fill" />
+          </span>
+        )}
         {error && (
           <button type="button" className="btn btn--primary" onClick={() => void load()}>
             Try again
@@ -397,6 +407,7 @@ export default function Home() {
           onClick={() => setShowFlow(false)}
         >
           <div className="flow-overlay-card" onClick={(event) => event.stopPropagation()}>
+            <FlowScene />
             <div className="flow-overlay-head">
               <h2 className="section-title">How it works</h2>
               <button
@@ -407,7 +418,9 @@ export default function Home() {
                 Close
               </button>
             </div>
-            <FlowMap />
+            <div className="flow-overlay-map">
+              <FlowMap />
+            </div>
           </div>
         </div>
       )}

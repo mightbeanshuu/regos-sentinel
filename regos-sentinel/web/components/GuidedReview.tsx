@@ -253,6 +253,32 @@ function CaseSummary({
  * Step 1 — Source
  * ------------------------------------------------------------------------- */
 
+/** The document fingerprint as its own card — the full value, and a copy chip. */
+function HashCard({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="hash-card">
+      <p className="micro">{label}</p>
+      <p className="hash-card-value mono" aria-label={`${label}: ${value}`}>{value}</p>
+      <button
+        type="button"
+        className="hash-copy hash-card-copy"
+        onClick={() => {
+          void navigator.clipboard?.writeText(value).then(
+            () => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1600);
+            },
+            () => setCopied(false),
+          );
+        }}
+      >
+        {copied ? "✓ Copied" : "⧉ Copy hash"}
+      </button>
+    </div>
+  );
+}
+
 function StepSource({
   state,
   receipt,
@@ -270,6 +296,7 @@ function StepSource({
       aside={receipt ? <StateLabel value={receipt.status} /> : <StateLabel value="READY" />}
     >
       <div className="stack">
+        <HashCard label="Source document hash" value={document.content_hash} />
         <dl className="datalist">
           <DataRow label="Document">{document.title}</DataRow>
           <DataRow label="Published">{formatDate(document.published_at)}</DataRow>

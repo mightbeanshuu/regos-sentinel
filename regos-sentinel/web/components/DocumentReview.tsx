@@ -186,20 +186,23 @@ export function DocumentReview({
           items={[
             { value: documents.length, label: "Documents in session" },
             {
-              value: documents.reduce((sum, item) => sum + item.passages.length, 0),
-              label: "Passages extracted",
-            },
-            {
               value: documents.reduce(
                 (sum, item) =>
                   sum + item.passages.filter((p) => p.classification === "NEEDS_REVIEW").length,
                 0,
               ),
-              label: "Waiting for review",
+              label: "Pending review",
+            },
+            {
+              value: documents.reduce(
+                (sum, item) => sum + item.passages.filter((p) => p.reviewed_by).length,
+                0,
+              ),
+              label: "Readings recorded",
             },
             {
               value: documents.reduce((sum, item) => sum + item.requirements.length, 0),
-              label: "Draft requirements",
+              label: "Approvals recorded",
             },
           ]}
         />
@@ -378,12 +381,21 @@ function DocumentDetail({
   onBusy: (value: boolean) => void;
 }) {
   const [filter, setFilter] = useState<PassageClass | "ALL">("ALL");
+  const [drawerId, setDrawerId] = useState<string | null>(null);
   const scope = document.scope;
   const approved = document.state === "APPROVED";
 
   const visible = document.passages.filter(
     (passage) => filter === "ALL" || passage.classification === filter,
   );
+
+  /* The drawer follows the table: an explicit pick wins; otherwise the first
+     passage still waiting on a person, then the first visible one. */
+  const drawerPassage =
+    visible.find((passage) => passage.id === drawerId)
+    ?? visible.find((passage) => passage.classification === "NEEDS_REVIEW")
+    ?? visible[0]
+    ?? null;
 
   const download = useCallback(
     async (operation: () => Promise<void>) => {
@@ -572,20 +584,75 @@ function DocumentDetail({
             <p className="lede">No passages match this filter.</p>
           </div>
         ) : (
-          <div>
-            {visible.map((passage) => (
-              <PassageRow
-                key={passage.id}
-                passage={passage}
-                busy={busy}
-                canApprove={passage.classification === "POSSIBLE_REQUIREMENT"}
-                alreadyApproved={document.requirements.some(
-                  (item) => item.passage_id === passage.id,
-                )}
-                onReview={(body) => onReviewPassage(passage.id, body)}
-                onApprove={(body) => onApproveRequirement({ ...body, passage_id: passage.id })}
-              />
-            ))}
+          <div className="docreview-layout">
+            <div className="table-scroll docreview-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Passage</th>
+                    <th scope="col">Text</th>
+                    <th scope="col">Reading</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((passage) => {
+                    const passageApproved = document.requirements.some(
+                      (item) => item.passage_id === passage.id,
+                    );
+                    const current = drawerPassage?.id === passage.id;
+                    return (
+                      <tr
+                        key={passage.id}
+                        className={`docreview-row${current ? " docreview-row--current" : ""}`}
+                        tabIndex={0}
+                        aria-selected={current}
+                        onClick={() => setDrawerId(passage.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setDrawerId(passage.id);
+                          }
+                        }}
+                      >
+                        <td className="mono meta">{passage.locator}</td>
+                        <td>
+                          <span className="clamp2 docreview-cell-text" title={passage.text}>
+                            {passage.text}
+                          </span>
+                        </td>
+                        <td><StateLabel value={passage.classification} /></td>
+                        <td className="docreview-cell-status">
+                          {passageApproved
+                            ? "Approved"
+                            : passage.reviewed_by
+                              ? `Reviewed by ${passage.reviewed_by}`
+                              : "Pending review"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {drawerPassage && (
+              <aside className="review-drawer" aria-label="Review drawer">
+                <p className="review-drawer-title">Review drawer</p>
+                <PassageRow
+                  key={drawerPassage.id}
+                  passage={drawerPassage}
+                  busy={busy}
+                  canApprove={drawerPassage.classification === "POSSIBLE_REQUIREMENT"}
+                  alreadyApproved={document.requirements.some(
+                    (item) => item.passage_id === drawerPassage.id,
+                  )}
+                  onReview={(body) => onReviewPassage(drawerPassage.id, body)}
+                  onApprove={(body) =>
+                    onApproveRequirement({ ...body, passage_id: drawerPassage.id })}
+                />
+              </aside>
+            )}
           </div>
         )}
       </Panel>
@@ -670,7 +737,7 @@ function PassageRow({
         {canApprove && !alreadyApproved && (
           <button
             type="button"
-            className="btn btn--secondary btn--small"
+            className="btn btn--primary btn--small"
             onClick={() => setMode(mode === "approve" ? "none" : "approve")}
           >
             {mode === "approve" ? "Cancel" : "Approve a requirement from this"}
