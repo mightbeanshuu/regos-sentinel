@@ -19,6 +19,10 @@ import type { CciReport } from "../lib/types";
 export function CciDial({ report }: { report: CciReport }) {
   const arcRef = useRef<SVGCircleElement | null>(null);
   const [shown, setShown] = useState(0);
+  // Where the last animation left off, so a score change moves from the value on
+  // screen to the new one. Replaying from zero would animate a change that never
+  // happened — the score did not fall to nothing and climb back.
+  const settledScore = useRef(0);
 
   const radius = 78;
   const circumference = 2 * Math.PI * radius;
@@ -27,29 +31,34 @@ export function CciDial({ report }: { report: CciReport }) {
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const target = circumference * sweep * (1 - report.score / 100);
-    const settled = circumference * (1 - sweep);
+    const offsetFor = (score: number) =>
+      circumference * sweep * (1 - score / 100) + circumference * (1 - sweep);
+    const from = settledScore.current;
+    settledScore.current = report.score;
 
     if (reduced) {
       setShown(report.score);
       if (arcRef.current) {
-        arcRef.current.style.strokeDashoffset = String(target + settled);
+        arcRef.current.style.strokeDashoffset = String(offsetFor(report.score));
       }
       return;
     }
 
-    const counter = { value: 0 };
+    const counter = { value: from };
     const stop = animate(counter, {
       value: report.score,
-      duration: 1100,
+      duration: from === 0 ? 1100 : 500,
       ease: "outExpo",
       onUpdate: () => setShown(Math.round(counter.value)),
     });
 
     if (arcRef.current) {
       animate(arcRef.current, {
-        strokeDashoffset: [circumference, target + settled],
-        duration: 1300,
+        strokeDashoffset: [
+          from === 0 ? circumference : offsetFor(from),
+          offsetFor(report.score),
+        ],
+        duration: from === 0 ? 1300 : 600,
         ease: "outExpo",
       });
     }

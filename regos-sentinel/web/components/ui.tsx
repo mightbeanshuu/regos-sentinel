@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useState, type ReactNode } from "react";
 
+import { useChangeKey, useTween } from "../lib/liveness";
 import { shortHash, stateOf, type Tone } from "../lib/presentation";
 
 /* ---------------------------------------------------------------------------
@@ -212,6 +213,28 @@ export function Field({
  * Counts — figures read from live state. Never a hardcoded total.
  * ------------------------------------------------------------------------- */
 
+/**
+ * One live figure. A number tweens from its previous value; any primitive value
+ * flashes briefly when it changes. Values that did not change stay perfectly still —
+ * motion here is evidence of a data delta, nothing else. Element values (labels,
+ * badges) render as-is: their change is already visible in their own terms.
+ */
+function CountValue({ value }: { value: ReactNode }) {
+  const isNumber = typeof value === "number";
+  const isPrimitive = isNumber || typeof value === "string";
+  const tweened = useTween(isNumber ? value : 0);
+  const changeKey = useChangeKey(isPrimitive ? value : null);
+
+  if (!isPrimitive) return <span className="count-value">{value}</span>;
+  return (
+    <span className="count-value">
+      <span className={changeKey > 0 ? "flash-change" : undefined} key={changeKey}>
+        {isNumber ? tweened : value}
+      </span>
+    </span>
+  );
+}
+
 export function Counts({
   items,
   glass = false,
@@ -224,7 +247,7 @@ export function Counts({
     <div className={glass ? "counts counts--glass" : "counts"}>
       {items.map((item) => (
         <div className="count" key={item.label}>
-          <span className="count-value">{item.value}</span>
+          <CountValue value={item.value} />
           <span className="count-label">{item.label}</span>
         </div>
       ))}

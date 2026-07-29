@@ -214,6 +214,12 @@ export function AgentConsole({
             </span>
           ))
         )}
+        {running !== null && (
+          <span className="console-line console-line--meta" aria-hidden="true">
+            <span className="console-time" />
+            <span className="console-caret" />
+          </span>
+        )}
       </div>
 
       <div className="console-bar" style={{ borderTop: "1px solid oklch(1 0 0 / 0.08)", borderBottom: "none" }}>
