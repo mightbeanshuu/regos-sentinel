@@ -169,17 +169,36 @@ export default function Home() {
         <div className="app-header-inner">
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="rg-shield" x1="4" y1="3" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#5B8FE0" />
+                    <stop offset="1" stopColor="#1D3F76" />
+                  </linearGradient>
+                  <linearGradient id="rg-sheen" x1="12" y1="2" x2="12" y2="12" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#fff" stopOpacity="0.55" />
+                    <stop offset="1" stopColor="#fff" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
                 <path
-                  d="M10 1.8 3.4 4.3v5.2c0 4 2.8 7.7 6.6 8.7 3.8-1 6.6-4.7 6.6-8.7V4.3L10 1.8Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinejoin="round"
+                  d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
+                  fill="url(#rg-shield)"
                 />
                 <path
-                  d="m7.2 9.9 2 2 3.6-3.8"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
+                  d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
+                  stroke="#fff"
+                  strokeOpacity="0.35"
+                  strokeWidth="0.8"
+                />
+                <path
+                  d="M12 3.4 5.3 5.9v5.1c0 .5 0 1 .1 1.5h13.2c.1-.5.1-1 .1-1.5V5.9L12 3.4Z"
+                  fill="url(#rg-sheen)"
+                  opacity="0.5"
+                />
+                <path
+                  d="m8.4 12.1 2.5 2.5 4.7-5"
+                  stroke="#fff"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />

@@ -72,15 +72,16 @@ export function ScenarioBrief({ scenario }: { scenario: ScenarioDefinition }) {
             &ldquo;{scenario.citation_quote}&rdquo;
           </p>
         </DataRow>
-        <DataRow label="Expected outcome">{scenario.expected_outcome}</DataRow>
+        <DataRow label="Expected outcome">
+          <span className="clamp2" title={scenario.expected_outcome}>
+            {scenario.expected_outcome}
+          </span>
+        </DataRow>
         <DataRow label="Seeded data">
-          <span className="meta">{scenario.seeded_data}</span>
+          <span className="meta clamp2" title={scenario.seeded_data}>{scenario.seeded_data}</span>
         </DataRow>
         <DataRow label="Standing proof">
-          <span className="meta">
-            A committed test replays this exact case on every build, and the build
-            fails if the behaviour ever drifts from what is promised above.
-          </span>
+          <span className="meta">A committed test replays this case on every build.</span>
           <p className="meta mono" style={{ marginTop: "4px" }}>{scenario.automated_test}</p>
         </DataRow>
         <DataRow label="Reset">

@@ -1547,10 +1547,10 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .b-hero      { grid-column: span 7; }
 .b-dial      { grid-column: span 5; }
 .b-kpis      { grid-column: span 12; }
-.b-score     { grid-column: span 7; }
+.b-score     { grid-column: span 12; }
 .b-clocks    { grid-column: span 5; }
 .b-deadlines { grid-column: span 7; }
-.b-evidence  { grid-column: span 5; }
+.b-evidence  { grid-column: span 12; }
 .b-ask       { grid-column: span 12; }
 .b-agents    { grid-column: span 12; }
 
@@ -1775,3 +1775,131 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   .cmd .cci { flex-direction: column; text-align: center; }
   .cmd .cci-read { align-items: center; text-align: center; }
 }
+
+/* ---------- Command centre v2: sub-nav, glass, feature card --------------- */
+
+/* Two-line clamp for long institutional prose; full text stays in title. */
+.clamp2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Section pills — the floating dark pill bar; active is the white pill. */
+.cmd-nav {
+  display: inline-flex;
+  gap: var(--s1);
+  padding: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  margin-bottom: var(--s4);
+}
+.cmd-nav-pill {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--ink-2);
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  transition: background var(--t-micro) var(--ease), color var(--t-micro) var(--ease);
+}
+.cmd-nav-pill:hover { background: var(--bg-2); }
+.cmd-nav-pill--on {
+  background: oklch(0.97 0.004 252);
+  color: oklch(0.20 0.025 250);
+}
+.cmd-nav-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cmd-nav-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--review);
+  color: oklch(0.16 0.02 250);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cmd-nav-pill--on .cmd-nav-count { background: var(--review); }
+
+/* The hero is the board's feature card — SEBI royal gradient, like the
+   reference's saturated bank card. White ink earns its contrast here. */
+.b-hero {
+  background:
+    radial-gradient(120% 140% at 90% -20%, oklch(0.62 0.13 255 / 0.55), transparent 55%),
+    linear-gradient(135deg, oklch(0.46 0.13 256), oklch(0.30 0.075 250));
+  border-color: oklch(1 0 0 / 0.16);
+}
+.b-hero--review, .b-hero--fail, .b-hero--ok, .b-hero--idle { box-shadow: none; }
+.b-hero--review .b-hero-figure { color: oklch(0.88 0.07 60); }
+.b-hero--fail .b-hero-figure { color: oklch(0.85 0.09 25); }
+.b-hero .gridfield { color: oklch(1 0 0 / 0.09); }
+.b-hero-more { color: var(--ink-3); font-size: 0.75rem; }
+.b-hero .btn--quiet {
+  background: oklch(1 0 0 / 0.12);
+  border-color: oklch(1 0 0 / 0.22);
+  backdrop-filter: blur(8px);
+}
+.b-hero .btn--quiet:hover:not(:disabled) { background: oklch(1 0 0 / 0.20); }
+
+/* Glass KPI tiles — translucent tint + blur + hairline + inner top light. */
+.b-kpi {
+  background: linear-gradient(172deg, oklch(1 0 0 / 0.075), oklch(1 0 0 / 0.025));
+  backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid oklch(1 0 0 / 0.10);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+/* Hatched progress bars, reference-style: solid fill for the earned part,
+   diagonal hatch texture running through it. */
+.cmd .cci-bar-fill {
+  background-image: repeating-linear-gradient(
+    -55deg,
+    oklch(1 0 0 / 0.22) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+/* Needs-you card — the board's sienna attention card. */
+.b-needs { grid-column: span 12; }
+.b-needs-list { display: flex; flex-direction: column; gap: var(--s2); }
+.b-needs-list li {
+  font-size: 0.875rem;
+  padding: var(--s3) var(--s4);
+  background: var(--review-wash);
+  border: 1px solid var(--review-line);
+  border-radius: 12px;
+}
+
+/* Live strip v2 — even, visible, one glass row. */
+.cmd .live-glass {
+  background: linear-gradient(172deg, oklch(1 0 0 / 0.07), oklch(1 0 0 / 0.02));
+  backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid oklch(1 0 0 / 0.11);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.10);
+  border-radius: 16px;
+  padding: var(--s3) var(--s4);
+}
+.cmd .live-strip { font-size: 0.875rem; align-items: center; row-gap: var(--s1); }
+.cmd .live-strip-state { font-weight: 640; }
+.cmd .live-strip--live .live-strip-state { color: var(--ok); }
+.cmd .live-strip-hash { color: var(--ink); font-weight: 600; }
+.cmd .live-strip-mode { font-size: 0.75rem; color: var(--ink-3); }
+.cmd .live-ledger summary { font-size: 0.75rem; }
+
+/* Brand mark now carries its own gradient artwork — the chip goes quiet. */
+.brand-mark { background: transparent; border: 0; box-shadow: none; }

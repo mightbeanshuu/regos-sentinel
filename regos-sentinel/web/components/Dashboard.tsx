@@ -75,6 +75,7 @@ export function Dashboard({
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   const [planner] = useState<PlannerKind>("DETERMINISTIC_PLAN");
+  const [view, setView] = useState<"overview" | "work" | "ask" | "agents">("overview");
 
   const loadCci = useCallback(() => {
     void regosApi.cci().then(setCci).catch(() => setCci(null));
@@ -127,6 +128,29 @@ export function Dashboard({
         </div>
       </header>
 
+      <nav className="cmd-nav" aria-label="Command centre sections">
+        {([
+          ["overview", "Overview"],
+          ["work", "Work queue"],
+          ["ask", "Ask"],
+          ["agents", "Agents"],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`cmd-nav-pill${view === id ? " cmd-nav-pill--on" : ""}`}
+            aria-pressed={view === id}
+            onClick={() => setView(id)}
+          >
+            {label}
+            {id === "work" && waiting.length > 0 && (
+              <span className="cmd-nav-count">{waiting.length}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {view === "overview" && (
       <div className="bento">
         {/* ---- Status hero -------------------------------------------- */}
         <section className={`b-card b-hero b-hero--${heroTone}`}>
@@ -180,9 +204,12 @@ export function Dashboard({
             )}
             {waiting.length > 0 && (
               <ul className="b-hero-list">
-                {waiting.map((item) => (
+                {waiting.slice(0, 3).map((item) => (
                   <li key={item.id}>{checkLabel(item.id, item.name)}</li>
                 ))}
+                {waiting.length > 3 && (
+                  <li className="b-hero-more">+ {waiting.length - 3} more under Work queue</li>
+                )}
               </ul>
             )}
           </div>
@@ -263,6 +290,29 @@ export function Dashboard({
               </ul>
               <p className="meta">{cci.limitation}</p>
             </Disclosure>
+          </section>
+        )}
+      </div>
+      )}
+
+      {view === "work" && (
+      <div className="bento">
+        {/* ---- What needs you ------------------------------------------ */}
+        {waiting.length > 0 && (
+          <section className="b-card b-needs">
+            <p className="b-label"><IconDecision /> Needs you</p>
+            <ul className="b-needs-list">
+              {waiting.map((item) => (
+                <li key={item.id}>
+                  <span className="strong-ink">{checkLabel(item.id, item.name)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="btn-row">
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
+                Make the decision
+              </button>
+            </div>
           </section>
         )}
 
@@ -361,13 +411,19 @@ export function Dashboard({
             </p>
           )}
         </section>
+      </div>
+      )}
 
-        {/* ---- Ask ---------------------------------------------------- */}
+      {view === "ask" && (
+      <div className="bento">
         <section className="b-card b-ask">
           <AskPanel />
         </section>
+      </div>
+      )}
 
-        {/* ---- Agents ------------------------------------------------- */}
+      {view === "agents" && (
+      <div className="bento">
         <section className="b-card b-agents">
           <p className="b-label"><IconAgents /> AI agents — read-only</p>
           <div className="agent-strip">
@@ -388,6 +444,7 @@ export function Dashboard({
           <AgentConsole agents={ALL_AGENTS} planner={planner} busy={busy} onFinished={onRefresh} />
         </section>
       </div>
+      )}
 
       {build && (
         <p className="cmd-foot">
