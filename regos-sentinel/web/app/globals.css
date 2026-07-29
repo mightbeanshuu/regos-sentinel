@@ -67,6 +67,45 @@
   --z-overlay: 300;
   --z-modal: 400;
   --z-toast: 500;
+
+  /* Glass ------------------------------------------------------------------
+     Disciplined institutional glass. Exactly two elevations:
+       1 — ambient panel: rests directly on a tinted field.
+       2 — raised instrument: floats above an ambient field or wash.
+     Fills are near-opaque so body text on glass holds WCAG AA on its own;
+     the *-opaque values are the fallbacks where backdrop-filter is missing.
+     Amber and red semantic surfaces never take glass — urgency stays opaque. */
+  --glass-blur-1: 16px;
+  --glass-blur-2: 20px;
+  --glass-saturate: 140%;
+
+  --glass-fill-1: linear-gradient(172deg, oklch(1 0 0 / 0.80), oklch(0.985 0.005 258 / 0.62));
+  --glass-fill-2: linear-gradient(170deg, oklch(1 0 0 / 0.88), oklch(0.98 0.005 258 / 0.68));
+  --glass-fill-1-opaque: oklch(0.99 0.003 258);
+  --glass-fill-2-opaque: oklch(1 0 0);
+
+  --glass-border-1: oklch(0.35 0.030 258 / 0.14); /* dark hairline on light fields */
+  --glass-border-2: oklch(1 0 0 / 0.62);          /* white edge against a tinted wash */
+  --glass-highlight: inset 0 1px 0 oklch(1 0 0 / 0.80);
+
+  --glass-shadow-1: 0 1px 2px oklch(0.22 0.030 258 / 0.05),
+                    0 10px 28px -22px oklch(0.22 0.030 258 / 0.40);
+  --glass-shadow-2: 0 2px 10px oklch(0.22 0.030 258 / 0.07),
+                    0 16px 34px -26px oklch(0.22 0.030 258 / 0.45);
+
+  --glass-radius-1: 14px; /* ambient panel — parent */
+  --glass-radius-2: 10px; /* raised instrument — child, always smaller than its parent */
+
+  /* The fields glass refracts. Page-level is a whisper at the top corners;
+     strip-level is the stronger wash a raised card needs directly behind it.
+     Accent-wash family only — never behind operational text on its own. */
+  --glass-field-page:
+    radial-gradient(110% 60% at 12% -8%, oklch(0.94 0.024 267 / 0.45), transparent 55%),
+    radial-gradient(80% 50% at 96% -4%, oklch(0.95 0.018 179 / 0.30), transparent 60%);
+  --glass-field-wash:
+    radial-gradient(58% 130% at 10% 0%, oklch(0.86 0.085 267 / 0.50), transparent 62%),
+    radial-gradient(52% 130% at 92% 100%, oklch(0.88 0.070 179 / 0.42), transparent 64%),
+    linear-gradient(180deg, oklch(0.96 0.010 258), oklch(0.98 0.004 258));
 }
 
 /* ---------- Reset & base -------------------------------------------------- */
@@ -88,6 +127,19 @@ body {
   background: var(--bg);
   color: var(--ink);
   overflow-x: hidden;
+}
+
+/* The ambient field. Glass over flat white reads as plain boxes, so the page
+   carries a near-imperceptible accent-family tint at its top corners for the
+   glass surfaces to refract. It sits behind every opaque panel and is never
+   the direct background of operational text. Fixed, static, no repaint cost. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--glass-field-page);
 }
 
 h1, h2, h3, h4, p, ul, ol, dl, figure, blockquote { margin: 0; }
@@ -820,12 +872,12 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 /* ==========================================================================
    Live console — watching an agent work
    --------------------------------------------------------------------------
-   The one surface in this product that is deliberately dark and glassy. It is
-   a terminal, and it reads as one: a translucent slab lifted off the page, so
-   it is legible as a live instrument rather than another document panel. The
-   glass is confined here and to the figures above it. Applying it to the
-   compliance surfaces would cost contrast on exactly the text a regulator has
-   to read, which is a trade this product should never make.
+   The one dark surface in the product. It is a terminal, and it reads as one:
+   a translucent slab lifted off the page, legible as a live instrument rather
+   than another document panel. Glass in this product is confined to the
+   two-elevation system defined in :root — live instruments and headline
+   figures — and never to dense tables, source quotations, or forms, where it
+   would cost contrast on exactly the text a regulator has to read.
    ========================================================================== */
 
 .console {
@@ -846,7 +898,7 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 }
 
 @supports (backdrop-filter: blur(1px)) {
-  .console { backdrop-filter: blur(20px) saturate(150%); }
+  .console { backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturate)); }
 }
 
 .console-bar {
@@ -922,33 +974,31 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 
 /* The headline figures pick up a lighter version of the same glass.
    Glass only reads as glass if there is something behind it to refract, so the
-   strip carries its own tinted wash and the cards float on that. Without the
-   wash the same rules render as plain white boxes. */
+   strip carries its own tinted wash (elevation 1 field) and the cards float on
+   it as raised instruments (elevation 2). Without backdrop-filter the cards
+   fall back to an opaque fill that keeps every figure at full contrast. */
 .counts--glass {
   gap: var(--s2);
   padding: var(--s3);
-  border: 0;
-  border-radius: calc(var(--radius-lg) + 4px);
-  background:
-    radial-gradient(58% 130% at 10% 0%, oklch(0.86 0.085 267 / 0.50), transparent 62%),
-    radial-gradient(52% 130% at 92% 100%, oklch(0.88 0.070 179 / 0.42), transparent 64%),
-    linear-gradient(180deg, oklch(0.96 0.010 258), oklch(0.98 0.004 258));
+  border: 1px solid var(--glass-border-1);
+  border-radius: var(--glass-radius-1);
+  background: var(--glass-field-wash);
+  box-shadow: var(--glass-shadow-1);
   overflow: visible;
 }
 
 .counts--glass .count {
-  border-radius: var(--radius-lg);
-  border: 1px solid oklch(1 0 0 / 0.55);
-  background: linear-gradient(
-    170deg,
-    oklch(1 0 0 / 0.85),
-    oklch(0.98 0.004 258 / 0.60)
-  );
-  box-shadow: var(--shadow-2), inset 0 1px 0 oklch(1 0 0 / 0.8);
+  border-radius: var(--glass-radius-2);
+  border: 1px solid var(--glass-border-2);
+  background: var(--glass-fill-2-opaque);
+  box-shadow: var(--glass-shadow-2), var(--glass-highlight);
   padding: var(--s4);
 }
 @supports (backdrop-filter: blur(1px)) {
-  .counts--glass .count { backdrop-filter: blur(12px) saturate(130%); }
+  .counts--glass .count {
+    background: var(--glass-fill-2);
+    backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturate));
+  }
 }
 
 /* On the dashboard the five figures are focal objects; give the numerals
@@ -1083,6 +1133,27 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 /* ---------- Cyber Capability Index --------------------------------------- */
 
 .cci { display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
+
+/* The dial housing is a raised instrument. It sits inside an opaque panel, so
+   it composites its own restrained wash beneath the glass layer — the field
+   travels with the surface. Fallback is a plain opaque card: correct paper. */
+.cci--glass {
+  padding: var(--s5) var(--s4);
+  border: 1px solid var(--glass-border-1);
+  border-radius: var(--glass-radius-2); /* child of a radius-lg panel — nests under it */
+  background: var(--glass-fill-2-opaque);
+  box-shadow: var(--glass-shadow-2), var(--glass-highlight);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .cci--glass {
+    background-color: var(--surface);
+    background-image:
+      var(--glass-fill-2),
+      radial-gradient(120% 100% at 15% 0%, oklch(0.90 0.045 267 / 0.55), transparent 60%),
+      radial-gradient(110% 90% at 90% 100%, oklch(0.92 0.035 179 / 0.40), transparent 62%);
+    backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturate));
+  }
+}
 .cci-dial { position: relative; width: 100%; max-width: 240px; }
 .cci-dial svg { width: 100%; height: auto; transform: rotate(135deg); }
 
@@ -1271,6 +1342,23 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .reg-map-hint { margin: 0; }
 
 /* ---- The live strip: the dashboard's connection, shown not implied ---- */
+
+/* The pulse and its ledger are the page's live instrument, so they take the
+   ambient elevation: one quiet slab on the page field. The fill is near-opaque
+   — every line inside holds AA on its own, blur or no blur. */
+.live-glass {
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--glass-border-1);
+  border-radius: var(--glass-radius-1);
+  background: var(--glass-fill-1-opaque);
+  box-shadow: var(--glass-shadow-1), var(--glass-highlight);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .live-glass {
+    background: var(--glass-fill-1);
+    backdrop-filter: blur(var(--glass-blur-1)) saturate(var(--glass-saturate));
+  }
+}
 
 .live-strip {
   display: flex;

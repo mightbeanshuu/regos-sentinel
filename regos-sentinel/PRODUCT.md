@@ -77,7 +77,10 @@ Explicitly not:
 
 - Generic AI SaaS landing pages; hero-metric templates; animated counters.
 - Neon or cyberpunk dashboards; glowing surfaces; decorative gradients behind operational data.
-- Excessive glassmorphism.
+- Excessive glassmorphism. Glass is permitted only as the disciplined institutional system
+  defined in the stylesheet: exactly two elevations (ambient panel, raised instrument) over
+  restrained accent-family washes, with near-opaque fills that keep body text at AA — never
+  on dense tables, source quotations, forms, or amber/red states.
 - Large all-caps status chips; every item rendered as a pill; repeated badges.
 - Decorative compliance scores or a single headline "compliance score".
 - Terminal-style jargon or raw backend enum names in the primary workflow.

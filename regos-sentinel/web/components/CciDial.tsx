@@ -69,7 +69,7 @@ export function CciDial({ report }: { report: CciReport }) {
     report.score >= 81 ? "ok" : report.score >= 61 ? "review" : "fail";
 
   return (
-    <div className="cci">
+    <div className="cci cci--glass">
       <div className="cci-dial">
         <svg viewBox="0 0 200 200" role="img" aria-label={`Score ${report.score} of 100`}>
           <circle
