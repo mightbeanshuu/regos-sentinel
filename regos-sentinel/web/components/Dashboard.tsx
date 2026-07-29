@@ -21,6 +21,7 @@ import { Disclosure, StateLabel } from "./ui";
 import {
   GridField,
   IconAgents,
+  IconAsk,
   IconCalendar,
   IconClauses,
   IconClock,
@@ -476,7 +477,25 @@ export function Dashboard({
       {view === "ask" && (
       <div className="bento">
         <section className="b-card b-ask">
+          <p className="b-label"><IconAsk /> RegOS Intelligence</p>
           <AskPanel />
+        </section>
+        <section className="b-card b-context">
+          <p className="b-label"><IconAgents /> Live context</p>
+          <LiveStrip onChange={() => { loadCci(); onRefresh(); }} />
+          <div className="b-context-agents">
+            {ALL_AGENTS.map((id) => {
+              const run = runsById.get(id);
+              return (
+                <div className="b-context-agent" key={id}>
+                  <span>{AGENT_PLAIN[id].name}</span>
+                  <span className="meta">
+                    {run ? `${run.findings.length} findings · ${run.tool_call_count} steps` : "Not run yet"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </section>
       </div>
       )}

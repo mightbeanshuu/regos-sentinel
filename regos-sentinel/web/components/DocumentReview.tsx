@@ -180,6 +180,31 @@ export function DocumentReview({
         </p>
       </section>
 
+      {documents.length > 0 && (
+        <Counts
+          glass
+          items={[
+            { value: documents.length, label: "Documents in session" },
+            {
+              value: documents.reduce((sum, item) => sum + item.passages.length, 0),
+              label: "Passages extracted",
+            },
+            {
+              value: documents.reduce(
+                (sum, item) =>
+                  sum + item.passages.filter((p) => p.classification === "NEEDS_REVIEW").length,
+                0,
+              ),
+              label: "Waiting for review",
+            },
+            {
+              value: documents.reduce((sum, item) => sum + item.requirements.length, 0),
+              label: "Draft requirements",
+            },
+          ]}
+        />
+      )}
+
       <Callout tone="review">
         <p>
           Session-only. Fixed-rule classification, no model call, no legal interpretation.

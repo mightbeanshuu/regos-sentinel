@@ -6,6 +6,7 @@ import { Agents } from "../components/Agents";
 import { AuditTrail } from "../components/AuditTrail";
 import { Dashboard } from "../components/Dashboard";
 import { DocumentReview } from "../components/DocumentReview";
+import { FlowMap } from "../components/FlowMap";
 import { GuidedReview } from "../components/GuidedReview";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import { regosApi } from "../lib/api";
@@ -46,6 +47,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
+  const [showFlow, setShowFlow] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const load = useCallback(async () => {
@@ -234,6 +236,13 @@ export default function Home() {
             <button
               type="button"
               className="btn btn--quiet btn--small"
+              onClick={() => setShowFlow(true)}
+            >
+              How it works
+            </button>
+            <button
+              type="button"
+              className="btn btn--quiet btn--small"
               disabled={busy || sourceBusy}
               onClick={() => void restart()}
             >
@@ -378,6 +387,30 @@ export default function Home() {
           {tab === "audit" && <AuditTrail state={state} />}
         </div>
       </main>
+
+      {showFlow && (
+        <div
+          className="flow-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="How RegOS Sentinel works"
+          onClick={() => setShowFlow(false)}
+        >
+          <div className="flow-overlay-card" onClick={(event) => event.stopPropagation()}>
+            <div className="flow-overlay-head">
+              <h2 className="section-title">How it works</h2>
+              <button
+                type="button"
+                className="btn btn--quiet btn--small"
+                onClick={() => setShowFlow(false)}
+              >
+                Close
+              </button>
+            </div>
+            <FlowMap />
+          </div>
+        </div>
+      )}
 
       <footer className="app-footer">
         <div className="app-footer-inner">

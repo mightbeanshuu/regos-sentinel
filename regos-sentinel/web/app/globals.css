@@ -2104,3 +2104,55 @@ body {
 
 .b-actions-col { display: flex; flex-direction: column; gap: var(--s2); }
 .b-actions-col .btn { width: 100%; justify-content: center; }
+
+/* ---------- Ask view: chat left, live context right ------------------------ */
+
+.b-ask     { grid-column: span 8; }
+.b-context { grid-column: span 4; }
+@media (max-width: 1080px) { .b-ask, .b-context { grid-column: span 12; } }
+
+.cmd .b-context .live-glass { background: none; border: 0; box-shadow: none; padding: 0; backdrop-filter: none; }
+.b-context-agents { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.b-context-agent {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+.b-context-agent:last-child { border-bottom: 0; }
+
+/* ---------- How-it-works overlay ------------------------------------------ */
+
+.flow-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: oklch(0.18 0.02 250 / 0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5);
+}
+.flow-overlay-card {
+  width: min(1020px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px -40px oklch(0.15 0.04 250 / 0.6);
+  padding: var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  max-height: 90vh;
+  overflow: auto;
+}
+.flow-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
