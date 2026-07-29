@@ -1182,3 +1182,40 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   background: var(--bg-2);
 }
 .reg-map-hint { margin: 0; }
+
+/* ---- The live strip: the dashboard's connection, shown not implied ---- */
+
+.live-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+.live-dot {
+  align-self: center;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.live-dot--live {
+  background: var(--ok);
+  animation: live-dot-pulse 2.4s ease-in-out infinite;
+}
+.live-dot--connecting { background: var(--review); }
+.live-dot--polling { background: var(--review); }
+.live-strip-state { font-weight: 640; color: var(--ink-2); }
+.live-strip--live .live-strip-state { color: var(--ok); }
+.live-strip-meta { font-variant-numeric: tabular-nums; }
+.live-strip-mode { flex-basis: 100%; }
+
+@keyframes live-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--ok) 35%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in oklch, var(--ok) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot--live { animation: none; }
+}

@@ -442,8 +442,9 @@ def workspace_tools(state: WorkspaceState) -> Dict[str, Any]:
             "has_dormant_license": profile.has_dormant_license,
             "synthetic": profile.synthetic,
             "summary": (
-                f"{profile.entity_type} · is_qsb={str(profile.is_qsb).lower()} · "
-                f"{len(profile.registrations)} registration(s) · synthetic"
+                f"{str(profile.entity_type).replace('_', ' ').lower()} · "
+                f"{'a QSB' if profile.is_qsb else 'not a QSB'} · "
+                f"{len(profile.registrations)} registration(s) · synthetic profile"
             ),
         }
 

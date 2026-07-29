@@ -15,6 +15,7 @@ import { AgentConsole } from "./AgentConsole";
 import { AskPanel } from "./AskPanel";
 import { CciDial } from "./CciDial";
 import { IncidentReportingClock } from "./IncidentReportingClock";
+import { LiveStrip } from "./LiveStrip";
 import { Callout, Counts, Disclosure, Panel, StateLabel } from "./ui";
 
 /**
@@ -96,6 +97,15 @@ export function Dashboard({
     return () => window.clearInterval(timer);
   }, [loadCci, onRefresh]);
 
+  // Coming back to the tab is the moment staleness would show; refetch right then.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") { loadCci(); onRefresh(); }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [loadCci, onRefresh]);
+
   const build = state.builds.at(-1);
   const waiting = build?.tests.filter((item) => item.status === "BLOCK") ?? [];
   const failed = build?.tests.filter((item) => item.status === "FAIL") ?? [];
@@ -114,6 +124,7 @@ export function Dashboard({
           {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
           {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
         </p>
+        <LiveStrip onChange={() => { loadCci(); onRefresh(); }} />
       </section>
 
       {/* ---- What this thing is doing, in three sentences ---------------- */}

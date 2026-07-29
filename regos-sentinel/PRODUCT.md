@@ -42,6 +42,23 @@ Its entire defensibility rests on one sentence, which every change must make mor
 Success is not "the build passed." Success is that an evaluator can say what the product read,
 what it decided, what it refused to decide, who resolved the gap, and what changed afterwards.
 
+## Product surfaces (current)
+
+- **Dashboard — the compliance control centre.** Five plain numbers, one next action, the
+  live Cyber Capability Index (8 of 23 parameters evidenced, the rest abstained), incident
+  reporting clocks that only count when a date can honestly exist, and a live pulse: the API
+  streams a fingerprint of the workspace and the page refetches the moment it moves.
+- **Review a requirement.** The five-step guided review (Source → Compare → Human decision →
+  Operational impact → Export), with demonstration cases A–D selectable above it — each with
+  its expected outcome written down before it runs and a committed test that replays it.
+- **Your own document.** A session-private uploaded-PDF lane: validate, fingerprint, extract,
+  classify deterministically, reclassify and approve by a named person. No OCR, no model call.
+- **AI agents.** Four read-only assistants — reference finder, deadline reader, change
+  watcher, challenger — each run a hash-chained trace, watchable live. Agents read,
+  deterministic rules decide, a person judges. No agent holds a tool that writes.
+- **Full record.** The audit trail: every check, quotation, manifest, corpus gate, the
+  AI-assurance field split, and measured metrics with their rerun commands.
+
 ## Brand Personality
 
 **Institutional. Calm. Traceable.**

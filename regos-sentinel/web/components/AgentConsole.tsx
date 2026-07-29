@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiOrigin } from "../lib/api";
+import { glossFor } from "../lib/presentation";
 import type { AgentId, PlannerKind } from "../lib/types";
 
 /**
@@ -56,23 +57,6 @@ const TOOL_PLAIN: Record<string, string> = {
   compare_registered_sources: "compare the reviewed document against the newer one",
   compare_span_sets: "compare two sets of passages",
 };
-
-const VERDICT_PLAIN: Record<string, string> = {
-  PERIOD_AND_TRIGGER_STATED: "a date can be worked out — SEBI gives both the period and its start",
-  PERIOD_WITHOUT_TRIGGER: "no date possible — SEBI gives the period but never says what starts it",
-  URGENCY_WITHOUT_PERIOD: "no date possible — urgent-sounding words, no measurable period",
-  NO_TIMING_LANGUAGE: "no timing in this passage at all",
-  READ_IN_CONJUNCTION_WITH: "the newer document adds to the old one rather than replacing it",
-  SUPERSEDES: "the newer document replaces the old one",
-};
-
-/** Add a plain gloss for any machine vocabulary present in a console line. */
-function glossFor(text: string): string | null {
-  for (const [term, plain] of Object.entries(VERDICT_PLAIN)) {
-    if (text.includes(term)) return plain;
-  }
-  return null;
-}
 
 function clockOf(): string {
   return new Date().toLocaleTimeString("en-GB", { hour12: false });

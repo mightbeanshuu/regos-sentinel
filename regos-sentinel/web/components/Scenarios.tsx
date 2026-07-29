@@ -77,8 +77,12 @@ export function ScenarioBrief({ scenario }: { scenario: ScenarioDefinition }) {
         <DataRow label="Seeded data">
           <span className="meta">{scenario.seeded_data}</span>
         </DataRow>
-        <DataRow label="Automated test">
-          <span className="mono meta">{scenario.automated_test}</span>
+        <DataRow label="Standing proof">
+          <span className="meta">
+            A committed test replays this exact case on every build, and the build
+            fails if the behaviour ever drifts from what is promised above.
+          </span>
+          <p className="meta mono" style={{ marginTop: "4px" }}>{scenario.automated_test}</p>
         </DataRow>
         <DataRow label="Reset">
           <span className="meta">{scenario.reset_note}</span>

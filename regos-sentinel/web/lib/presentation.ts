@@ -287,6 +287,41 @@ export function termOf(value: string): string {
   return TERMS[value] ?? value;
 }
 
+/** The four assistants, named for the person reading — never their enum ids. */
+const AGENT_NAMES: Record<string, string> = {
+  REFERENCE_RESOLVER: "Reference finder",
+  EXTRACTOR: "Deadline reader",
+  SOURCE_SCOUT: "Change watcher",
+  ADVERSARY: "Challenger",
+};
+
+export function agentNameOf(value: string): string {
+  return AGENT_NAMES[value] ?? value;
+}
+
+/**
+ * Machine verdicts that may legitimately appear inside recorded agent text — the
+ * trace shows the machine's own vocabulary — glossed in plain words beneath.
+ * A verdict like `PERIOD_WITHOUT_TRIGGER` is the most important thing this product
+ * ever says, and shouting it in an enum wastes it.
+ */
+const VERDICT_PLAIN: Record<string, string> = {
+  PERIOD_AND_TRIGGER_STATED: "a date can be worked out — SEBI gives both the period and its start",
+  PERIOD_WITHOUT_TRIGGER: "no date possible — SEBI gives the period but never says what starts it",
+  URGENCY_WITHOUT_PERIOD: "no date possible — urgent-sounding words, no measurable period",
+  NO_TIMING_LANGUAGE: "no timing in this passage at all",
+  READ_IN_CONJUNCTION_WITH: "the newer document adds to the old one rather than replacing it",
+  SUPERSEDES: "the newer document replaces the old one",
+};
+
+/** A plain gloss for any machine verdict present in a recorded line, or null. */
+export function glossFor(text: string): string | null {
+  for (const [term, plain] of Object.entries(VERDICT_PLAIN)) {
+    if (text.includes(term)) return plain;
+  }
+  return null;
+}
+
 /** Visually shorten a hash while keeping the full value available for copy. */
 export function shortHash(value: string, lead = 10, tail = 6): string {
   if (value.length <= lead + tail + 1) return value;

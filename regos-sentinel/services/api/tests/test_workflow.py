@@ -535,3 +535,51 @@ def test_same_workflow_produces_identical_manifest_hashes(tmp_path: Path) -> Non
         first["latest_manifest"]["reproducibility"]["replay_input_sha256"]
         == (second["latest_manifest"]["reproducibility"]["replay_input_sha256"])
     )
+
+
+def test_live_pulse_streams_a_fingerprint_and_the_numbers_a_wall_screen_needs(
+    tmp_path: Path,
+) -> None:
+    """The pulse is recomputed from live state — nothing stored, nothing to drift."""
+    client = client_for(tmp_path)
+
+    with client.stream("GET", "/api/v1/live", params={"pulses": 1}) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        body = "".join(response.iter_text())
+
+    assert "event: open" in body
+    assert "event: pulse" in body
+    assert "event: done" in body
+
+    pulse_line = next(
+        line for line in body.splitlines() if line.startswith("data: {\"digest\"")
+    )
+    pulse = json.loads(pulse_line.removeprefix("data: "))
+    assert len(pulse["digest"]) == 16
+    assert pulse["checks_total"] == 0, "no build has run in a fresh session"
+    assert pulse["cci_band"], "the pulse carries the live CCI band, not a stored one"
+
+
+def test_live_pulse_fingerprint_moves_when_the_workspace_moves(tmp_path: Path) -> None:
+    """A client that sees the digest change refetches; one that does not knows the
+    page it is showing is still true. That only works if the digest actually moves."""
+    client = client_for(tmp_path)
+
+    def one_pulse() -> dict:
+        with client.stream("GET", "/api/v1/live", params={"pulses": 1}) as response:
+            body = "".join(response.iter_text())
+        line = next(
+            item for item in body.splitlines() if item.startswith("data: {\"digest\"")
+        )
+        return json.loads(line.removeprefix("data: "))
+
+    before = one_pulse()
+    client.post("/api/v1/builds/run")
+    after = one_pulse()
+
+    assert before["digest"] != after["digest"]
+    assert after["checks_total"] > 0
+    assert after["decisions_waiting"] > 0, (
+        "the hero path blocks awaiting a human, and the pulse must say so"
+    )

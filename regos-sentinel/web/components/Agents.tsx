@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { regosApi } from "../lib/api";
 import { AgentConsole } from "./AgentConsole";
-import { formatTimestamp } from "../lib/presentation";
+import { agentNameOf, formatTimestamp, glossFor } from "../lib/presentation";
 import type {
   AgentCatalogueEntry,
   AgentChallenges,
@@ -150,7 +150,7 @@ export function Agents({
             </DataRow>
             <DataRow label="Recorded runs available">
               {planner.recorded_available.length > 0
-                ? planner.recorded_available.join(", ")
+                ? planner.recorded_available.map(agentNameOf).join(", ")
                 : "None recorded yet."}
             </DataRow>
           </dl>
@@ -304,6 +304,9 @@ function RunDetail({ run }: { run: AgentRun }) {
               </p>
               <div className="outcome-body">
                 <p><strong className="strong-ink">{finding.summary}</strong></p>
+                {glossFor(finding.summary) && (
+                  <p className="meta">→ {glossFor(finding.summary)}</p>
+                )}
                 <p>{finding.detail}</p>
                 <p className="outcome-why">
                   <strong>Gate:</strong> {finding.gate_reason}
@@ -349,7 +352,12 @@ function RunDetail({ run }: { run: AgentRun }) {
                     </span>
                     {step.rationale && <p className="meta">{step.rationale}</p>}
                   </td>
-                  <td>{step.tool_output_summary}</td>
+                  <td>
+                    {step.tool_output_summary}
+                    {glossFor(step.tool_output_summary) && (
+                      <p className="meta">→ {glossFor(step.tool_output_summary)}</p>
+                    )}
+                  </td>
                   <td><StateLabel value={step.status} showHint /></td>
                   <td><Hash value={step.step_sha256} label="step fingerprint" /></td>
                 </tr>

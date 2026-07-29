@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import queue
 import threading
+import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -175,6 +178,62 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
     @application.get("/api/v1/workspace", response_model=WorkspaceState)
     def workspace(request: Request) -> WorkspaceState:
         return store_for(request).load()
+
+    @application.get("/api/v1/live")
+    def live_pulse(
+        request: Request,
+        pulses: int = 20,
+        interval_seconds: float = 5.0,
+    ) -> StreamingResponse:
+        """The control centre's pulse: a bounded server-sent stream of what is true now.
+
+        Every few seconds the stream recomputes a fingerprint of the workspace and the
+        handful of numbers a screen left open on a wall needs. Nothing is stored
+        between pulses, so the stream cannot drift from the workspace any more than a
+        fresh page load can. A client that sees the fingerprint change refetches; a
+        client that sees it hold still knows the page it is showing is still true.
+
+        The stream ends itself after a bounded number of pulses and the browser's
+        EventSource reconnects, so an abandoned tab can never hold a connection open
+        forever — that bound is what makes this safe to run on a small host.
+        """
+        enforce_rate_limit(request, "live-pulse", limit=12)
+        store = store_for(request)
+        count = max(1, min(pulses, 60))
+        wait = min(max(interval_seconds, 2.0), 30.0)
+
+        def snapshot() -> dict:
+            state = store.load()
+            build = state.builds[-1] if state.builds else None
+            tests = build.tests if build else []
+            cci = compute_cci(state)
+            return {
+                "digest": hashlib.sha256(
+                    state.model_dump_json().encode("utf-8")
+                ).hexdigest()[:16],
+                "at": datetime.now(timezone.utc).isoformat(),
+                "decisions_waiting": sum(1 for item in tests if item.status.value == "BLOCK"),
+                "checks_passed": sum(1 for item in tests if item.status.value == "PASS"),
+                "checks_total": len(tests),
+                "agent_runs": len(state.agent_runs),
+                "cci_score": cci.score,
+                "cci_band": cci.band,
+            }
+
+        def emit():
+            opening = {"planner": planner_status(), "interval_seconds": wait, "pulses": count}
+            yield f"retry: 4000\nevent: open\ndata: {json.dumps(opening)}\n\n"
+            for index in range(count):
+                yield f"event: pulse\ndata: {json.dumps(snapshot())}\n\n"
+                if index + 1 < count:
+                    time.sleep(wait)
+            yield f"event: done\ndata: {json.dumps({'reason': 'bounded stream complete'})}\n\n"
+
+        return StreamingResponse(
+            emit(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @application.post(
         "/api/v1/sources/verify-live",

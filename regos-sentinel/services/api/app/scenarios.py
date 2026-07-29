@@ -111,8 +111,8 @@ SCENARIOS: List[ScenarioDefinition] = [
             "the QSB fact changes exactly one decision, and it is recomputed rather than edited."
         ),
         seeded_data=(
-            "Aster Securities: entity_type=STOCK_BROKER, is_qsb=false, one SEBI registration, "
-            "no dormant licence."
+            "Aster Securities: a stock broker that is not a qualified stockbroker, holding "
+            "one SEBI registration and no dormant licence."
         ),
         automated_test="tests/test_scenarios.py::test_case_c_receipts_an_exclusion",
         reset_note="Restart demo returns the entity facts to the seeded profile.",

@@ -180,6 +180,17 @@ def diff_provisions(
     additive = relationship == RELATIONSHIP
     changes: List[SourceChange] = []
 
+    # The timing verdict in a person-facing sentence, never as its enum. The enum
+    # stays in the analysis record; a reviewer reads what it means, not its name.
+    timing_plain = {
+        "PERIOD_AND_TRIGGER_STATED": "a date can be worked out from the wording",
+        "PERIOD_WITHOUT_TRIGGER": (
+            "the wording gives a period but never says what starts it"
+        ),
+        "URGENCY_WITHOUT_PERIOD": "urgent-sounding words with no measurable period",
+        "NO_TIMING_LANGUAGE": "the wording carries no timing at all",
+    }
+
     for index, after in enumerate(sorted(revision, key=lambda item: item.subject_key), start=1):
         before = base_by_key.get(after.supersedes or after.subject_key)
         if after.supersedes:
@@ -213,13 +224,14 @@ def diff_provisions(
             note = (
                 "Under the reviewed version this was not mandatory. A reviewer must "
                 "confirm the escalation before any control is allowed to fail on it. "
-                f"Timing in the newer wording: {timing['verdict']}."
+                "Timing in the newer wording: "
+                f"{timing_plain.get(str(timing['verdict']), timing['verdict'])}."
             )
         elif kind == SourceChangeKind.ADDED:
             impacted = []
             impact_summary = (
                 "A duty this entity's control register has no mapping for yet. "
-                f"Timing: {timing['verdict']}."
+                f"Timing: {timing_plain.get(str(timing['verdict']), timing['verdict'])}."
             )
             note = "Compiling a new topic stays a reviewed step. " + str(timing["note"])
         elif kind == SourceChangeKind.SUPERSEDED:
@@ -230,7 +242,8 @@ def diff_provisions(
             impacted = _control_ids_for_span(state, before_span_id)
             impact_summary = (
                 "Wording changed on a topic a live control depends on. "
-                f"Timing in the newer wording: {timing['verdict']}."
+                "Timing in the newer wording: "
+                f"{timing_plain.get(str(timing['verdict']), timing['verdict'])}."
             )
             note = f"Re-reading the changed wording is a human step. {timing['note']}"
 
