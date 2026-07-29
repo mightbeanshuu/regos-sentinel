@@ -824,3 +824,29 @@ export interface AssistantAnswer {
   plain: string | null;
   note: string;
 }
+
+export interface DocumentScoreRow {
+  passage_id: string;
+  locator: string;
+  classification: string;
+  timing_class: string;
+  confidence: number;
+}
+
+export interface DocumentScore {
+  document_id: string;
+  sha256: string;
+  model_name: string;
+  model_version: string;
+  generated_by: string;
+  passages_total: number;
+  passages_normative: number;
+  timing_counts: Record<string, number>;
+  with_timing_language: number;
+  deadline_clarity: number | null;
+  clarity_formula: string;
+  blocked_durations: number;
+  urgency_only: number;
+  rows: DocumentScoreRow[];
+  limitation: string;
+}

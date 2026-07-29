@@ -27,6 +27,7 @@ from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
 from .cci import compute_cci
 from .corpus import corpus_reports
+from .docscore import DocumentScore, score_document
 from .documents import (
     MAX_PAGE_COUNT,
     MAX_UPLOAD_BYTES,
@@ -543,6 +544,21 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             return documents_for(request).get(document_id)
         except DocumentRejected as error:
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.get("/api/v1/documents/{document_id}/score", response_model=DocumentScore)
+    def score_uploaded_document(request: Request, document_id: str) -> DocumentScore:
+        """The committed model read over this document — computed fresh on every call."""
+        try:
+            document = documents_for(request).get(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        score = score_document(document)
+        if score is None:
+            raise HTTPException(
+                status_code=503,
+                detail="No committed model weights are available in this deployment.",
+            )
+        return score
 
     @application.delete("/api/v1/documents/{document_id}", status_code=204)
     def delete_document(request: Request, document_id: str) -> Response:

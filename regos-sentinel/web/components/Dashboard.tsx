@@ -228,7 +228,7 @@ export function Dashboard({
             <span className="b-kpi-value">{active.length}</span>
             <span className="b-kpi-label">Requirements that apply</span>
           </div>
-          <div className="b-kpi">
+          <div className={waiting.length > 0 ? "b-kpi b-kpi--attention" : "b-kpi"}>
             <span className="b-kpi-icon"><IconDecision /></span>
             <span className="b-kpi-value">{waiting.length}</span>
             <span className="b-kpi-label">Waiting on you</span>

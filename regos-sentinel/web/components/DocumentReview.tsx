@@ -1,16 +1,75 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
 import { formatBytes, formatTimestamp } from "../lib/presentation";
 import type {
   DocumentLimits,
+  DocumentScore,
   ExtractedPassage,
   PassageClass,
   UploadedDocument,
 } from "../lib/types";
 import { Callout, Counts, DataRow, Field, Hash, Panel, StateLabel, Tag } from "./ui";
+
+const TIMING_PLAIN: Record<string, string> = {
+  PERIOD_AND_TRIGGER: "Date can be worked out",
+  PERIOD_ONLY: "Says how long, not from when",
+  URGENCY_ONLY: "Says urgent, no period",
+  NO_TIMING: "No timing language",
+};
+
+/** The committed model's read of one uploaded document — fetched fresh. */
+function ModelScorecard({ document }: { document: UploadedDocument }) {
+  const [score, setScore] = useState<DocumentScore | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    regosApi
+      .documentScore(document.id)
+      .then((value) => { if (!cancelled) setScore(value); })
+      .catch(() => { if (!cancelled) setScore(null); });
+    return () => { cancelled = true; };
+  }, [document.id, document.passages]);
+
+  if (!score || score.passages_total === 0) return null;
+  const max = Math.max(...Object.values(score.timing_counts), 1);
+
+  return (
+    <Panel
+      title="Model scorecard"
+      description={`Generated fresh by ${score.model_name} ${score.model_version} — committed weights, no network.`}
+    >
+      <div className="scorecard">
+        <div className="scorecard-figure">
+          <span className="scorecard-value">
+            {score.deadline_clarity === null
+              ? "—"
+              : `${Math.round(score.deadline_clarity * 100)}%`}
+          </span>
+          <span className="scorecard-label">Deadline clarity</span>
+          <span className="meta">{score.clarity_formula}</span>
+        </div>
+        <div className="scorecard-bars">
+          {Object.entries(score.timing_counts).map(([label, count]) => (
+            <div className="cci-row" key={label}>
+              <span className="cci-row-title">{TIMING_PLAIN[label] ?? label}</span>
+              <span className="cci-bar" aria-hidden="true">
+                <span
+                  className={`cci-bar-fill${label === "PERIOD_AND_TRIGGER" ? " cci-bar-fill--ok" : label === "NO_TIMING" ? "" : " cci-bar-fill--review"}`}
+                  style={{ transform: `scaleX(${count / max})` }}
+                />
+              </span>
+              <span className="cci-row-score">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="meta clamp2" title={score.limitation}>{score.limitation}</p>
+    </Panel>
+  );
+}
 
 const CLASSIFICATIONS: PassageClass[] = [
   "POSSIBLE_REQUIREMENT",
@@ -318,6 +377,8 @@ function DocumentDetail({
 
   return (
     <div className="stack-l">
+      <ModelScorecard document={document} />
+
       <Panel
         title={document.filename}
         description="User-uploaded source. No official status."

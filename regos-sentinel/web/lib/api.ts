@@ -7,6 +7,7 @@ import type {
   CciReport,
   CorpusPackReport,
   DocumentLimits,
+  DocumentScore,
   LiveSourceVerificationReceipt,
   MetricsReport,
   PassageClass,
@@ -172,6 +173,8 @@ export const regosApi = {
   // ---- Review your document ------------------------------------------
   documentLimits: () => requestJson<DocumentLimits>("/documents/limits", { cache: "no-store" }),
   listDocuments: () => requestJson<UploadedDocument[]>("/documents", { cache: "no-store" }),
+  documentScore: (documentId: string) =>
+    requestJson<DocumentScore>(`/documents/${documentId}/score`, { cache: "no-store" }),
   uploadDocument: async (file: File, authority: string): Promise<UploadedDocument> => {
     const query = new URLSearchParams({ filename: file.name, authority });
     const token = sessionToken();

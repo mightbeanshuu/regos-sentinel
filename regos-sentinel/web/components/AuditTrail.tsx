@@ -680,29 +680,22 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Audit events ---------------------------------------------- */}
       <Panel title="Recorded events" tight>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Event</th>
-                <th scope="col">Actor</th>
-                <th scope="col">At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.audit_events.map((event) => (
-                <tr key={event.id}>
-                  <td>
-                    <span className="mono">{event.id}</span>{" "}
-                    {event.event_type.replaceAll("_", " ").toLowerCase()}
-                  </td>
-                  <td className="meta">{event.actor}</td>
-                  <td className="meta">{formatTimestamp(event.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ol className="timeline">
+          {state.audit_events.map((event) => (
+            <li className="timeline-row" key={event.id}>
+              <span className="timeline-node" aria-hidden="true" />
+              <div className="timeline-body">
+                <p className="timeline-event">
+                  {event.event_type.replaceAll("_", " ").toLowerCase()}
+                  <span className="mono timeline-id">{event.id}</span>
+                </p>
+                <p className="meta">
+                  {event.actor} · {formatTimestamp(event.created_at)}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </Panel>
     </div>
   );
