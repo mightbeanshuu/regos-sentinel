@@ -807,70 +807,78 @@ export function Dashboard({
             Check source
           </button>
 
-          <section className="b-card vault-table">
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Document</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Collected</th>
-                    <th scope="col">Fingerprint</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.evidence
-                    .filter((item) => evidenceKinds.size === 0 || evidenceKinds.has(item.kind))
-                    .map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          {item.name}
-                          {item.reason && <p className="meta clamp2" title={item.reason}>{item.reason}</p>}
-                        </td>
-                        <td><StateLabel value={item.status} /></td>
-                        <td className="meta">{formatDate(item.collected_at)}</td>
-                        <td className="meta">No fingerprint recorded</td>
-                      </tr>
-                    ))}
-                  {state.documents.map((doc) => {
-                    const stale = receipt !== null && !receipt.hash_matches_expected;
-                    return (
-                      <tr key={doc.id}>
-                        <td>
-                          {doc.title}
-                          <p className="meta">
-                            <a className="proof-link" href={doc.source_url} target="_blank" rel="noreferrer">
-                              official source ↗
-                            </a>
-                          </p>
-                        </td>
-                        <td>
-                          {stale ? (
-                            <span className="vault-stale">
-                              STALE
-                              <span className="meta">source changed upstream</span>
-                            </span>
-                          ) : (
-                            <StateLabel value={receipt ? "CURRENT" : "NOT_CHECKED"} />
-                          )}
-                        </td>
-                        <td className="meta">
-                          {receipt ? formatDate(receipt.checked_at) : formatDate(doc.published_at)}
-                        </td>
-                        <td>
-                          <span className="vault-hash mono" title={doc.content_hash}>
-                            ⌾ SHA-256: {doc.content_hash.slice(0, 8)}…
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="vault-cards">
+            {state.documents.map((doc) => {
+              const stale = receipt !== null && !receipt.hash_matches_expected;
+              const tone = stale ? "flagged" : receipt ? "verified" : "pending";
+              return (
+                <article className={`vault-card vault-card--${tone}`} key={doc.id}>
+                  <div className="vault-card-head">
+                    <p className="vault-card-name">{doc.title}</p>
+                    <span className={`rcx-chip rcx-chip--${stale ? "fail" : receipt ? "ok" : "review"}`}>
+                      {stale ? "! Changed upstream" : receipt ? "✓ Verified" : "Pinned · not re-checked"}
+                    </span>
+                  </div>
+                  <p className="micro">Cryptographic fingerprint</p>
+                  <p className="vault-card-hash mono" title={doc.content_hash}>
+                    SHA-256: {doc.content_hash.slice(0, 16)}…{doc.content_hash.slice(-8)}
+                  </p>
+                  <p className="meta">
+                    {receipt ? `Last verified ${formatDate(receipt.checked_at)}` : `Published ${formatDate(doc.published_at)}`}
+                    {" · "}
+                    <a className="proof-link" href={doc.source_url} target="_blank" rel="noreferrer">
+                      official source ↗
+                    </a>
+                  </p>
+                </article>
+              );
+            })}
+            {state.evidence
+              .filter((item) => evidenceKinds.size === 0 || evidenceKinds.has(item.kind))
+              .map((item) => (
+                <article
+                  className={`vault-card vault-card--${item.status === "CURRENT" ? "verified" : "pending"}`}
+                  key={item.id}
+                >
+                  <div className="vault-card-head">
+                    <p className="vault-card-name">{item.name}</p>
+                    <span className={`rcx-chip rcx-chip--${item.status === "CURRENT" ? "ok" : "review"}`}>
+                      {item.status === "CURRENT" ? "✓ Up to date" : labelOf(item.status)}
+                    </span>
+                  </div>
+                  <p className="micro">Cryptographic fingerprint</p>
+                  <p className="vault-card-hash mono">No fingerprint recorded — and the vault says so</p>
+                  <p className="meta">
+                    Collected {formatDate(item.collected_at)}
+                    {item.reason ? ` · ${item.reason}` : ""}
+                  </p>
+                </article>
+              ))}
             <p className="meta">Synthetic broker data · fingerprints are real.</p>
-          </section>
+          </div>
         </div>
+
+        {/* ---- Audit trail ------------------------------------------- */}
+        <aside className="vault-trail">
+          <p className="b-label"><IconLedger /> Audit trail</p>
+          {state.audit_events.length === 0 ? (
+            <p className="b-empty">No events recorded yet.</p>
+          ) : (
+            <ol className="timeline timeline--glow">
+              {state.audit_events.slice(-8).reverse().map((event) => (
+                <li className="timeline-row" key={event.id}>
+                  <span className="timeline-node" aria-hidden="true" />
+                  <div className="timeline-body">
+                    <p className="timeline-event">
+                      {event.event_type.replaceAll("_", " ").toLowerCase()}
+                    </p>
+                    <p className="meta">{event.actor} · {formatDate(event.created_at)}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </aside>
       </div>
       )}
 

@@ -436,75 +436,98 @@ function StepCompare({
       aside={<StateLabel value={build.status} />}
     >
       <div className="stack">
-        <div className="compare">
-          <div className="compare-col">
-            <p className="micro">Existing control · {control.id}</p>
-            <p className="strong-ink">
-              All VAPT findings — close within 3 months.
-            </p>
+        <div className="rcx">
+          <div className="rcx-doc">
+            <div className="rcx-doc-head">
+              <p className="strong-ink">Original SEBI text</p>
+              {state.documents[0] && <p className="micro">{state.documents[0].id} · {state.documents[0].title}</p>}
+            </div>
+            <div className="rcx-doc-body">
+              {q17a && (
+                <figure className="rcx-pass rcx-pass--hot">
+                  <figcaption className="rcx-loc">{q17a.locator} · the rule under review</figcaption>
+                  <blockquote>{q17a.text}</blockquote>
+                </figure>
+              )}
+              {q15 && (
+                <figure className="rcx-pass">
+                  <figcaption className="rcx-loc">{q15.locator}</figcaption>
+                  <blockquote>{q15.text}</blockquote>
+                </figure>
+              )}
+            </div>
           </div>
-          <span className="compare-rel" aria-hidden="true">vs</span>
-          <div className="compare-col compare-col--source">
-            <p className="micro">What the source says</p>
-            <ul className="stack-s">
-              <li>
-                <span className="strong-ink">Missing-patch, high severity</span> — one week.
-                {q17a && <span className="meta"> · {q17a.locator}</span>}
-              </li>
-              <li>
-                <span className="strong-ink">Other observations</span> — three months.
-                {q15 && <span className="meta"> · {q15.locator}</span>}
-              </li>
-            </ul>
+
+          <div className="rcx-cards">
+            <p className="sub-title">Impact on the firm&rsquo;s controls</p>
+
+            <article className="rcx-card rcx-card--ok">
+              <h3 className="rcx-card-title">Two distinct requirements in one control</h3>
+              <p className="meta">
+                Existing control {control.id} closes every VAPT finding in three months. The
+                source states <span className="strong-ink">one week</span> for high-severity
+                missing patches{q17a && <> ({q17a.locator})</>} and{" "}
+                <span className="strong-ink">three months</span> for other observations
+                {q15 && <> ({q15.locator})</>}.
+              </p>
+              <span className={`rcx-chip${approved ? " rcx-chip--ok" : ""}`}>
+                {approved ? "Split into two branches" : "Action required"}
+              </span>
+            </article>
+
+            {!approved && blockedDeadline && (
+              <article className="rcx-card rcx-card--review">
+                <h3 className="rcx-card-title">Risk: the week has no stated start</h3>
+                <p className="meta">
+                  SEBI states a one-week duration, but the reviewed source does not state when
+                  that week starts. No due date is calculated until a compliance officer records
+                  the firm&rsquo;s trigger policy.
+                </p>
+                <dl className="datalist">
+                  <DataRow label="Duration">
+                    {blockedDeadline.duration_label}{" "}
+                    <Tag value={blockedDeadline.duration_provenance} />
+                  </DataRow>
+                  <DataRow label="Starts from">
+                    <span className="strong-ink">Not stated in the reviewed source</span>
+                  </DataRow>
+                  <DataRow label="Due date">
+                    <span className="strong-ink">Not calculated</span>
+                  </DataRow>
+                </dl>
+                <span className="rcx-chip rcx-chip--review">Needs your decision</span>
+              </article>
+            )}
+
+            <article className={`rcx-card ${approved ? "rcx-card--royal" : "rcx-card--fail"}`}>
+              {approved ? (
+                <>
+                  <h3 className="rcx-card-title">Control now matches the source</h3>
+                  <p className="meta">
+                    The control was split into two branches after {build.reviewer} recorded the
+                    firm&rsquo;s trigger policy in writing.
+                  </p>
+                  <span className="rcx-chip rcx-chip--ok">Compliant</span>
+                </>
+              ) : (
+                <>
+                  <h3 className="rcx-card-title">Check failed</h3>
+                  <p className="meta">One broad three-month control cannot represent both requirements.</p>
+                  {(failedTests.length > 0 ? failedTests : reviewNeededTests.slice(0, 1)).map((test) => (
+                    <p key={test.id} className="meta">{test.name} — {test.message}</p>
+                  ))}
+                  <span className="rcx-chip rcx-chip--fail">Did not pass</span>
+                </>
+              )}
+            </article>
           </div>
         </div>
-
-        {!approved && (
-          <Callout tone="fail" title="Check failed">
-            <p>One broad three-month control cannot represent both requirements.</p>
-            {(failedTests.length > 0 ? failedTests : reviewNeededTests.slice(0, 1)).map((test) => (
-              <p key={test.id} className="meta">{test.name} — {test.message}</p>
-            ))}
-          </Callout>
-        )}
-
-        {!approved && blockedDeadline && (
-          <Callout tone="review" title="Human decision needed">
-            <p>
-              SEBI states a one-week duration, but the reviewed source does not state when that
-              week starts. RegOS will not calculate a due date until a compliance officer records
-              the firm&rsquo;s trigger policy.
-            </p>
-            <dl className="datalist" style={{ marginTop: "8px" }}>
-              <DataRow label="Duration">
-                {blockedDeadline.duration_label}{" "}
-                <Tag value={blockedDeadline.duration_provenance} />
-              </DataRow>
-              <DataRow label="Starts from">
-                <span className="strong-ink">Not stated in the reviewed source</span>
-              </DataRow>
-              <DataRow label="Due date">
-                <span className="strong-ink">Not calculated</span>
-                <p className="meta">{blockedDeadline.blocked_reason}</p>
-              </DataRow>
-            </dl>
-          </Callout>
-        )}
 
         {state.findings.length > 0 && (
           <div className="stack-s" style={{ marginTop: "16px" }}>
             <p className="sub-title">Reporting clocks for each finding</p>
             <IncidentReportingClock state={state} compact />
           </div>
-        )}
-
-        {approved && (
-          <Callout tone="ok" title="Resolved by a named compliance officer">
-            <p>
-              The control was split into two branches after {build.reviewer}{" "}
-              recorded the firm&rsquo;s trigger policy in writing.
-            </p>
-          </Callout>
         )}
 
         <details className="disclosure">
