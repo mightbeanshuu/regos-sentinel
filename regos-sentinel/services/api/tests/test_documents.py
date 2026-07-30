@@ -318,8 +318,13 @@ def test_oversized_page_count_is_rejected() -> None:
     assert f"reads up to {MAX_PAGE_COUNT} pages" in response.json()["detail"]
 
 
-def test_pages_without_extractable_text_are_reported_not_invented() -> None:
-    # A page with no text objects stands in for a scanned page.
+def test_pages_without_extractable_text_are_reported_not_invented(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A page with no text objects stands in for a scanned page. With no OCR engine
+    # at all — no key, no local binary — the page must be reported, never guessed at.
+    monkeypatch.delenv("OCR_SPACE_API_KEY", raising=False)
+    monkeypatch.setattr("app.ocr.shutil.which", lambda _name: None)
     mixed = build_pdf([[MANDATORY_TEXT], []])
 
     document = upload(client(), mixed).json()

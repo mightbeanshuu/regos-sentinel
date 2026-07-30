@@ -1,9 +1,10 @@
 """Tests for the OCR lane.
 
-The promises under test: without a key nothing changes and nothing leaves the process;
-with a key, scanned pages are machine-read and every recovered passage is *labelled*
-machine-read; and when the OCR service fails, the pages stay honestly unreadable — no
-text is ever invented for a page.
+The promises under test: with no engine at all nothing changes and nothing leaves the
+process; scanned pages read by either engine are merged and every recovered passage is
+*labelled* machine-read; the local engine keeps working offline because it makes no
+outbound call; a fragmentary remote read loses to a fuller local transcript; and when
+every engine fails, the pages stay honestly unreadable — no text is ever invented.
 """
 
 from __future__ import annotations
@@ -19,8 +20,15 @@ from app.documents import (
     EXTRACTION_MODE_TEXT_PLUS_OCR,
 )
 from app.main import create_app
-from app.ocr import OCR_ENDPOINT, ocr_available, ocr_pages
+from app.ocr import OCR_ENDPOINT, local_ocr_available, ocr_available, ocr_pages
 from tests.test_documents import MANDATORY_TEXT, RECOMMENDATION_TEXT, build_pdf, upload
+
+
+@pytest.fixture()
+def no_local_engine(monkeypatch: pytest.MonkeyPatch):
+    """Force the local engine off so remote-path behaviour is deterministic on
+    machines that happen to have tesseract installed."""
+    monkeypatch.setattr("app.ocr.shutil.which", lambda _name: None)
 
 SECRET = "test-session-secret-that-is-longer-than-thirty-two-bytes"
 
@@ -62,8 +70,9 @@ class FakeResponse:
 # --------------------------------------------------------------------------- #
 
 
-def test_without_a_key_ocr_is_off_and_the_upload_lane_is_unchanged(
+def test_with_no_engine_at_all_the_upload_lane_is_unchanged(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.delenv("OCR_SPACE_API_KEY", raising=False)
 
@@ -83,14 +92,112 @@ def test_without_a_key_ocr_is_off_and_the_upload_lane_is_unchanged(
     assert any("does not perform OCR" in line for line in document["limitations"])
 
 
-def test_offline_mode_disables_ocr_even_with_a_key(
+def test_offline_mode_disables_the_remote_engine_even_with_a_key(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.setenv("REGOS_OFFLINE", "1")
 
     assert ocr_available() is False
     assert ocr_pages(scanned_pdf(), [2]) == {}
+
+
+def test_offline_mode_still_reads_locally_and_makes_no_network_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The local engine is in-process — the sealed-engine promise survives it."""
+    monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
+    monkeypatch.setenv("REGOS_OFFLINE", "1")
+
+    def never(*args, **kwargs):  # pragma: no cover - the assertion is the point
+        raise AssertionError("offline mode must not make an outbound call")
+
+    monkeypatch.setattr("app.ocr.httpx.post", never)
+    monkeypatch.setattr("app.ocr.local_ocr_available", lambda: True)
+    monkeypatch.setattr("app.ocr._local_page", lambda payload, index: SCANNED_PAGE_TEXT)
+    active = client()
+
+    assert ocr_available() is True
+    document = upload(active, scanned_pdf()).json()
+
+    assert document["scope"]["pages_unreadable"] == []
+    assert document["scope"]["pages_machine_read"] == [2]
+    assert document["extraction_mode"] == EXTRACTION_MODE_TEXT_PLUS_OCR
+    recovered = [item for item in document["passages"] if item["page"] == 2]
+    assert recovered
+    assert all(
+        item["classification_provenance"] == "MACHINE_READ_OCR" for item in recovered
+    )
+
+
+def test_a_fragmentary_remote_read_loses_to_the_fuller_local_transcript(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
+    monkeypatch.delenv("REGOS_OFFLINE", raising=False)
+    monkeypatch.setattr(
+        "app.ocr.httpx.post",
+        lambda *args, **kwargs: FakeResponse(
+            {"IsErroredOnProcessing": False, "ParsedResults": [{"ParsedText": "7 da"}]}
+        ),
+    )
+    monkeypatch.setattr("app.ocr.local_ocr_available", lambda: True)
+    monkeypatch.setattr("app.ocr._local_page", lambda payload, index: SCANNED_PAGE_TEXT)
+
+    assert ocr_pages(scanned_pdf(), [2]) == {2: SCANNED_PAGE_TEXT}
+
+
+def test_a_full_remote_read_is_kept_and_the_local_engine_is_not_consulted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
+    monkeypatch.delenv("REGOS_OFFLINE", raising=False)
+    monkeypatch.setattr(
+        "app.ocr.httpx.post",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "IsErroredOnProcessing": False,
+                "ParsedResults": [{"ParsedText": SCANNED_PAGE_TEXT}],
+            }
+        ),
+    )
+    monkeypatch.setattr("app.ocr.local_ocr_available", lambda: True)
+
+    def never_local(payload, index):  # pragma: no cover - the assertion is the point
+        raise AssertionError("a full remote read must not trigger the local engine")
+
+    monkeypatch.setattr("app.ocr._local_page", never_local)
+
+    assert ocr_pages(scanned_pdf(), [2]) == {2: SCANNED_PAGE_TEXT}
+
+
+@pytest.mark.skipif(not local_ocr_available(), reason="tesseract binary not installed")
+def test_the_real_local_engine_reads_a_rendered_page() -> None:
+    """Integration: rasterise → tesseract → text, all in memory, no key, no network."""
+    pil = pytest.importorskip("PIL.Image")
+    draw_mod = pytest.importorskip("PIL.ImageDraw")
+    font_mod = pytest.importorskip("PIL.ImageFont")
+    from io import BytesIO
+
+    image = pil.new("RGB", (1400, 500), "white")
+    draw = draw_mod.Draw(image)
+    font = font_mod.load_default(size=40)
+    draw.text(
+        (60, 80),
+        "The regulated entity shall close all findings within 7 days of discovery.",
+        font=font,
+        fill="black",
+    )
+    buffer = BytesIO()
+    image.save(buffer, format="PDF")
+
+    recovered = ocr_pages(buffer.getvalue(), [1])
+
+    assert 1 in recovered
+    text = recovered[1].lower()
+    assert "within 7 days" in text
+    assert "discovery" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -100,6 +207,7 @@ def test_offline_mode_disables_ocr_even_with_a_key(
 
 def test_scanned_pages_are_machine_read_and_carry_ocr_provenance(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.delenv("REGOS_OFFLINE", raising=False)
@@ -152,6 +260,7 @@ def test_scanned_pages_are_machine_read_and_carry_ocr_provenance(
 
 def test_a_reviewer_can_still_overrule_a_machine_read_passage(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.setattr(
@@ -191,6 +300,7 @@ def test_a_reviewer_can_still_overrule_a_machine_read_passage(
 
 def test_an_unreachable_ocr_service_leaves_pages_honestly_unreadable(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
 
@@ -214,6 +324,7 @@ def test_an_unreachable_ocr_service_leaves_pages_honestly_unreadable(
 
 def test_an_ocr_error_response_yields_no_text_rather_than_garbage(
     monkeypatch: pytest.MonkeyPatch,
+    no_local_engine: None,
 ) -> None:
     monkeypatch.setenv("OCR_SPACE_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.setattr(

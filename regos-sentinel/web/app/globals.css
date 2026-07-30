@@ -3105,6 +3105,25 @@ body {
 .decision-actionbar .btn-row { margin-top: 0; }
 .decision-actionbar-actions { flex: 0 0 auto; align-items: center; }
 
+/* Footnote naming the controls that were deliberately not built. */
+.decision-omitted {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-3);
+  max-width: 78ch;
+}
+.decision-omitted-glyph {
+  flex: 0 0 auto;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
 /* Big teal agreement block, per the reference. */
 .decision-agree-chip {
   padding: var(--s3) var(--s5);
