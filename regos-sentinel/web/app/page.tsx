@@ -18,6 +18,7 @@ import {
   IconLedger,
 } from "../components/vector";
 import { regosApi } from "../lib/api";
+import { labelOf } from "../lib/presentation";
 import type {
   DocumentLimits,
   LiveSourceVerificationReceipt,
@@ -290,6 +291,39 @@ export default function Home() {
             >
               Restart demo
             </button>
+            {state && (
+              <details className="profile">
+                <summary className="profile-chip">
+                  <span className="profile-avatar" aria-hidden="true">
+                    {state.entity_profile.legal_name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}
+                  </span>
+                  <span className="profile-name">{state.entity_profile.legal_name}</span>
+                  <span className="profile-caret" aria-hidden="true">▾</span>
+                </summary>
+                <div className="profile-menu">
+                  <p className="profile-menu-name">{state.entity_profile.legal_name}</p>
+                  <p className="meta">
+                    {labelOf(state.entity_profile.entity_type)}
+                    {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+                    {" · synthetic demo profile"}
+                  </p>
+                  <div className="profile-menu-actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--small"
+                      disabled={busy || sourceBusy}
+                      onClick={() => void restart()}
+                    >
+                      Sign out — reset this profile
+                    </button>
+                  </div>
+                  <p className="meta">
+                    One synthetic broker profile ships with this build; a profile per
+                    onboarded broker is the multi-tenant story.
+                  </p>
+                </div>
+              </details>
+            )}
           </div>
         </div>
       </header>

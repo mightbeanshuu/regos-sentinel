@@ -143,8 +143,8 @@ export function Dashboard({
         <div>
           <h1 className="cmd-title">Compliance command centre</h1>
           <p className="cmd-sub">
-            {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
-            {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+            {labelOf(state.entity_profile.entity_type)}
+            {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""} · profile in the header
           </p>
         </div>
         <div className="cmd-live">
@@ -432,6 +432,13 @@ export function Dashboard({
                     <a className="mon-link" href={doc.source_url} target="_blank" rel="noreferrer">
                       original ↗
                     </a>
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--small"
+                      onClick={() => setView("evidence")}
+                    >
+                      View details
+                    </button>
                   </li>
                 );
               })}
@@ -503,6 +510,20 @@ export function Dashboard({
               <p className="b-empty">Run the check to see progress.</p>
             )}
           </section>
+
+          {/* ---- Activity trend ----------------------------------------- */}
+          {state.audit_events.length > 1 && (
+            <section className="b-card exec-trend">
+              <p className="b-label"><IconLedger /> Activity over this session</p>
+              <TrendChart events={state.audit_events} />
+              <ul className="exec-trend-legend">
+                <li>{state.audit_events.length} recorded events</li>
+                <li>{state.reviews.length} readings</li>
+                <li>{state.agent_runs.length} agent runs</li>
+              </ul>
+              <p className="meta">Every point is a recorded audit event — nothing is projected.</p>
+            </section>
+          )}
 
           {/* ---- Score breakdown ---------------------------------------- */}
           {cci && (
@@ -813,6 +834,7 @@ export function Dashboard({
               const tone = stale ? "flagged" : receipt ? "verified" : "pending";
               return (
                 <article className={`vault-card vault-card--${tone}`} key={doc.id}>
+                  <span className="vault-thumb" aria-hidden="true"><IconInstitution /></span>
                   <div className="vault-card-head">
                     <p className="vault-card-name">{doc.title}</p>
                     <span className={`rcx-chip rcx-chip--${stale ? "fail" : receipt ? "ok" : "review"}`}>
@@ -840,6 +862,7 @@ export function Dashboard({
                   className={`vault-card vault-card--${item.status === "CURRENT" ? "verified" : "pending"}`}
                   key={item.id}
                 >
+                  <span className="vault-thumb" aria-hidden="true"><IconEvidence /></span>
                   <div className="vault-card-head">
                     <p className="vault-card-name">{item.name}</p>
                     <span className={`rcx-chip rcx-chip--${item.status === "CURRENT" ? "ok" : "review"}`}>
@@ -1004,5 +1027,41 @@ function ExecDonut({ passed, waiting, failed }: { passed: number; waiting: numbe
         <span className="exec-donut-word">passed</span>
       </div>
     </div>
+  );
+}
+
+/** Cumulative recorded audit events across the session — a real series, drawn in the
+ *  trend-card style; it grows as the demo is used and projects nothing. */
+function TrendChart({ events }: { events: WorkspaceState["audit_events"] }) {
+  const times = events
+    .map((event) => Date.parse(event.created_at))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  if (times.length < 2) return null;
+  const start = times[0];
+  const span = Math.max(times[times.length - 1] - start, 1);
+  const points = times.map((time, index) => ({
+    x: 6 + ((time - start) / span) * 188,
+    y: 54 - ((index + 1) / times.length) * 44,
+  }));
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const area = `${path} L${points[points.length - 1].x.toFixed(1)},58 L${points[0].x.toFixed(1)},58 Z`;
+  return (
+    <svg className="exec-trend-svg" viewBox="0 0 200 60" role="img"
+      aria-label={`${events.length} recorded events across the session`}>
+      <defs>
+        <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="58" x2="200" y2="58" stroke="var(--line-2)" strokeWidth="0.5" />
+      <path d={area} fill="url(#trend-fill)" />
+      <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p) => (
+        <circle key={p.x} cx={p.x} cy={p.y} r="1.6" fill="var(--accent)" />
+      ))}
+    </svg>
   );
 }

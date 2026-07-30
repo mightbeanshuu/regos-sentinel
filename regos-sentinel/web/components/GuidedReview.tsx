@@ -126,6 +126,8 @@ export function GuidedReview(props: GuidedReviewProps) {
 
   return (
     <div className="stack-l">
+      <Stepper states={stepStates} />
+
       <CaseSummary
         state={state}
         control={control}
@@ -133,8 +135,6 @@ export function GuidedReview(props: GuidedReviewProps) {
         busy={busy || sourceBusy}
         onStart={props.onRunBuild}
       />
-
-      <Stepper states={stepStates} />
 
       <StepSource {...props} />
 
@@ -443,18 +443,12 @@ function StepCompare({
               {state.documents[0] && <p className="micro">{state.documents[0].id} · {state.documents[0].title}</p>}
             </div>
             <div className="rcx-doc-body">
-              {q17a && (
-                <figure className="rcx-pass rcx-pass--hot">
-                  <figcaption className="rcx-loc">{q17a.locator} · the rule under review</figcaption>
-                  <blockquote>{q17a.text}</blockquote>
-                </figure>
-              )}
-              {q15 && (
-                <figure className="rcx-pass">
-                  <figcaption className="rcx-loc">{q15.locator}</figcaption>
-                  <blockquote>{q15.text}</blockquote>
-                </figure>
-              )}
+              <NumberedExcerpt
+                sections={[
+                  ...(q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []),
+                  ...(q15 ? [{ locator: q15.locator, text: q15.text, hot: false }] : []),
+                ]}
+              />
             </div>
           </div>
 
@@ -744,6 +738,18 @@ function StepHumanDecision({
                       />
                     )}
                   </Field>
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--small"
+                    disabled={busy}
+                    onClick={() =>
+                      setInterpretation(
+                        "Q17(a) supports a one-week maximum for high-severity findings caused by missing patches. It does not state which event starts that clock.",
+                      )
+                    }
+                  >
+                    Use the demo reading — you can edit it
+                  </button>
                   <div className="field-grid">
                     <Field label="Reviewer name" error={nameError}>
                       {(aria) => (
@@ -1491,5 +1497,48 @@ function StepExport({
         </div>
       )}
     </Panel>
+  );
+}
+
+/** Reviewed passages as one continuous, line-numbered excerpt — numbers count the
+ *  excerpt's own lines; the real position in the PDF stays in each locator line. */
+function NumberedExcerpt({
+  sections,
+}: {
+  sections: Array<{ locator: string; text: string; hot: boolean }>;
+}) {
+  let line = 0;
+  const wrap = (text: string): string[] => {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      if ((current + " " + word).trim().length > 74) {
+        lines.push(current.trim());
+        current = word;
+      } else {
+        current = `${current} ${word}`;
+      }
+    }
+    if (current.trim()) lines.push(current.trim());
+    return lines;
+  };
+  return (
+    <div className="rcx-excerpt">
+      {sections.map((section) => (
+        <div className={section.hot ? "rcx-sect rcx-sect--hot" : "rcx-sect"} key={section.locator}>
+          <p className="rcx-loc">{section.locator}</p>
+          {wrap(section.text).map((row) => {
+            line += 1;
+            return (
+              <div className="rcx-line" key={line}>
+                <span className="rcx-line-no" aria-hidden="true">{line}</span>
+                <span className="rcx-line-text">{row}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
   );
 }

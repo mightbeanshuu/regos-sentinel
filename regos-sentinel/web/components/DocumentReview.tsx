@@ -22,6 +22,14 @@ const TIMING_PLAIN: Record<string, string> = {
 };
 
 /** The committed model's read of one uploaded document — fetched fresh. */
+/** The browser's raw "Failed to fetch" means the free-tier API is waking, not a dead end. */
+function plainError(caught: unknown, fallback: string): string {
+  if (caught instanceof TypeError || (caught instanceof Error && /failed to fetch/i.test(caught.message))) {
+    return "The engine is waking up (free hosting sleeps between visits) — give it a few seconds and try again.";
+  }
+  return caught instanceof Error ? caught.message : fallback;
+}
+
 function ModelScorecard({ document }: { document: UploadedDocument }) {
   const [score, setScore] = useState<DocumentScore | null>(null);
 
@@ -136,7 +144,7 @@ export function DocumentReview({
         onChanged(next);
         setSelectedId(uploaded.id);
       } catch (caught) {
-        onError(caught instanceof Error ? caught.message : "That upload could not be processed.");
+        onError(plainError(caught, "That upload could not be processed."));
       } finally {
         onBusy(false);
       }
@@ -154,7 +162,7 @@ export function DocumentReview({
         onChanged(next);
         setSelectedId(updated.id);
       } catch (caught) {
-        onError(caught instanceof Error ? caught.message : "That action could not be completed.");
+        onError(plainError(caught, "That action could not be completed."));
       } finally {
         onBusy(false);
       }
@@ -172,7 +180,7 @@ export function DocumentReview({
         onChanged(next);
         setSelectedId(next.at(-1)?.id ?? null);
       } catch (caught) {
-        onError(caught instanceof Error ? caught.message : "That document could not be removed.");
+        onError(plainError(caught, "That document could not be removed."));
       } finally {
         onBusy(false);
       }

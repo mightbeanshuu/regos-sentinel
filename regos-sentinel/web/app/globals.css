@@ -3646,3 +3646,116 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .boot-eta-dot { animation: none; }
 }
+
+/* ---------- Numbered excerpt pane ------------------------------------------ */
+
+.rcx-excerpt { display: flex; flex-direction: column; gap: var(--s4); }
+.rcx-sect { border-radius: 10px; }
+.rcx-sect .rcx-loc { margin-bottom: var(--s2); }
+.rcx-sect--hot {
+  padding: var(--s3);
+  background: var(--accent-wash);
+  outline: 1px solid var(--accent-line);
+}
+.rcx-sect--hot .rcx-loc { color: var(--accent); font-weight: 600; }
+.rcx-line { display: flex; gap: var(--s3); align-items: baseline; }
+.rcx-line-no {
+  flex: 0 0 26px;
+  text-align: right;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  user-select: none;
+}
+.rcx-line-text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78125rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.rcx-sect--hot .rcx-line-text { color: var(--ink); }
+
+/* ---------- Header profile menu -------------------------------------------- */
+
+.profile { position: relative; }
+.profile summary { list-style: none; cursor: pointer; }
+.profile summary::-webkit-details-marker { display: none; }
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+.profile-chip:hover { background: var(--bg-2); }
+.profile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5b8fe0, #1d3f76);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.profile-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-caret { font-size: 0.625rem; color: var(--ink-3); }
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 60;
+  width: 300px;
+  padding: var(--s4);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px -18px oklch(0.2 0.03 250 / 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.profile-menu-name { font-weight: 650; font-size: 0.875rem; }
+.profile-menu-actions { display: flex; }
+@media (max-width: 760px) { .profile-name { display: none; } }
+
+/* ---------- Trend + vault thumbs ------------------------------------------- */
+
+.exec-trend-svg { width: 100%; height: auto; }
+.exec-trend-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); }
+.exec-trend-legend li {
+  font-size: 0.71875rem;
+  color: var(--ink-3);
+}
+.exec-trend-legend li::before { content: "● "; color: var(--accent); font-size: 0.5rem; vertical-align: 2px; }
+
+.vault-card { flex-direction: row; gap: var(--s4); align-items: flex-start; flex-wrap: wrap; }
+.vault-card > .vault-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 84px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: linear-gradient(150deg, oklch(0.36 0.05 252), oklch(0.24 0.03 250));
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+}
+.vault-card > .vault-thumb svg { width: 26px; height: 26px; }
+.vault-card > .vault-card-head,
+.vault-card > .micro,
+.vault-card > .vault-card-hash,
+.vault-card > .meta { flex: 1 1 calc(100% - 80px); min-width: 200px; }
+.vault-card > .vault-card-head { margin-left: 0; }
+.vault-card > .micro,
+.vault-card > .vault-card-hash,
+.vault-card > .meta { margin-left: 80px; flex-basis: 100%; }
