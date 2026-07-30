@@ -84,7 +84,7 @@ export function Dashboard({
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   const [planner] = useState<PlannerKind>("DETERMINISTIC_PLAN");
-  const [view, setView] = useState<"overview" | "work" | "evidence" | "ask" | "agents">("overview");
+  const [view, setView] = useState<"overview" | "work" | "evidence" | "ask" | "agents">("work");
   const [evidenceKinds, setEvidenceKinds] = useState<Set<string>>(new Set());
   const [lens, setLens] = useState<"demo" | "document">("demo");
   const [docScore, setDocScore] = useState<DocumentScore | null>(null);
@@ -179,8 +179,8 @@ export function Dashboard({
 
       <nav className="cmd-nav" aria-label="Command centre sections">
         {([
-          ["overview", "Overview"],
           ["work", "Work queue"],
+          ["overview", "Overview"],
           ["evidence", "Evidence"],
           ["ask", "Ask"],
           ["agents", "Agents"],
@@ -417,14 +417,14 @@ export function Dashboard({
               </>
             )}
             {waiting.length > 0 && (
-              <ul className="b-hero-list">
-                {waiting.slice(0, 3).map((item) => (
-                  <li key={item.id}>{checkLabel(item.id, item.name)}</li>
-                ))}
-                {waiting.length > 3 && (
-                  <li className="b-hero-more">+ {waiting.length - 3} more under Work queue</li>
-                )}
-              </ul>
+              <button
+                type="button"
+                className="btn btn--quiet"
+                disabled={busy}
+                onClick={() => setView("work")}
+              >
+                {waiting.length} waiting on you — open the Work queue
+              </button>
             )}
           </div>
         </section>
