@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
 import { AgentConsole } from "./AgentConsole";
+import type { AgentConsoleHandle } from "./AgentConsole";
 import { agentNameOf, formatTimestamp, glossFor } from "../lib/presentation";
 import type {
   AgentCatalogueEntry,
@@ -87,6 +88,12 @@ export function Agents({
   const modelUnavailable = source === "MODEL_PLANNED" && planner?.model_available === false;
   const noRecording =
     source === "RECORDED_MODEL_TRACE" && planner?.recorded_available.length === 0;
+
+  // Run-all drives the live console below — every tool call of all four runs
+  // streams into the terminal instead of finishing silently on the server.
+  const consoleRef = useRef<AgentConsoleHandle | null>(null);
+  const agentOrder = catalogue?.map((entry) => entry.id) ?? [];
+  const runAllLive = () => consoleRef.current?.runSequence(agentOrder);
 
   return (
     <div className="stack-l">
@@ -172,8 +179,8 @@ export function Agents({
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy}
-            onClick={() => void onRun(() => regosApi.runAllAgents(source))}
+            disabled={busy || agentOrder.length === 0}
+            onClick={runAllLive}
           >
             Run all four assistants
           </button>
@@ -212,7 +219,7 @@ export function Agents({
             type="button"
             className="btn btn--primary btn--small"
             disabled={busy}
-            onClick={() => void onRun(() => regosApi.runAllAgents(source))}
+            onClick={runAllLive}
           >
             Run all
           </button>
@@ -290,13 +297,14 @@ export function Agents({
         </span>
       </div>
 
-      {/* ---- Watch one work, live ---------------------------------------- */}
+      {/* ---- Watch the work, live ----------------------------------------- */}
       <Panel title="Live run">
         <AgentConsole
-          agents={catalogue?.map((entry) => entry.id) ?? []}
+          agents={agentOrder}
           planner={source}
           busy={busy}
           onFinished={refresh}
+          controlRef={consoleRef}
         />
       </Panel>
     </div>

@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 
 import { apiOrigin } from "../lib/api";
 import { glossFor } from "../lib/presentation";
 import type { AgentId, PlannerKind } from "../lib/types";
+
+/** Imperative handle so the Run-all buttons drive this console directly. */
+export interface AgentConsoleHandle {
+  runSequence: (agents: AgentId[]) => void;
+}
 
 /**
  * A live view of an agent working.
@@ -67,16 +73,20 @@ export function AgentConsole({
   planner,
   busy,
   onFinished,
+  controlRef,
 }: {
   agents: AgentId[];
   planner: PlannerKind;
   busy: boolean;
   onFinished: () => void;
+  controlRef?: MutableRefObject<AgentConsoleHandle | null>;
 }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [running, setRunning] = useState<AgentId | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const sourceRef = useRef<EventSource | null>(null);
+  const queueRef = useRef<AgentId[]>([]);
   const counter = useRef(0);
 
   const push = useCallback((kind: LineKind, text: string) => {
@@ -173,6 +183,7 @@ export function AgentConsole({
         }
         if (source.readyState === EventSource.CLOSED) {
           push("error", "! the connection to the API dropped");
+          queueRef.current = [];
           setRunning(null);
           source.close();
         }
@@ -180,16 +191,39 @@ export function AgentConsole({
 
       source.addEventListener("done", () => {
         push("done", "done.");
-        setRunning(null);
         source.close();
         onFinished();
+        const next = queueRef.current.shift();
+        if (next) {
+          run(next);
+          return;
+        }
+        setRunning(null);
       });
     },
     [planner, push, onFinished],
   );
 
+  // Run-all drives this console: each assistant streams in turn, every tool
+  // call visible as it happens, and the terminal scrolls itself into view.
+  useEffect(() => {
+    if (!controlRef) return;
+    controlRef.current = {
+      runSequence: (sequence: AgentId[]) => {
+        if (running !== null || sequence.length === 0) return;
+        rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        push("meta", `── running all ${sequence.length} assistants, one after another ──`);
+        queueRef.current = sequence.slice(1);
+        run(sequence[0]);
+      },
+    };
+    return () => {
+      controlRef.current = null;
+    };
+  }, [controlRef, run, running, push]);
+
   return (
-    <div className="console">
+    <div className="console" ref={rootRef}>
       <div className="console-bar">
         <span className="console-dots" aria-hidden="true">
           <span /><span /><span />
