@@ -152,6 +152,36 @@ export function Dashboard({
         </div>
       </header>
 
+
+
+      <div className="cmd-shell">
+      <aside className="cmd-side" aria-label="Command centre sections">
+        {([
+          ["overview", "Dashboard", IconGauge],
+          ["work", "Work queue", IconDecision],
+          ["evidence", "Evidence vault", IconEvidence],
+          ["ask", "Ask RegOS", IconAsk],
+          ["agents", "AI agents", IconAgents],
+        ] as const).map(([id, label, Icon]) => (
+          <button
+            key={id}
+            type="button"
+            className={`side-item${view === id ? " side-item--on" : ""}`}
+            aria-pressed={view === id}
+            onClick={() => setView(id)}
+          >
+            <Icon />
+            <span className="side-item-label">{label}</span>
+            {id === "work" && waiting.length > 0 && (
+              <span className="cmd-nav-count">{waiting.length}</span>
+            )}
+          </button>
+        ))}
+        <div className="side-foot">
+          <span className="side-foot-chip">Synthetic demo data · no automated filing</span>
+        </div>
+      </aside>
+      <div className="cmd-main">
       <div className="cmd-lens" role="group" aria-label="Workspace lens">
         <button
           type="button"
@@ -176,29 +206,6 @@ export function Dashboard({
           <span className="meta">Upload a PDF under “Your own document” to switch this lens.</span>
         )}
       </div>
-
-      <nav className="cmd-nav" aria-label="Command centre sections">
-        {([
-          ["work", "Work queue"],
-          ["overview", "Overview"],
-          ["evidence", "Evidence"],
-          ["ask", "Ask"],
-          ["agents", "Agents"],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`cmd-nav-pill${view === id ? " cmd-nav-pill--on" : ""}`}
-            aria-pressed={view === id}
-            onClick={() => setView(id)}
-          >
-            {label}
-            {id === "work" && waiting.length > 0 && (
-              <span className="cmd-nav-count">{waiting.length}</span>
-            )}
-          </button>
-        ))}
-      </nav>
 
       {view === "overview" && lens === "document" && activeDoc && (
       <div className="bento bento--fit">
@@ -365,125 +372,144 @@ export function Dashboard({
       )}
 
       {view === "overview" && !(lens === "document" && activeDoc) && (
-      <div className="bento bento--fit">
-        {/* ---- Status hero -------------------------------------------- */}
-        <section className={`b-card b-hero b-hero--${heroTone}`}>
-          <GridField />
-          <div className="b-hero-body">
+      <div className="exec">
+        <div className="exec-main">
+          {/* ---- Health score + risk minis ------------------------------ */}
+          <div className="exec-row">
+            <section className="b-card exec-health">
+              <p className="b-label"><IconGauge /> Compliance health score</p>
+              {cci ? <CciDial report={cci} /> : <p className="b-empty">Score unavailable.</p>}
+            </section>
+            <div className="exec-stack">
+              <section className="b-card exec-mini">
+                <span className="meta">Open risks</span>
+                <p className="exec-mini-figure exec-mini-figure--fail" key={failedFlash}>
+                  {failed.length + blockedDates.length}
+                  <span className="exec-mini-sub">
+                    {failed.length} failed · {blockedDates.length} blocked date{blockedDates.length === 1 ? "" : "s"}
+                  </span>
+                </p>
+              </section>
+              <section className="b-card exec-mini">
+                <div className="exec-mini-split">
+                  <div>
+                    <span className="meta">Dates that can be worked out</span>
+                    <p className="exec-mini-figure">
+                      {state.deadline_computations.length - blockedDates.length}
+                      <span className="exec-mini-sub">of {state.deadline_computations.length} deadlines</span>
+                    </p>
+                  </div>
+                  <span className={`exec-chip${receipt && receipt.hash_matches_expected ? " exec-chip--ok" : ""}`}>
+                    <span className="exec-chip-dot" aria-hidden="true" />
+                    SEBI source: {receipt ? <StateLabel value={receipt.status} /> : "Not checked"}
+                  </span>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* ---- SEBI sources — live monitoring ------------------------- */}
+          <section className="b-card exec-monitor">
+            <div className="exec-monitor-head">
+              <p className="b-label"><IconInstitution /> SEBI sources — live monitoring</p>
+              <button type="button" className="btn btn--secondary" disabled={busy} onClick={onVerifySource}>
+                Check the source is unchanged
+              </button>
+            </div>
+            <ul className="mon-list">
+              {state.documents.map((doc) => {
+                const stale = receipt !== null && !receipt.hash_matches_expected;
+                return (
+                  <li className="mon-row" key={doc.id}>
+                    <span className={`mon-dot${stale ? " mon-dot--review" : ""}`} aria-hidden="true" />
+                    <div className="mon-body">
+                      <p className="mon-id">{doc.id}</p>
+                      <p className="mon-title">{doc.title}</p>
+                    </div>
+                    <span className="mon-status">
+                      {stale ? "Changed since pinning" : receipt ? "Verified against the original" : "Pinned · not re-checked yet"}
+                    </span>
+                    <a className="mon-link" href={doc.source_url} target="_blank" rel="noreferrer">
+                      original ↗
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          {/* ---- Rules requiring attention ------------------------------ */}
+          <section className="b-card exec-attn">
+            <p className="b-label"><IconDecision /> Rules requiring attention</p>
             {!build ? (
+              <div className="exec-attn-empty">
+                <p className="meta">No check has been run yet.</p>
+                <button type="button" className="btn btn--primary" disabled={busy} onClick={onRunCheck}>
+                  Run the check
+                </button>
+              </div>
+            ) : failed.length + waiting.length === 0 ? (
+              <p className="meta">Everything that can be settled is settled.</p>
+            ) : (
+              <ul className="attn-list">
+                {failed.map((item) => (
+                  <li className="attn-row" key={item.id}>
+                    <div>
+                      <p className="attn-title">{checkLabel(item.id, item.name)}</p>
+                      <p className="attn-due attn-due--fail">Did not pass</p>
+                    </div>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={onOpenDecision}>
+                      Review
+                    </button>
+                  </li>
+                ))}
+                {waiting.slice(0, 4).map((item) => (
+                  <li className="attn-row" key={item.id}>
+                    <div>
+                      <p className="attn-title">{checkLabel(item.id, item.name)}</p>
+                      <p className="attn-due">Waiting on you</p>
+                    </div>
+                    <button type="button" className="btn btn--secondary" disabled={busy} onClick={onOpenDecision}>
+                      Make the decision
+                    </button>
+                  </li>
+                ))}
+                {waiting.length > 4 && (
+                  <li className="attn-more">
+                    <button type="button" className="btn btn--quiet" onClick={() => setView("work")}>
+                      + {waiting.length - 4} more under the Work queue
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <div className="exec-rail">
+          {/* ---- Check progress donut ----------------------------------- */}
+          <section className="b-card exec-progress">
+            <p className="b-label"><IconClock /> Check progress</p>
+            {build ? (
               <>
-                <p className="b-hero-word">No check has been run yet.</p>
-                <div className="btn-row">
-                  <button type="button" className="btn btn--primary" disabled={busy} onClick={onRunCheck}>
-                    Run the check
-                  </button>
-                </div>
-              </>
-            ) : failed.length > 0 ? (
-              <>
-                <p className="b-hero-figure" key={failedFlash}>
-                  <span aria-hidden="true" className="b-hero-glyph">✕</span>
-                  <span className={failedFlash > 0 ? "flash-change" : undefined}>{failed.length}</span>
-                </p>
-                <p className="b-hero-word">check did not pass.</p>
-              </>
-            ) : waiting.length > 0 ? (
-              <>
-                <p className="b-hero-figure" key={waitingFlash}>
-                  <span aria-hidden="true" className="b-hero-glyph">!</span>
-                  <span className={waitingFlash > 0 ? "flash-change" : undefined}>{waiting.length}</span>
-                </p>
-                <p className="b-hero-word">decisions are yours to make.</p>
-                <div className="btn-row">
-                  <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDecision}>
-                    Make the decision
-                  </button>
-                  <button type="button" className="btn btn--quiet" disabled={busy} onClick={onRunCheck}>
-                    Run the check again
-                  </button>
-                </div>
+                <ExecDonut passed={passed.length} waiting={waiting.length} failed={failed.length} />
+                <ul className="exec-legend">
+                  <li><span className="exec-swatch exec-swatch--ok" /> {passed.length} passed</li>
+                  <li><span className="exec-swatch exec-swatch--review" /> {waiting.length} waiting on you</li>
+                  <li><span className="exec-swatch exec-swatch--fail" /> {failed.length} did not pass</li>
+                </ul>
               </>
             ) : (
-              <>
-                <p className="b-hero-figure">
-                  <span aria-hidden="true" className="b-hero-glyph b-hero-glyph--ok">✓</span>
-                </p>
-                <p className="b-hero-word">Everything that can be settled is settled.</p>
-                <div className="btn-row">
-                  <button type="button" className="btn btn--primary" disabled={busy} onClick={onDownloadReport}>
-                    Download the report
-                  </button>
-                </div>
-              </>
+              <p className="b-empty">Run the check to see progress.</p>
             )}
-            {waiting.length > 0 && (
-              <button
-                type="button"
-                className="btn btn--quiet"
-                disabled={busy}
-                onClick={() => setView("work")}
-              >
-                {waiting.length} waiting on you — open the Work queue
-              </button>
-            )}
-          </div>
-        </section>
+          </section>
 
-        {/* ---- Score dial --------------------------------------------- */}
-        <section className="b-card b-dial">
-          <p className="b-label"><IconGauge /> Cyber capability score</p>
-          {cci ? <CciDial report={cci} /> : <p className="b-empty">Score unavailable.</p>}
-        </section>
-
-        {/* ---- Five figures ------------------------------------------- */}
-        <section className="b-kpis">
-          <div className="b-kpi">
-            <span className="b-kpi-icon"><IconClauses /></span>
-            <span className="b-kpi-value">{active.length}</span>
-            <span className="b-kpi-label">Requirements that apply</span>
-          </div>
-          <div className={waiting.length > 0 ? "b-kpi b-kpi--attention" : "b-kpi"}>
-            <span className="b-kpi-icon"><IconDecision /></span>
-            <span className="b-kpi-value">{waiting.length}</span>
-            <span className="b-kpi-label">Waiting on you</span>
-          </div>
-          <div className="b-kpi">
-            <span className="b-kpi-icon"><IconCalendar /></span>
-            <span className="b-kpi-value">
-              {state.deadline_computations.length - blockedDates.length}
-              <span className="b-kpi-of">/{state.deadline_computations.length}</span>
-            </span>
-            <span className="b-kpi-label">Dates that can be worked out</span>
-          </div>
-          <div className="b-kpi">
-            <span className="b-kpi-icon"><IconEvidence /></span>
-            <span className="b-kpi-value">
-              {evidenceCurrent.length}
-              <span className="b-kpi-of">/{state.evidence.length}</span>
-            </span>
-            <span className="b-kpi-label">Evidence up to date</span>
-          </div>
-          <div className="b-kpi">
-            <span className="b-kpi-icon"><IconInstitution /></span>
-            <span className="b-kpi-value b-kpi-value--word">
-              {receipt ? <StateLabel value={receipt.status} /> : "Not checked"}
-            </span>
-            <span className="b-kpi-label">SEBI source</span>
-          </div>
-        </section>
-
-        {/* ---- Score breakdown ---------------------------------------- */}
-        {cci && (
-          <section className="b-card b-score">
-            <p className="b-label"><IconGauge /> Score breakdown</p>
-            <p className="b-verdict">
-              {cci.parameters.filter((item) => item.assessed).length} of{" "}
-              {cci.parameters.length} parameters scored live from workspace evidence —
-              the rest abstain rather than guess.
-            </p>
-            <Disclosure summary="Parameter by parameter">
+          {/* ---- Score breakdown ---------------------------------------- */}
+          {cci && (
+            <section className="b-card exec-score">
+              <p className="b-label"><IconGauge /> Score breakdown</p>
               <div className="b-score-rows">
-                {cci.parameters.filter((item) => item.assessed).map((item) => (
+                {cci.parameters.filter((item) => item.assessed).slice(0, 5).map((item) => (
                   <div className="cci-row" key={item.id}>
                     <span className="cci-row-title">{item.title}</span>
                     <span className="cci-bar" aria-hidden="true">
@@ -496,21 +522,47 @@ export function Dashboard({
                   </div>
                 ))}
               </div>
-              <ul className="stack-s">
-                {cci.parameters.map((item) => (
-                  <li key={item.id}>
-                    <p>
-                      <strong className="strong-ink">{item.title}</strong>
-                      {!item.assessed && <span className="meta"> — not assessed</span>}
-                    </p>
-                    <p className="meta">{item.meaning}</p>
-                  </li>
-                ))}
-              </ul>
-              <p className="meta">{cci.limitation}</p>
-            </Disclosure>
+              <Disclosure summary="Every parameter">
+                <ul className="stack-s">
+                  {cci.parameters.map((item) => (
+                    <li key={item.id}>
+                      <p className="strong-ink">
+                        {item.title} — {item.assessed ? `${item.score}` : "not assessed"}
+                      </p>
+                      <p className="meta">{item.meaning}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="meta">{cci.limitation}</p>
+              </Disclosure>
+            </section>
+          )}
+
+          {/* ---- Quick actions ------------------------------------------ */}
+          <section className="b-card exec-quick">
+            <p className="b-label">Quick actions</p>
+            <div className="exec-quick-list">
+              <button type="button" className="exec-quick-item" disabled={busy} onClick={onOpenDecision}>
+                <span className="exec-quick-icon"><IconDecision /></span>
+                Make the decision
+              </button>
+              <button type="button" className="exec-quick-item" disabled={busy} onClick={onRunCheck}>
+                <span className="exec-quick-icon"><IconGauge /></span>
+                Run the check again
+              </button>
+              <button type="button" className="exec-quick-item" disabled={busy} onClick={onVerifySource}>
+                <span className="exec-quick-icon"><IconInstitution /></span>
+                Verify the SEBI source
+              </button>
+              {build && failed.length === 0 && waiting.length === 0 && (
+                <button type="button" className="exec-quick-item" disabled={busy} onClick={onDownloadReport}>
+                  <span className="exec-quick-icon"><IconLedger /></span>
+                  Download the report
+                </button>
+              )}
+            </div>
           </section>
-        )}
+        </div>
       </div>
       )}
 
@@ -903,11 +955,46 @@ export function Dashboard({
       </div>
       )}
 
+      </div>
+      </div>
+
       {build && (
         <p className="cmd-foot">
           {passed.length} of {build.tests.length} checks passed · detail under <strong>Full record</strong>.
         </p>
       )}
+    </div>
+  );
+}
+
+function ExecDonut({ passed, waiting, failed }: { passed: number; waiting: number; failed: number }) {
+  const total = passed + waiting + failed;
+  if (total === 0) return null;
+  const p = (passed / total) * 100;
+  const w = (waiting / total) * 100;
+  const f = (failed / total) * 100;
+  const ring = "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831";
+  return (
+    <div className="exec-donut">
+      <svg viewBox="0 0 36 36" role="img" aria-label={`${passed} of ${total} checks passed`}>
+        <path d={ring} fill="none" stroke="var(--line-2)" strokeWidth="3" />
+        {p > 0 && (
+          <path d={ring} fill="none" stroke="var(--ok)" strokeWidth="3.6" strokeLinecap="round"
+            strokeDasharray={`${p} ${100 - p}`} />
+        )}
+        {w > 0 && (
+          <path d={ring} fill="none" stroke="var(--review)" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={`${w} ${100 - w}`} strokeDashoffset={-p} />
+        )}
+        {f > 0 && (
+          <path d={ring} fill="none" stroke="var(--fail)" strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={`${f} ${100 - f}`} strokeDashoffset={-(p + w)} />
+        )}
+      </svg>
+      <div className="exec-donut-centre">
+        <span className="exec-donut-figure">{Math.round(p)}%</span>
+        <span className="exec-donut-word">passed</span>
+      </div>
     </div>
   );
 }
