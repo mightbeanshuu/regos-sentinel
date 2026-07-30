@@ -1642,7 +1642,8 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .bento--fit .b-docagents { min-height: 0; overflow: auto; }
 
 @media (min-width: 1081px) and (min-height: 640px) {
-  body:has(.bento--fit) { overflow: hidden; }
+  /* The board sizes itself to one viewport, but the page is never scroll-locked —
+     zoom, short windows, or opened disclosures can always scroll to what they need. */
   body:has(.bento--fit) .page { padding-top: 16px; padding-bottom: 16px; }
   .cmd:has(.bento--fit) {
     display: flex;
