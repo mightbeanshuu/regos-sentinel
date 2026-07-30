@@ -146,16 +146,19 @@ function ClockFace({
 }
 
 /**
- * Visual reporting clocks for each VAPT finding — driven only by deadline rows
- * returned from the workspace. Where SEBI does not state a clock-start, the face
- * stays empty rather than inventing a countdown.
+ * Reporting clocks for each VAPT finding — a scannable table, one row per finding,
+ * click to expand the full detail. Driven only by deadline rows returned from the
+ * workspace. Where SEBI does not state a clock-start, no dial is drawn at all —
+ * the row says so in words and offers the decision that would start the clock.
  */
 export function IncidentReportingClock({
   state,
   compact = false,
+  onResolve,
 }: {
   state: WorkspaceState;
   compact?: boolean;
+  onResolve?: () => void;
 }) {
   const rows = useMemo(() => buildRows(state), [state]);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -181,13 +184,38 @@ export function IncidentReportingClock({
   }, [rows, reducedMotion]);
 
   return (
-    <div className={`irc-grid${compact ? " irc-grid--compact" : ""}`}>
+    <div className={`irc-table${compact ? " irc-table--compact" : ""}`}>
+      <div className="irc-head" aria-hidden="true">
+        <span>Finding</span>
+        <span>Period</span>
+        <span>Due</span>
+        <span />
+      </div>
       {rows.map((row) => (
-        <article key={row.findingId} className="irc-card">
-          <ClockFace row={row} nowMs={nowMs} reducedMotion={reducedMotion} />
-          <div className="irc-copy">
-            <p className="irc-id">{row.findingId}</p>
-            <p className="irc-title">{row.title}</p>
+        <details key={row.findingId} className="irc-row">
+          <summary className="irc-row-summary">
+            <span className="irc-row-name">
+              <span className="mono irc-row-id">{row.findingId}</span>
+              <span className="irc-row-title">{row.title}</span>
+            </span>
+            <span className="irc-row-period">{row.durationLabel ?? "Not assessed"}</span>
+            <span className="irc-row-status">
+              {row.computable && row.dueDate ? (
+                <strong className="strong-ink">{formatDate(row.dueDate)}</strong>
+              ) : (
+                <StateLabel value="BLOCK" />
+              )}
+            </span>
+            <span className="irc-row-chev" aria-hidden="true">▾</span>
+          </summary>
+          <div className="irc-row-body">
+            {row.computable ? (
+              <ClockFace row={row} nowMs={nowMs} reducedMotion={reducedMotion} />
+            ) : (
+              <p className="irc-noclock">
+                No clock can run here — {row.blockedReason ?? "the reviewed source states no starting event"}
+              </p>
+            )}
             <dl className="datalist irc-meta">
               <div className="irc-meta-row">
                 <dt>Period stated</dt>
@@ -226,8 +254,19 @@ export function IncidentReportingClock({
                 </dd>
               </div>
             </dl>
+            {!row.computable && onResolve && (
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--small"
+                  onClick={onResolve}
+                >
+                  Set the clock-start — make the decision
+                </button>
+              </div>
+            )}
           </div>
-        </article>
+        </details>
       ))}
     </div>
   );

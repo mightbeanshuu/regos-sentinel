@@ -11,6 +11,7 @@ import type {
   PassageClass,
   UploadedDocument,
 } from "../lib/types";
+import { DocumentCasePanel } from "./DocumentCase";
 import { Callout, Counts, DataRow, Field, Hash, Panel, StateLabel, Tag } from "./ui";
 
 const TIMING_PLAIN: Record<string, string> = {
@@ -350,6 +351,18 @@ export function DocumentReview({
             All four read this document only; findings appear under AI agents.
           </p>
         </div>
+      )}
+
+      {active && (
+        <DocumentCasePanel
+          document={active}
+          busy={busy}
+          onBusy={onBusy}
+          onError={onError}
+          onDocumentChanged={() => {
+            void regosApi.listDocuments().then(onChanged).catch(() => undefined);
+          }}
+        />
       )}
 
       {active && (

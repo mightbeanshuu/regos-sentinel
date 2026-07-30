@@ -27,6 +27,15 @@ from .assurance import build_assurance_report
 from .canonical import verify_embedded_sha256
 from .cci import compute_cci
 from .corpus import corpus_reports
+from .doccase import (
+    CaseApprovalRequest,
+    CaseReadingRequest,
+    DocumentCase,
+    approval_request_for,
+    commit_case_reading,
+    generate_case,
+    seal_case,
+)
 from .docscore import DocumentScore, score_document
 from .documents import (
     MAX_PAGE_COUNT,
@@ -655,6 +664,94 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
                 document_id,
                 lambda document, now: approve_requirement(document, payload, now),
             )
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    # ------------------------------------------------------------------ #
+    # The document case — the Case A ritual generated from any upload.
+    # Selection is deterministic and disclosed; the reading precedes the
+    # reveal; approval resolves to an ordinary signed requirement.
+    # ------------------------------------------------------------------ #
+
+    @application.post(
+        "/api/v1/documents/{document_id}/case",
+        response_model=DocumentCase,
+        status_code=201,
+    )
+    def generate_document_case(request: Request, document_id: str) -> DocumentCase:
+        enforce_rate_limit(request, "document-case", limit=30)
+        workspace = documents_for(request)
+        try:
+            existing = workspace.get_case_payload(document_id)
+            if existing is not None:
+                return DocumentCase.model_validate(existing)
+            document = workspace.get(document_id)
+            case = generate_case(document, workspace.now())
+            workspace.set_case_payload(document_id, case.model_dump(mode="json"))
+            return case
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.get(
+        "/api/v1/documents/{document_id}/case", response_model=DocumentCase
+    )
+    def read_document_case(request: Request, document_id: str) -> DocumentCase:
+        try:
+            payload = documents_for(request).get_case_payload(document_id)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+        if payload is None:
+            raise HTTPException(
+                status_code=404, detail="No case has been generated for this document yet."
+            )
+        return DocumentCase.model_validate(payload)
+
+    @application.post(
+        "/api/v1/documents/{document_id}/case/reading", response_model=DocumentCase
+    )
+    def commit_document_case_reading(
+        request: Request, document_id: str, payload: CaseReadingRequest
+    ) -> DocumentCase:
+        enforce_rate_limit(request, "document-case", limit=30)
+        workspace = documents_for(request)
+        try:
+            stored = workspace.get_case_payload(document_id)
+            if stored is None:
+                raise DocumentRejected(404, "Generate the case before committing a reading.")
+            case = commit_case_reading(
+                DocumentCase.model_validate(stored), payload, workspace.now()
+            )
+            workspace.set_case_payload(document_id, case.model_dump(mode="json"))
+            return case
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
+
+    @application.post(
+        "/api/v1/documents/{document_id}/case/approve", response_model=DocumentCase
+    )
+    def approve_document_case(
+        request: Request, document_id: str, payload: CaseApprovalRequest
+    ) -> DocumentCase:
+        enforce_rate_limit(request, "document-case", limit=30)
+        workspace = documents_for(request)
+        try:
+            stored = workspace.get_case_payload(document_id)
+            if stored is None:
+                raise DocumentRejected(404, "Generate the case before approving it.")
+            case = DocumentCase.model_validate(stored)
+            requirement_request = approval_request_for(case, payload)
+            updated = workspace.update(
+                document_id,
+                lambda document, now: approve_requirement(document, requirement_request, now),
+            )
+            requirement = next(
+                item for item in updated.requirements if item.passage_id == case.passage_id
+            )
+            case = seal_case(
+                case, payload, requirement.id, requirement.blocked_reason, workspace.now()
+            )
+            workspace.set_case_payload(document_id, case.model_dump(mode="json"))
+            return case
         except DocumentRejected as error:
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
 

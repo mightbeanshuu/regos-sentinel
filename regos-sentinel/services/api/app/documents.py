@@ -13,6 +13,7 @@ import hashlib
 import re
 import threading
 import unicodedata
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from io import BytesIO
@@ -713,6 +714,9 @@ class DocumentWorkspace:
     def __init__(self, retention_minutes: int = 60) -> None:
         self._lock = threading.RLock()
         self._documents: Dict[str, UploadedDocument] = {}
+        #: Generated document cases, stored as plain payloads keyed by document id.
+        #: The workspace stays agnostic of the case schema; ``app.doccase`` owns it.
+        self._cases: Dict[str, dict] = {}
         self._sequence = 0
         self._retention = timedelta(minutes=retention_minutes)
 
@@ -767,11 +771,29 @@ class DocumentWorkspace:
             self._documents[document_id] = self._copy(updated)
             return self._copy(updated)
 
+    def get_case_payload(self, document_id: str) -> Optional[dict]:
+        with self._lock:
+            if document_id not in self._documents:
+                raise DocumentRejected(404, "That document is not in this session.")
+            payload = self._cases.get(document_id)
+            return deepcopy(payload) if payload is not None else None
+
+    def set_case_payload(self, document_id: str, payload: dict) -> None:
+        with self._lock:
+            if document_id not in self._documents:
+                raise DocumentRejected(404, "That document is not in this session.")
+            self._cases[document_id] = deepcopy(payload)
+
+    def now(self) -> str:
+        return self._now()
+
     def remove(self, document_id: str) -> None:
         with self._lock:
             if self._documents.pop(document_id, None) is None:
                 raise DocumentRejected(404, "That document is not in this session.")
+            self._cases.pop(document_id, None)
 
     def clear(self) -> None:
         with self._lock:
             self._documents.clear()
+            self._cases.clear()

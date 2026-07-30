@@ -838,6 +838,51 @@ export interface DocumentScoreRow {
   confidence: number;
 }
 
+export interface DocumentCaseReading {
+  reviewer_name: string;
+  reviewer_role: string;
+  independent_interpretation: string;
+  trigger_policy: string;
+  committed_at: string;
+  revealed_system_suggestion: string;
+  system_suggestion_revealed_at: string;
+}
+
+export interface DocumentCaseApproval {
+  reviewer_name: string;
+  reviewer_role: string;
+  reason: string;
+  trigger_policy: string;
+  trigger_date: string | null;
+  agrees_with_system_suggestion: boolean;
+  approved_at: string;
+  requirement_id: string;
+  due_date: string | null;
+  blocked_reason: string | null;
+}
+
+/** The Case A ritual, generated from one uploaded document. */
+export interface DocumentCaseRecord {
+  document_id: string;
+  kind: string;
+  generated_at: string;
+  passage_id: string;
+  locator: string;
+  text: string;
+  duration_label: string | null;
+  duration_value: number | null;
+  duration_unit: string | null;
+  model_verdict: string;
+  model_confidence: number;
+  rule_verdict: string;
+  verdicts_agree: boolean;
+  candidates_considered: number;
+  state: "READING_PENDING" | "READING_COMMITTED" | "APPROVED";
+  reading: DocumentCaseReading | null;
+  approval: DocumentCaseApproval | null;
+  limitation: string;
+}
+
 export interface DocumentScore {
   document_id: string;
   sha256: string;

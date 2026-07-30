@@ -7,6 +7,7 @@ import type {
   CciReport,
   CorpusPackReport,
   DocumentLimits,
+  DocumentCaseRecord,
   DocumentScore,
   LiveSourceVerificationReceipt,
   MetricsReport,
@@ -181,6 +182,38 @@ export const regosApi = {
   listDocuments: () => requestJson<UploadedDocument[]>("/documents", { cache: "no-store" }),
   documentScore: (documentId: string) =>
     requestJson<DocumentScore>(`/documents/${documentId}/score`, { cache: "no-store" }),
+  documentCase: (documentId: string) =>
+    requestJson<DocumentCaseRecord>(`/documents/${documentId}/case`, { cache: "no-store" }),
+  generateDocumentCase: (documentId: string) =>
+    requestJson<DocumentCaseRecord>(`/documents/${documentId}/case`, { method: "POST" }),
+  commitDocumentCaseReading: (
+    documentId: string,
+    body: {
+      reviewer_name: string;
+      reviewer_role: string;
+      independent_interpretation: string;
+      trigger_policy: string;
+    },
+  ) =>
+    requestJson<DocumentCaseRecord>(`/documents/${documentId}/case/reading`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  approveDocumentCase: (
+    documentId: string,
+    body: {
+      actor: string;
+      action: string;
+      obligation_object: string;
+      trigger_date: string | null;
+      reason: string;
+      agrees_with_system_suggestion: boolean;
+    },
+  ) =>
+    requestJson<DocumentCaseRecord>(`/documents/${documentId}/case/approve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   uploadDocument: async (file: File, authority: string): Promise<UploadedDocument> => {
     const query = new URLSearchParams({ filename: file.name, authority });
     const token = sessionToken();

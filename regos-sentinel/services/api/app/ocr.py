@@ -29,11 +29,15 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import Dict, List, Optional
 
 import httpx
 from pypdf import PdfReader, PdfWriter
+
+from .documents import MAX_PAGE_COUNT
 
 OCR_ENDPOINT = "https://api.ocr.space/parse/image"
 
@@ -56,10 +60,18 @@ OCR_RENDER_SCALE = 200 / 72
 #: the local engine then reads the same page and the fuller transcript is kept.
 MIN_REMOTE_CHARS = 32
 
-#: Upper bound on pages machine-read per upload. A fully scanned long document would
-#: otherwise hold the request open for minutes; pages beyond the bound stay honestly
-#: unreadable and the document's limitations say so.
-MAX_OCR_PAGES_PER_DOCUMENT = 8
+#: Machine reading covers every page the upload lane accepts — the document page
+#: limit is the OCR limit. Pages are read by a small worker pool so a fully scanned
+#: document stays within an ordinary request's patience.
+MAX_OCR_PAGES_PER_DOCUMENT = MAX_PAGE_COUNT
+
+#: Concurrent page reads. The slow half (the tesseract subprocess, or the remote
+#: call) parallelises safely; the pdfium rasteriser is serialised separately below.
+OCR_WORKERS = 4
+
+#: PDFium is not thread-safe; every rasterisation goes through this lock. The
+#: tesseract subprocesses — where the time actually goes — still run in parallel.
+_PDFIUM_LOCK = threading.Lock()
 
 
 def remote_ocr_available() -> bool:
@@ -107,13 +119,16 @@ def _parse_response(payload: dict) -> str:
     return "\n".join(str(item.get("ParsedText") or "") for item in parsed).strip()
 
 
-def _remote_page(reader: PdfReader, index: int) -> str:
-    """One page via ocr.space. Empty on any failure — this never raises."""
+def _remote_page(payload: bytes, index: int) -> str:
+    """One page via ocr.space. Empty on any failure — this never raises.
+
+    Builds its own reader so concurrent page reads never share pypdf state.
+    """
     api_key = os.environ.get("OCR_SPACE_API_KEY")
     if not api_key:
         return ""
     try:
-        page_bytes = _single_page_pdf(reader, index)
+        page_bytes = _single_page_pdf(PdfReader(BytesIO(payload)), index)
         response = httpx.post(
             OCR_ENDPOINT,
             headers={"apikey": api_key},
@@ -146,27 +161,28 @@ def _page_ppm(payload: bytes, index: int) -> Optional[bytes]:
     try:
         import pypdfium2 as pdfium
 
-        document = pdfium.PdfDocument(payload)
-        try:
-            page = document[index - 1]
-            bitmap = page.render(
-                scale=OCR_RENDER_SCALE, rev_byteorder=True, prefer_bgrx=False
-            )
-            width, height, stride = bitmap.width, bitmap.height, bitmap.stride
-            channels = bitmap.n_channels
-            raw = bytes(bitmap.buffer)
-            row_bytes = width * channels
-            rows: List[bytes] = []
-            for y in range(height):
-                row = raw[y * stride : y * stride + row_bytes]
-                if channels == 4:
-                    trimmed = bytearray(row)
-                    del trimmed[3::4]
-                    row = bytes(trimmed)
-                rows.append(row)
-            return b"P6\n%d %d\n255\n" % (width, height) + b"".join(rows)
-        finally:
-            document.close()
+        with _PDFIUM_LOCK:
+            document = pdfium.PdfDocument(payload)
+            try:
+                page = document[index - 1]
+                bitmap = page.render(
+                    scale=OCR_RENDER_SCALE, rev_byteorder=True, prefer_bgrx=False
+                )
+                width, height, stride = bitmap.width, bitmap.height, bitmap.stride
+                channels = bitmap.n_channels
+                raw = bytes(bitmap.buffer)
+            finally:
+                document.close()
+        row_bytes = width * channels
+        rows: List[bytes] = []
+        for y in range(height):
+            row = raw[y * stride : y * stride + row_bytes]
+            if channels == 4:
+                trimmed = bytearray(row)
+                del trimmed[3::4]
+                row = bytes(trimmed)
+            rows.append(row)
+        return b"P6\n%d %d\n255\n" % (width, height) + b"".join(rows)
     except Exception:  # noqa: BLE001 — a page that cannot render stays unreadable
         return None
 
@@ -219,17 +235,29 @@ def ocr_pages(payload: bytes, page_indexes: List[int]) -> Dict[int, str]:
         return {}
     recovered: Dict[int, str] = {}
     try:
-        reader = PdfReader(BytesIO(payload))
-        for index in sorted(page_indexes)[:MAX_OCR_PAGES_PER_DOCUMENT]:
-            if index < 1 or index > len(reader.pages):
-                continue
-            text = _remote_page(reader, index) if remote else ""
+        page_count = len(PdfReader(BytesIO(payload)).pages)
+        bounded = [
+            index
+            for index in sorted(page_indexes)[:MAX_OCR_PAGES_PER_DOCUMENT]
+            if 1 <= index <= page_count
+        ]
+
+        def read(index: int) -> tuple[int, str]:
+            text = _remote_page(payload, index) if remote else ""
             # An empty or fragmentary remote read is not the last word — the local
             # engine reads the same page and the fuller transcript wins.
             if local and len(text.strip()) < MIN_REMOTE_CHARS:
                 local_text = _local_page(payload, index)
                 if len(local_text.strip()) > len(text.strip()):
                     text = local_text
+            return index, text
+
+        if len(bounded) <= 1:
+            results = [read(index) for index in bounded]
+        else:
+            with ThreadPoolExecutor(max_workers=OCR_WORKERS) as pool:
+                results = list(pool.map(read, bounded))
+        for index, text in results:
             if text.strip():
                 recovered[index] = text
     except Exception:  # noqa: BLE001 — OCR must never take the upload down with it

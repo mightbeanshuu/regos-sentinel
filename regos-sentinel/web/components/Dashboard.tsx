@@ -598,7 +598,7 @@ export function Dashboard({
         {state.findings.length > 0 && (
           <section className="b-card b-clocks">
             <p className="b-label"><IconClock /> Incident reporting clocks</p>
-            <IncidentReportingClock state={state} compact />
+            <IncidentReportingClock state={state} compact onResolve={onOpenDecision} />
           </section>
         )}
 
