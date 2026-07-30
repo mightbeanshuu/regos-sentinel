@@ -68,6 +68,7 @@ export function Dashboard({
   onVerifySource,
   onRefresh,
   onOpenDocuments,
+  onRunAssistants,
 }: {
   state: WorkspaceState;
   documents?: UploadedDocument[];
@@ -79,6 +80,7 @@ export function Dashboard({
   onVerifySource: () => void;
   onRefresh: () => void;
   onOpenDocuments?: () => void;
+  onRunAssistants?: (documentId: string) => void;
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   const [planner] = useState<PlannerKind>("DETERMINISTIC_PLAN");
@@ -199,7 +201,7 @@ export function Dashboard({
       </nav>
 
       {view === "overview" && lens === "document" && activeDoc && (
-      <div className="bento">
+      <div className="bento bento--fit">
         {/* ---- Document hero ------------------------------------------ */}
         <section className={`b-card b-hero b-hero--${activeDoc.scope.passages_needing_review > 0 ? "review" : activeDoc.state === "APPROVED" ? "ok" : "idle"}`}>
           <GridField />
@@ -212,23 +214,72 @@ export function Dashboard({
                   ? "A named person has approved a requirement from this document."
                   : "Extracted and classified — nothing becomes work until a person approves it."}
             </p>
+            {activeDoc.scope.pages_machine_read.length > 0 && (
+              <p className="b-ocr-pill">
+                ⌾ {activeDoc.scope.pages_machine_read.length}{" "}
+                {activeDoc.scope.pages_machine_read.length === 1 ? "page" : "pages"} machine-read
+                (OCR) — labelled, never treated as a text layer
+              </p>
+            )}
             <div className="btn-row">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={onOpenDocuments}>
                 Open the review
               </button>
+              {onRunAssistants && (
+                <button
+                  type="button"
+                  className="btn btn--quiet"
+                  disabled={busy}
+                  onClick={() => { onRunAssistants(activeDoc.id); setView("agents"); }}
+                >
+                  Run the assistants on it
+                </button>
+              )}
             </div>
           </div>
         </section>
 
-        {/* ---- Model score dial substitute ----------------------------- */}
+        {/* ---- The committed model's read ------------------------------ */}
         <section className="b-card b-dial">
           <p className="b-label"><IconGauge /> Deadline clarity — committed model</p>
           {docScore ? (
-            <div className="stack-s">
+            <div className="stack-s b-modelread">
               <p className="scorecard-value">
                 {docScore.deadline_clarity === null ? "—" : `${Math.round(docScore.deadline_clarity * 100)}%`}
               </p>
-              <p className="meta clamp2" title={docScore.limitation}>{docScore.limitation}</p>
+              <p className="b-verdict">
+                {docScore.with_timing_language === 0
+                  ? `The model read all ${docScore.passages_total} passages — none carries timing language, so no deadline can honestly be computed here. That is the answer, not an error.`
+                  : docScore.blocked_durations > 0
+                    ? `${docScore.blocked_durations} ${docScore.blocked_durations === 1 ? "passage states" : "passages state"} a period with no clock-start — the defect this product exists to catch.`
+                    : `${docScore.timing_counts.PERIOD_AND_TRIGGER} ${docScore.timing_counts.PERIOD_AND_TRIGGER === 1 ? "passage supports" : "passages support"} a computable date; nothing states a period without its clock-start.`}
+              </p>
+              <Disclosure summary="Class-by-class read">
+                <div className="b-score-rows">
+                  {Object.entries(docScore.timing_counts).map(([label, count]) => {
+                    const max = Math.max(...Object.values(docScore.timing_counts), 1);
+                    return (
+                      <div className="cci-row" key={label}>
+                        <span className="cci-row-title">{labelOf(label)}</span>
+                        <span className="cci-bar" aria-hidden="true">
+                          <span
+                            className={`cci-bar-fill${label === "PERIOD_AND_TRIGGER" ? " cci-bar-fill--ok" : label === "NO_TIMING" ? "" : " cci-bar-fill--review"}`}
+                            style={{ transform: `scaleX(${count / max})` }}
+                          />
+                        </span>
+                        <span className="cci-row-score">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="meta">{docScore.clarity_formula}.</p>
+                <p className="meta">{docScore.limitation}</p>
+                <p className="meta">
+                  The cyber capability score stays on the demo corpus — its parameters need
+                  workspace evidence an uploaded document does not carry. No number is
+                  invented under this lens.
+                </p>
+              </Disclosure>
             </div>
           ) : (
             <p className="b-empty">Score loads once the model reads this document.</p>
@@ -236,7 +287,7 @@ export function Dashboard({
         </section>
 
         {/* ---- Document figures ---------------------------------------- */}
-        <section className="b-kpis">
+        <section className="b-kpis b-kpis--compact">
           <div className="b-kpi">
             <span className="b-kpi-value">{activeDoc.passages.length}</span>
             <span className="b-kpi-label">Passages extracted</span>
@@ -262,39 +313,59 @@ export function Dashboard({
           </div>
         </section>
 
-        {/* ---- Timing classes from the committed model ------------------ */}
-        {docScore && (
-          <section className="b-card b-score">
-            <p className="b-label"><IconGauge /> What the model read, by timing class</p>
-            <div className="b-score-rows">
-              {Object.entries(docScore.timing_counts).map(([label, count]) => {
-                const max = Math.max(...Object.values(docScore.timing_counts), 1);
-                return (
-                  <div className="cci-row" key={label}>
-                    <span className="cci-row-title">{labelOf(label)}</span>
-                    <span className="cci-bar" aria-hidden="true">
-                      <span
-                        className={`cci-bar-fill${label === "PERIOD_AND_TRIGGER" ? " cci-bar-fill--ok" : label === "NO_TIMING" ? "" : " cci-bar-fill--review"}`}
-                        style={{ transform: `scaleX(${count / max})` }}
-                      />
-                    </span>
-                    <span className="cci-row-score">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="meta">
-              The cyber capability score stays on the demo corpus — its parameters need
-              workspace evidence an uploaded document does not carry. No number is invented
-              under this lens.
+        {/* ---- What needs you ------------------------------------------ */}
+        <section className="b-card b-focus">
+          <p className="b-label"><IconDecision /> What needs you</p>
+          {activeDoc.scope.passages_needing_review === 0 ? (
+            <p className="b-empty">
+              Nothing in this document is waiting on a person right now.
             </p>
-          </section>
-        )}
+          ) : (
+            <ul className="b-focus-list">
+              {activeDoc.passages
+                .filter((p) => p.classification === "NEEDS_REVIEW")
+                .slice(0, 3)
+                .map((p) => (
+                  <li key={p.id}>
+                    <span className="mono meta">{p.locator}</span>
+                    <span className="b-focus-text" title={p.text}>{p.text}</span>
+                  </li>
+                ))}
+              {activeDoc.scope.passages_needing_review > 3 && (
+                <li className="b-hero-more">
+                  + {activeDoc.scope.passages_needing_review - 3} more under Open the review
+                </li>
+              )}
+            </ul>
+          )}
+        </section>
+
+        {/* ---- Assistants anchored on this document -------------------- */}
+        <section className="b-card b-docagents">
+          <p className="b-label"><IconAgents /> Assistants on this document</p>
+          <div className="b-context-agents">
+            {ALL_AGENTS.map((id) => {
+              const run = state.agent_runs
+                .filter((r) => r.agent_id === id && r.anchor_document_id === activeDoc.id)
+                .at(-1);
+              return (
+                <div className="b-context-agent" key={id}>
+                  <span>{AGENT_PLAIN[id].name}</span>
+                  <span className="meta">
+                    {run
+                      ? `${run.findings.length} findings · ${run.tool_call_count} steps`
+                      : "Not run on this document"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
       )}
 
       {view === "overview" && !(lens === "document" && activeDoc) && (
-      <div className="bento">
+      <div className="bento bento--fit">
         {/* ---- Status hero -------------------------------------------- */}
         <section className={`b-card b-hero b-hero--${heroTone}`}>
           <GridField />
@@ -405,21 +476,26 @@ export function Dashboard({
         {cci && (
           <section className="b-card b-score">
             <p className="b-label"><IconGauge /> Score breakdown</p>
-            <div className="b-score-rows">
-              {cci.parameters.filter((item) => item.assessed).map((item) => (
-                <div className="cci-row" key={item.id}>
-                  <span className="cci-row-title">{item.title}</span>
-                  <span className="cci-bar" aria-hidden="true">
-                    <span
-                      className={`cci-bar-fill${(item.score ?? 0) >= 80 ? " cci-bar-fill--ok" : (item.score ?? 0) >= 40 ? " cci-bar-fill--review" : " cci-bar-fill--fail"}`}
-                      style={{ transform: `scaleX(${(item.score ?? 0) / 100})` }}
-                    />
-                  </span>
-                  <span className="cci-row-score">{item.score}</span>
-                </div>
-              ))}
-            </div>
-            <Disclosure summary="Detail">
+            <p className="b-verdict">
+              {cci.parameters.filter((item) => item.assessed).length} of{" "}
+              {cci.parameters.length} parameters scored live from workspace evidence —
+              the rest abstain rather than guess.
+            </p>
+            <Disclosure summary="Parameter by parameter">
+              <div className="b-score-rows">
+                {cci.parameters.filter((item) => item.assessed).map((item) => (
+                  <div className="cci-row" key={item.id}>
+                    <span className="cci-row-title">{item.title}</span>
+                    <span className="cci-bar" aria-hidden="true">
+                      <span
+                        className={`cci-bar-fill${(item.score ?? 0) >= 80 ? " cci-bar-fill--ok" : (item.score ?? 0) >= 40 ? " cci-bar-fill--review" : " cci-bar-fill--fail"}`}
+                        style={{ transform: `scaleX(${(item.score ?? 0) / 100})` }}
+                      />
+                    </span>
+                    <span className="cci-row-score">{item.score}</span>
+                  </div>
+                ))}
+              </div>
               <ul className="stack-s">
                 {cci.parameters.map((item) => (
                   <li key={item.id}>

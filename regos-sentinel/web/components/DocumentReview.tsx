@@ -41,6 +41,13 @@ function ModelScorecard({ document }: { document: UploadedDocument }) {
       title="Model scorecard"
       description={`Generated fresh by ${score.model_name} ${score.model_version} — committed weights, no network.`}
     >
+      {score.with_timing_language === 0 && (
+        <p className="meta">
+          The model read all {score.passages_total} passages — none carries timing
+          language, so no deadline can honestly be computed from this document. That is
+          the answer, not an error.
+        </p>
+      )}
       <div className="scorecard">
         <div className="scorecard-figure">
           <span className="scorecard-value">
@@ -215,8 +222,12 @@ export function DocumentReview({
           Session-only. Fixed-rule classification, no model call, no legal interpretation.
           Nothing becomes mandatory work until a named person approves it.
         </p>
-        {limits && !limits.ocr_available && (
-          <p className="meta">Scanned pages are not read — no OCR in this prototype.</p>
+        {limits && (
+          <p className="meta">
+            {limits.ocr_available
+              ? "Scanned pages are machine-read (OCR); recovered text is always labelled machine-read."
+              : "Machine reading (OCR) is not enabled on this deployment — scanned pages stay unread."}
+          </p>
         )}
       </Callout>
 
@@ -344,6 +355,7 @@ export function DocumentReview({
       {active && (
         <DocumentDetail
           document={active}
+          ocrAvailable={limits?.ocr_available ?? false}
           busy={busy}
           onReviewPassage={(passageId, body) =>
             mutate(() => regosApi.reviewPassage(active.id, passageId, body))}
@@ -364,6 +376,7 @@ export function DocumentReview({
 
 function DocumentDetail({
   document,
+  ocrAvailable,
   busy,
   onReviewPassage,
   onApproveRequirement,
@@ -372,6 +385,7 @@ function DocumentDetail({
   onBusy,
 }: {
   document: UploadedDocument;
+  ocrAvailable: boolean;
   busy: boolean;
   onReviewPassage: (
     passageId: string,
@@ -449,8 +463,16 @@ function DocumentDetail({
               <span className="meta">· user-provided metadata, not verified</span>
             </DataRow>
             <DataRow label="Extraction">
-              Deterministic text extraction · no model call · no OCR
+              {document.scope.pages_machine_read.length > 0
+                ? "Deterministic text extraction · no model call · machine-read (OCR) pages labelled"
+                : "Deterministic text extraction · no model call"}
             </DataRow>
+            {document.scope.pages_machine_read.length > 0 && (
+              <DataRow label="Pages machine-read (OCR)">
+                {document.scope.pages_machine_read.join(", ")}{" "}
+                <span className="meta">· recovered text is labelled machine-read, never treated as a text layer</span>
+              </DataRow>
+            )}
           </dl>
 
           <Counts
@@ -483,9 +505,9 @@ function DocumentDetail({
           {scope.pages_unreadable.length > 0 && (
             <Callout tone="review" title="Some pages could not be read">
               <p>
-                This PDF appears to contain scanned pages. Text extraction is not available for
-                those pages in this prototype, so they were not reviewed and no content was
-                invented for them.
+                {ocrAvailable
+                  ? "These pages carry no text layer and machine reading (OCR) recovered nothing usable from them, so they were not reviewed and no content was invented for them."
+                  : "These pages carry no text layer, and machine reading (OCR) is not enabled on this deployment, so they were not reviewed and no content was invented for them."}
               </p>
             </Callout>
           )}

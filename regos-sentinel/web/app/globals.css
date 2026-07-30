@@ -1553,9 +1553,91 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .b-evidence  { grid-column: span 12; }
 .b-ask       { grid-column: span 12; }
 .b-agents    { grid-column: span 12; }
+.b-focus     { grid-column: span 7; }
+.b-docagents { grid-column: span 5; }
 
 @media (max-width: 1080px) {
-  .b-hero, .b-dial, .b-score, .b-clocks, .b-deadlines, .b-evidence { grid-column: span 12; }
+  .b-hero, .b-dial, .b-score, .b-clocks, .b-deadlines, .b-evidence,
+  .b-focus, .b-docagents { grid-column: span 12; }
+}
+
+/* ---------- One-screen overview ------------------------------------------- */
+
+/* The overview is a command board: on a desktop viewport it takes exactly the
+   space the header leaves and the page stops scrolling. Detail values live
+   behind disclosures; if a card still overflows, the card scrolls internally —
+   the page never does. Small or stacked viewports keep natural scrolling. */
+.bento--fit {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+.bento--fit .b-card { padding: var(--s4); gap: var(--s3); }
+.bento--fit .b-hero { min-height: 148px; }
+.bento--fit .b-hero-word { font-size: 1rem; }
+.bento--fit .b-kpi { min-height: 84px; padding: var(--s3) var(--s4); }
+.bento--fit .b-kpi-value { font-size: 1.75rem; }
+.bento--fit .b-dial,
+.bento--fit .b-score,
+.bento--fit .b-focus,
+.bento--fit .b-docagents { min-height: 0; overflow: auto; }
+
+@media (min-width: 1081px) and (min-height: 640px) {
+  body:has(.bento--fit) { overflow: hidden; }
+  body:has(.bento--fit) .page { padding-top: 16px; padding-bottom: 16px; }
+  .cmd:has(.bento--fit) {
+    display: flex;
+    flex-direction: column;
+    /* 65px brand header + 56px tab bar + 32px page padding. */
+    height: calc(100dvh - 153px);
+    padding-top: var(--s4);
+    padding-bottom: var(--s4);
+  }
+  .cmd:has(.bento--fit) .cmd-head { margin-bottom: var(--s3); }
+  .cmd:has(.bento--fit) .cmd-title { font-size: 1.125rem; }
+  .cmd:has(.bento--fit) .cmd-lens { margin-bottom: var(--s2); }
+  .cmd:has(.bento--fit) .cmd-nav { margin-bottom: var(--s3); }
+  .cmd:has(.bento--fit) .cmd-foot { margin-top: var(--s3); }
+  .bento--fit { flex: 1; min-height: 0; }
+}
+
+.b-verdict { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.5; }
+
+.b-ocr-pill {
+  align-self: flex-start;
+  font-size: 0.71875rem;
+  color: var(--ink-2);
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* All four assistants visible at once — two compact columns. */
+.b-docagents .b-context-agents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2) var(--s4);
+}
+.b-docagents .b-context-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8125rem;
+}
+
+.b-focus-list { display: flex; flex-direction: column; gap: var(--s2); }
+.b-focus-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  min-width: 0;
+}
+.b-focus-list .mono { flex: 0 0 auto; }
+.b-focus-text {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Card label ---------------------------------------------------- */

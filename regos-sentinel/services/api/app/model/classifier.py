@@ -31,7 +31,7 @@ from .dataset import LABELS
 
 WEIGHTS_PATH = Path(__file__).with_name("weights.json")
 
-MODEL_VERSION = "regos-timing/1.0.0"
+MODEL_VERSION = "regos-timing/1.1.0"
 
 # --------------------------------------------------------------------------- #
 # Features
@@ -39,11 +39,14 @@ MODEL_VERSION = "regos-timing/1.0.0"
 
 _NUMBER_WORD = (
     r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen"
-    r"|thirty|sixty|ninety|180)"
+    r"|twenty|twenty[\s-]?one|twenty[\s-]?four|thirty|forty[\s-]?five|sixty|ninety|180)"
 )
-_UNIT = r"(?:minute|hour|day|week|month|year|business day)s?"
+_UNIT = r"(?:minute|hour|day|week|month|year|business day|calendar day|trading day|working day)s?"
 
-_DURATION = re.compile(rf"\b{_NUMBER_WORD}\s*\(?\d*\)?\s*{_UNIT}\b", re.IGNORECASE)
+#: ``(?<![tT][+\-])`` keeps market-microstructure notation ("T+1 day settlement",
+#: "T-1 day closing price") from reading as a duration — it names a convention, not
+#: a period anyone must act within. Real circulars use it constantly.
+_DURATION = re.compile(rf"(?<![tT][+\-])\b{_NUMBER_WORD}\s*\(?\d*\)?\s*{_UNIT}\b", re.IGNORECASE)
 
 #: Phrases that name the event a clock starts from. This is the distinction the whole
 #: product turns on, so the list is explicit rather than learned from a handful of rows.
@@ -54,6 +57,45 @@ _CLOCK_START = (
     " of creation", " of approval by", " after commencement of", " of the incident",
     " of the inspection report", " of the audit report", " of the backup run",
     " of the notice", " from the end of",
+)
+
+#: The phrase list above misses clock-starts real circulars actually use ("of filing",
+#: "of issuance", "after pay-out", "of its operationalization"). This pattern names
+#: the event-noun shapes that start a clock, mined from 26 real SEBI circulars.
+_CLOCK_START_RE = re.compile(
+    r"\b(?:of|from|after|before)\s+(?:the\s+|its\s+|such\s+)?"
+    r"(?:date|submission|completion|termination|receipt|issuance|filing|approval|grant"
+    r"|operationali[sz]ation|commencement|detection|discovery|intimation|obtaining"
+    r"|pay[\s-]{0,2}out|expiry)\b",
+    re.IGNORECASE,
+)
+
+#: Wording that states the deadline outright — an explicit calendar date, or an
+#: end-of-period anchor. No duration or separate trigger is needed: the date is given.
+_MONTH = (
+    r"(?:january|february|march|april|may|june|july|august|september|october"
+    r"|november|december)"
+)
+_ABSOLUTE_DATE = re.compile(
+    rf"\b(?:on or before|not later than|no later than|by|before|from|with effect from"
+    rf"|w\.?e\.?f\.?)\s+{_MONTH}\s+\d{{1,2}},?\s+\d{{4}}"
+    r"|\b(?:by|before|at)\s+(?:the\s+)?end of the\s+(?:day|week|month|quarter|year|financial year)"
+    r"|\bon or before\s+(?:the\s+)?next\s+(?:trading|working|business)\s+day\b",
+    re.IGNORECASE,
+)
+
+#: Named periodicities. "annually" or "half-yearly" states a period exactly as
+#: "every six months" does, and real SEBI wording leans on these words heavily.
+_PERIODICITY = re.compile(
+    r"\b(?:annual(?:ly)?|half[\s-]?yearly|six[\s-]?monthly|quarterly|monthly|weekly|daily)\b",
+    re.IGNORECASE,
+)
+
+#: "every six months" / "every financial year" is recurrence; "every request" is just
+#: a quantifier. Only the time-anchored sense may count.
+_RECURRENCE = re.compile(
+    rf"\bevery\s+(?:\w+[\s-]+)?{_UNIT}\b|\binterval",
+    re.IGNORECASE,
 )
 
 _URGENCY = (
@@ -69,9 +111,17 @@ _IMPERATIVE = ("shall", "must", "are to be", "need to")
 def features(text: str) -> Dict[str, float]:
     """The feature vector for one sentence. Deliberately few, deliberately legible."""
     padded = f" {' '.join(text.lower().split())} "
+    # "immediate relatives" names a family relationship, not urgency. Real transmission
+    # circulars use it constantly and it must not read as a deadline.
+    urgency_text = padded.replace("immediate relative", " ")
     duration = _DURATION.search(padded)
-    clock_start = [phrase for phrase in _CLOCK_START if phrase in padded]
-    urgency = [word for word in _URGENCY if word in padded]
+    clock_start = (
+        [phrase for phrase in _CLOCK_START if phrase in padded]
+        or _CLOCK_START_RE.search(padded)
+    )
+    urgency = [word for word in _URGENCY if word in urgency_text]
+    absolute_date = _ABSOLUTE_DATE.search(padded)
+    periodicity = _PERIODICITY.search(padded)
 
     found: Dict[str, float] = {"bias": 1.0}
     if duration:
@@ -89,13 +139,19 @@ def features(text: str) -> Dict[str, float]:
         found["duration_without_clock_start"] = 1.0
     if urgency and not duration:
         found["urgency_without_duration"] = 1.0
+    if absolute_date:
+        found["has_absolute_date"] = 1.0
+    if periodicity:
+        found["periodicity_word"] = 1.0
+        if not clock_start and not absolute_date:
+            found["periodicity_without_anchor"] = 1.0
     if any(word in padded for word in _IMPERATIVE):
         found["imperative"] = 1.0
     if " not exceed" in padded or " maximum" in padded or " upper" in padded:
         found["ceiling_language"] = 1.0
     if " within " in padded:
         found["within"] = 1.0
-    if " every " in padded or " interval" in padded:
+    if _RECURRENCE.search(padded):
         found["recurrence"] = 1.0
     return found
 
@@ -108,12 +164,15 @@ FEATURE_NAMES: Tuple[str, ...] = (
     "duration_and_clock_start",
     "duration_without_clock_start",
     "urgency_without_duration",
+    "has_absolute_date",
+    "periodicity_word",
+    "periodicity_without_anchor",
     "imperative",
     "ceiling_language",
     "within",
     "recurrence",
     "unit:minute", "unit:hour", "unit:day", "unit:week", "unit:month", "unit:year",
-    "unit:business day",
+    "unit:business day", "unit:calendar day", "unit:trading day", "unit:working day",
 )
 
 
@@ -239,8 +298,13 @@ def load_classifier() -> Optional[TimingClassifier]:
 
 def model_card() -> Dict[str, object]:
     """What this model is, what it was trained on, and what it must not be used for."""
-    from .dataset import EXAMPLES, counts, real_examples
+    from .dataset import EXAMPLES
+    from .dataset import LABELS as _LABELS
+    from .real_corpus import REAL_EXAMPLES
 
+    combined = list(EXAMPLES) + list(REAL_EXAMPLES)
+    real = [item for item in combined if not item.synthetic]
+    real_documents = {item.source.split(" · ")[0] for item in real}
     payload = json.loads(WEIGHTS_PATH.read_text()) if WEIGHTS_PATH.exists() else {}
     return {
         "name": "RegOS timing classifier",
@@ -251,12 +315,16 @@ def model_card() -> Dict[str, object]:
             "without a period, or contains no timing at all."
         ),
         "architecture": (
-            "Multinomial logistic regression over 18 hand-designed linguistic features. "
-            "Pure standard library — no numpy, no network, no external service."
+            f"Multinomial logistic regression over {len(FEATURE_NAMES)} hand-designed "
+            "linguistic features. Pure standard library — no numpy, no network, no "
+            "external service."
         ),
-        "training_examples": len(EXAMPLES),
-        "real_examples": len(real_examples()),
-        "label_counts": counts(),
+        "training_examples": len(combined),
+        "real_examples": len(real),
+        "real_documents": len(real_documents),
+        "label_counts": {
+            label: sum(1 for item in combined if item.label == label) for label in _LABELS
+        },
         "metrics": payload.get("metrics", {}),
         "why_not_an_api": (
             "A hosted model cannot show its reasoning, changes without notice, needs "
@@ -265,12 +333,15 @@ def model_card() -> Dict[str, object]:
             "is versioned in the repository with the data it was trained on."
         ),
         "limitations": (
-            "Trained on 87 sentences, of which 22 are real published wording and the "
-            "rest are constructed variations labelled as such. It classifies one "
-            "sentence at a time and has no view of surrounding context, cross-"
-            "references, or the document as a whole. It does not decide what a firm "
-            "must do — it decides whether a date can honestly be derived, and a "
-            "deterministic rule checks the same question independently."
+            f"Trained on {len(combined)} sentences: {len(real)} are real published "
+            f"SEBI wording from {len(real_documents)} sources (harvested by this "
+            "product's own extraction pipeline, labelled by hand), the rest are "
+            "constructed variations labelled as such. It classifies one sentence at a "
+            "time and has no view of surrounding context, cross-references, or the "
+            "document as a whole. It does not decide what a firm must do — it decides "
+            "whether a date can honestly be derived, and a deterministic rule checks "
+            "the same question independently. Quote metrics.document_held_out, not "
+            "cross-validation, for how it behaves on documents it has never seen."
         ),
         "intended_use": (
             "A second opinion alongside the deterministic timing rule. Where the two "

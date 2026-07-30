@@ -326,6 +326,9 @@ export default function Home() {
                 void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
               onRefresh={() => void load()}
               onOpenDocuments={() => setTab("document")}
+              onRunAssistants={(documentId) => {
+                void act(() => regosApi.runAllAgents("DETERMINISTIC_PLAN", documentId) as Promise<WorkspaceState>);
+              }}
             />
           )}
         </div>

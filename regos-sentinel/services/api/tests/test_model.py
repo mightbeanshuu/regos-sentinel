@@ -13,6 +13,7 @@ from app.agents.tools import analyse_timing
 from app.main import create_app
 from app.model import load_classifier, model_card
 from app.model.dataset import EXAMPLES, LABELS
+from app.model.real_corpus import REAL_EXAMPLES
 
 
 def client_for() -> TestClient:
@@ -74,11 +75,30 @@ def test_the_model_agrees_with_the_deterministic_rule_on_the_real_corpus() -> No
 def test_the_model_card_states_its_limits_without_being_asked() -> None:
     card = model_card()
 
-    assert card["training_examples"] == len(EXAMPLES)
+    assert card["training_examples"] == len(EXAMPLES) + len(REAL_EXAMPLES)
     assert set(card["label_counts"]) == set(LABELS)
     assert card["metrics"]["accuracy"] > 0.8
     assert "constructed variations" in card["limitations"]
     assert "never overrules" in card["intended_use"]
+
+
+def test_the_real_corpus_is_what_it_claims_to_be() -> None:
+    """Every harvested row is real, labelled, and traceable to a named circular."""
+    assert len(REAL_EXAMPLES) >= 100
+    assert all(not item.synthetic for item in REAL_EXAMPLES)
+    assert all(item.source.startswith("SEBI: ") for item in REAL_EXAMPLES)
+    assert all(item.label in LABELS for item in REAL_EXAMPLES)
+    documents = {item.source.split(" · ")[0] for item in REAL_EXAMPLES}
+    assert len(documents) >= 20, "the harvest must span many distinct circulars"
+
+
+def test_document_held_out_metrics_are_published() -> None:
+    """The honest generalisation number ships with the weights, not just CV."""
+    card = model_card()
+    held_out = card["metrics"].get("document_held_out")
+    assert held_out, "weights.json must carry the document-held-out evaluation"
+    assert held_out["accuracy"] > 0.8
+    assert held_out["documents"] >= 20
 
 
 def test_the_explain_endpoint_returns_both_verdicts_and_never_picks_a_winner() -> None:

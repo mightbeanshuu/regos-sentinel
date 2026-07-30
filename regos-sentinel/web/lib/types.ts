@@ -442,6 +442,7 @@ export interface DocumentScope {
   page_count: number;
   pages_read: number;
   pages_unreadable: number[];
+  pages_machine_read: number[];
   passages_reviewed: number;
   possible_requirements: number;
   recommendations_not_converted: number;
