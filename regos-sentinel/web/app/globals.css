@@ -2990,6 +2990,121 @@ body {
 .decision-commit-quiet { color: oklch(0.97 0.01 55 / 0.85); }
 .decision-commit-quiet:hover:not(:disabled) { color: #fff; }
 
+/* ---------- Committed decision — Stitch case-review layout ----------------- */
+
+/* Case meta line: one row of real state under the step title. */
+.decision-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+.decision-meta-div {
+  width: 1px;
+  height: 14px;
+  background: var(--line-2);
+}
+
+/* Two columns: the case on the left, actionable information on the right. */
+.decision-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--s4);
+  align-items: start;
+}
+.decision-main,
+.decision-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+.decision-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+@media (max-width: 1080px) {
+  .decision-layout { grid-template-columns: 1fr; }
+  .decision-duo { grid-template-columns: 1fr; }
+}
+
+/* The reviewer's committed reading, quoted — it is testimony, not UI copy. */
+.decision-quote {
+  margin: 0;
+  padding: var(--s3) var(--s4);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Suggestion strip: claim on the left, the human's judgment beside it. */
+.decision-suggest {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+.decision-suggest-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.decision-preview-value--xl {
+  font-size: 1.875rem;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.decision-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-size: 0.8125rem;
+}
+.decision-links li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-width: 0;
+}
+.decision-link-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Action bar: the commit card stretched into a bar, copy left, actions right. */
+.decision-actionbar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+.decision-actionbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  flex: 1 1 380px;
+  min-width: 0;
+}
+.decision-actionbar .btn-row { margin-top: 0; }
+.decision-actionbar-actions { flex: 0 0 auto; align-items: center; }
+
 /* Big teal agreement block, per the reference. */
 .decision-agree-chip {
   padding: var(--s3) var(--s5);

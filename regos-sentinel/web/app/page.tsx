@@ -375,6 +375,7 @@ export default function Home() {
                 download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
               onDownloadBeforeAfter={() =>
                 download(() => regosApi.downloadBeforeAfter(state.builds.at(-1)!.id))}
+              onOpenAudit={() => setTab("audit")}
             />
           )}
         </div>

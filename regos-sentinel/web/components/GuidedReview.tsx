@@ -49,6 +49,8 @@ interface GuidedReviewProps {
   }) => Promise<void>;
   onDownloadReport: () => Promise<void>;
   onDownloadBeforeAfter: () => Promise<void>;
+  /** Jump to the Full record tab — the workflow's final destination. */
+  onOpenAudit?: () => void;
 }
 
 function Stepper({ states }: { states: StepState[] }) {
@@ -178,7 +180,16 @@ export function GuidedReview(props: GuidedReviewProps) {
             Recorded by: <strong>{reading.reviewer_name} ({reading.reviewer_role})</strong>
             <span className="meta"> · policy: {reading.trigger_policy}</span>
           </p>
-          <code className="decision-sealed-sha mono">run · {build.run_id}</code>
+          {state.latest_manifest?.build_id === build.id ? (
+            <code
+              className="decision-sealed-sha mono"
+              title={state.latest_manifest.manifest_sha256}
+            >
+              SHA-256 · {state.latest_manifest.manifest_sha256.slice(0, 12)}…
+            </code>
+          ) : (
+            <code className="decision-sealed-sha mono">run · {build.run_id}</code>
+          )}
         </div>
       )}
 
@@ -190,6 +201,7 @@ export function GuidedReview(props: GuidedReviewProps) {
             busy={busy}
             onDownloadReport={props.onDownloadReport}
             onDownloadBeforeAfter={props.onDownloadBeforeAfter}
+            onOpenAudit={props.onOpenAudit}
           />
         </>
       )}
@@ -567,6 +579,7 @@ function StepHumanDecision({
   onResolveReferences,
   onCommitReading,
   onApprove,
+  onOpenAudit,
 }: GuidedReviewProps & {
   q17a?: WorkspaceState["source_spans"][number];
   document: WorkspaceState["documents"][number];
@@ -899,158 +912,239 @@ function StepHumanDecision({
           </div>
         ) : (
           <div className="stack">
-            <Callout tone="ok" title="Your reading was recorded before the draft was revealed">
-              <p className="meta">Committed {formatTimestamp(reading.committed_at)}</p>
-              <p style={{ fontFamily: "var(--serif)" }}>{reading.independent_interpretation}</p>
-              <p className="meta">
-                {reading.reviewer_name} · {reading.reviewer_role} · policy:{" "}
-                {reading.trigger_policy}
-              </p>
-            </Callout>
-
-            <div className="compare">
-              <div className="compare-col">
-                <p className="micro">Rule in the control register today</p>
-                <p className="strong-ink">All VAPT findings → 3 months</p>
-                <p className="meta">Derived from Q15 alone</p>
-              </div>
-              <span className="compare-rel" aria-hidden="true">→</span>
-              <div className="compare-col compare-col--source">
-                <p className="micro">RegOS draft interpretation</p>
-                <p className="strong-ink">{reading.revealed_system_suggestion}</p>
-                <p className="meta">
-                  Revealed {formatTimestamp(reading.system_suggestion_revealed_at)} ·{" "}
-                  {labelOf("AI_SUGGESTED")}
-                </p>
-              </div>
+            {/* -- Case meta line — every value is real state -------------- */}
+            <div className="decision-meta">
+              <span>
+                <strong className="strong-ink">Case A</strong> · the deadline SEBI half-states
+              </span>
+              <span className="decision-meta-div" aria-hidden="true" />
+              <StateLabel value="BLOCKED_AWAITING_HUMAN" />
+              <span className="decision-meta-div" aria-hidden="true" />
+              <span>
+                Committed by <strong className="strong-ink">{reading.reviewer_name}</strong>{" "}
+                ({reading.reviewer_role})
+              </span>
+              <span className="meta">· {formatTimestamp(reading.committed_at)}</span>
             </div>
 
-            {blockedDeadline && (
-              <dl className="datalist">
-                <DataRow label="Duration">
-                  {blockedDeadline.duration_label} <Tag value={blockedDeadline.duration_provenance} />
-                </DataRow>
-                <DataRow label="Starts from">
-                  Not stated in the reviewed source
-                </DataRow>
-                <DataRow label="Due date">
-                  Not calculated <span className="meta">— {blockedDeadline.blocked_reason}</span>
-                </DataRow>
-              </dl>
-            )}
-
-            <div className="decision-grid">
-              <div className="decision-card">
-                <p className="decision-card-title">Reviewer notes &amp; system alignment</p>
-                <Field
-                  label="Does your reading agree with the draft interpretation?"
-                  error={agreementError}
-                >
-                  {() => (
-                    <div className="decision-agree" role="radiogroup" aria-label="Agreement with the draft interpretation">
-                      <button
-                        type="button"
-                        className={`decision-agree-chip${agreement === "AGREE" ? " decision-agree-chip--on" : ""}`}
-                        aria-pressed={agreement === "AGREE"}
-                        onClick={() => setAgreement("AGREE")}
-                      >
-                        ✓ Agrees
-                      </button>
-                      <button
-                        type="button"
-                        className={`decision-agree-chip decision-agree-chip--differ${agreement === "DISAGREE" ? " decision-agree-chip--on" : ""}`}
-                        aria-pressed={agreement === "DISAGREE"}
-                        onClick={() => setAgreement("DISAGREE")}
-                      >
-                        Differs — reason recorded
-                      </button>
-                    </div>
-                  )}
-                </Field>
-                <Field
-                  label="Reason for this policy"
-                  hint="The exported report must explain why a human decision was used here."
-                  error={reasonError}
-                >
-                  {(aria) => (
-                    <textarea
-                      {...aria}
-                      rows={3}
-                      value={reason}
-                      onChange={(event) => setReason(event.target.value)}
-                      placeholder="Why this trigger is the right one for this firm…"
-                    />
-                  )}
-                </Field>
-              </div>
-
-              <div className="decision-card">
-                <p className="decision-card-title">Due date calculator</p>
-                <Field
-                  label="Committed trigger policy"
-                  hint="Recorded before the draft interpretation was shown; cannot be edited now."
-                >
-                  {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
-                </Field>
-                <Field label="Trigger event date" hint="The date your policy points at, for the demo finding F-001.">
-                  {(aria) => (
-                    <span className="decision-date">
-                      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" />
-                      </svg>
-                      <input
+            <div className="decision-layout">
+              {/* -- Left column ------------------------------------------- */}
+              <div className="decision-main">
+                <div className="decision-card">
+                  <p className="decision-card-title">Reviewer notes &amp; system alignment</p>
+                  <blockquote className="decision-quote">
+                    {reading.independent_interpretation}
+                  </blockquote>
+                  <p className="meta">
+                    Recorded before the draft was revealed · policy: {reading.trigger_policy}
+                  </p>
+                  <Field
+                    label="Reason for this policy"
+                    hint="The exported report must explain why a human decision was used here."
+                    error={reasonError}
+                  >
+                    {(aria) => (
+                      <textarea
                         {...aria}
-                        type="date"
-                        value={triggerDate}
-                        onChange={(event) => setTriggerDate(event.target.value)}
+                        rows={3}
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Why this trigger is the right one for this firm…"
                       />
-                    </span>
-                  )}
-                </Field>
-                <div className="decision-preview decision-preview--calc">
-                  <span className="micro">Due date preview</span>
-                  <span className="decision-preview-value">
-                    {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}
-                  </span>
-                  <span className="meta">
-                    {blockedDeadline?.duration_label ?? "1 week"} from the trigger date — the
-                    engine records the real date on approval.
-                  </span>
+                    )}
+                  </Field>
+                </div>
+
+                {/* System suggestion strip — judgment lives where the claim is. */}
+                <div className="decision-card decision-suggest">
+                  <div className="decision-suggest-body">
+                    <p className="decision-card-title">System suggestion</p>
+                    <p className="strong-ink">{reading.revealed_system_suggestion}</p>
+                    <p className="meta">
+                      Revealed {formatTimestamp(reading.system_suggestion_revealed_at)} ·{" "}
+                      {labelOf("AI_SUGGESTED")} · register today: All VAPT findings → 3 months
+                      (derived from Q15 alone)
+                    </p>
+                  </div>
+                  <div
+                    className="decision-agree"
+                    role="radiogroup"
+                    aria-label="Agreement with the draft interpretation"
+                  >
+                    <button
+                      type="button"
+                      className={`decision-agree-chip${agreement === "AGREE" ? " decision-agree-chip--on" : ""}`}
+                      aria-pressed={agreement === "AGREE"}
+                      onClick={() => setAgreement("AGREE")}
+                    >
+                      ✓ Agrees
+                    </button>
+                    <button
+                      type="button"
+                      className={`decision-agree-chip decision-agree-chip--differ${agreement === "DISAGREE" ? " decision-agree-chip--on" : ""}`}
+                      aria-pressed={agreement === "DISAGREE"}
+                      onClick={() => setAgreement("DISAGREE")}
+                    >
+                      Differs — reason recorded
+                    </button>
+                  </div>
+                </div>
+                {agreementError && (
+                  <p className="field-error"><span aria-hidden="true">✕</span>{agreementError}</p>
+                )}
+
+                <div className="decision-duo">
+                  <div className="decision-card">
+                    <p className="decision-card-title">What&rsquo;s under review</p>
+                    {blockedDeadline ? (
+                      <dl className="datalist">
+                        <DataRow label="Duration">
+                          {blockedDeadline.duration_label}{" "}
+                          <Tag value={blockedDeadline.duration_provenance} />
+                        </DataRow>
+                        <DataRow label="Starts from">
+                          Not stated in the reviewed source
+                        </DataRow>
+                        <DataRow label="Due date">
+                          Not calculated{" "}
+                          <span className="meta">— {blockedDeadline.blocked_reason}</span>
+                        </DataRow>
+                      </dl>
+                    ) : (
+                      <p className="meta">No blocked deadline on this build.</p>
+                    )}
+                  </div>
+                  <div className="decision-card">
+                    <p className="decision-card-title">Evidence in the record</p>
+                    {state.evidence.length === 0 ? (
+                      <p className="meta">No evidence has been collected yet.</p>
+                    ) : (
+                      <ul className="decision-links">
+                        {state.evidence.slice(0, 4).map((item) => (
+                          <li key={item.id}>
+                            <span className="decision-link-name">{item.name}</span>
+                            <StateLabel value={item.status} />
+                          </li>
+                        ))}
+                        {state.evidence.length > 4 && (
+                          <li className="meta">
+                            + {state.evidence.length - 4} more under Full record
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* -- Right rail: actionable information -------------------- */}
+              <aside className="decision-rail" aria-label="Actionable information and policies">
+                <div className="decision-card">
+                  <p className="decision-card-title">Due date calculator</p>
+                  <Field
+                    label="Committed trigger policy"
+                    hint="Recorded before the draft interpretation was shown; cannot be edited now."
+                  >
+                    {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
+                  </Field>
+                  <Field
+                    label="Trigger event date"
+                    hint="The date your policy points at, for the demo finding F-001."
+                  >
+                    {(aria) => (
+                      <span className="decision-date">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" />
+                        </svg>
+                        <input
+                          {...aria}
+                          type="date"
+                          value={triggerDate}
+                          onChange={(event) => setTriggerDate(event.target.value)}
+                        />
+                      </span>
+                    )}
+                  </Field>
+                  <div className="decision-preview decision-preview--calc">
+                    <span className="micro">Due date preview</span>
+                    <span className="decision-preview-value decision-preview-value--xl">
+                      {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "No date"}
+                    </span>
+                    <span className="meta">
+                      Based on {q17a?.locator ?? "CSCRF FAQ Q17(a)"} —{" "}
+                      {blockedDeadline?.duration_label ?? "1 week"} from the trigger date.
+                      Preview only; the engine records the real date on approval.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="decision-card">
+                  <p className="decision-card-title">Related sections &amp; sources</p>
+                  <ul className="decision-links">
+                    {state.documents.map((item) => (
+                      <li key={item.id}>
+                        <a
+                          className="proof-link"
+                          href={item.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {item.title} ↗
+                        </a>
+                      </li>
+                    ))}
+                    {state.references.slice(0, 4).map((item) => (
+                      <li key={item.id} className="meta">
+                        {item.target_locator} · <StateLabel value={item.status} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </aside>
             </div>
 
-            <Callout tone="review" title="This decision is recorded against your name">
-              <p>
-                The clock-start is recorded as <span className="strong-ink">
-                  confirmed by a compliance officer
-                </span>{" "}
-                — never as wording from SEBI. Your name, role, reason, and the timestamps on both
-                sides of the reveal are kept with the build.
-              </p>
-            </Callout>
-
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy}
-                onClick={() => {
-                  setTouched(true);
-                  if (!approvalComplete) return;
-                  void onApprove({
-                    reviewer_name: reading.reviewer_name,
-                    reviewer_role: reading.reviewer_role,
-                    reason: reason.trim(),
-                    trigger_policy: reading.trigger_policy,
-                    trigger_date: triggerDate,
-                    agrees_with_system_suggestion: agreement === "AGREE",
-                  });
-                }}
-              >
-                {busy && <span className="spinner" aria-hidden="true" />}
-                Approve final decision
-              </button>
+            {/* -- Action bar ------------------------------------------------ */}
+            <div className="decision-commit decision-actionbar">
+              <div className="decision-actionbar-copy">
+                <p className="decision-commit-title">This decision is recorded against your name.</p>
+                <p className="decision-commit-sub">
+                  The clock-start is recorded as confirmed by a compliance officer — never as
+                  wording from SEBI. Your name, role, reason, and the timestamps on both sides
+                  of the reveal are kept with the build.
+                </p>
+              </div>
+              <div className="btn-row decision-actionbar-actions">
+                {onOpenAudit && (
+                  <button
+                    type="button"
+                    className="btn btn--quiet decision-commit-quiet"
+                    disabled={busy}
+                    onClick={onOpenAudit}
+                  >
+                    View the full record
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--primary decision-commit-btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setTouched(true);
+                    if (!approvalComplete) return;
+                    void onApprove({
+                      reviewer_name: reading.reviewer_name,
+                      reviewer_role: reading.reviewer_role,
+                      reason: reason.trim(),
+                      trigger_policy: reading.trigger_policy,
+                      trigger_date: triggerDate,
+                      agrees_with_system_suggestion: agreement === "AGREE",
+                    });
+                  }}
+                >
+                  {busy && <span className="spinner" aria-hidden="true" />}
+                  Approve final decision
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1299,11 +1393,13 @@ function StepExport({
   busy,
   onDownloadReport,
   onDownloadBeforeAfter,
+  onOpenAudit,
 }: {
   build: BuildRun;
   busy: boolean;
   onDownloadReport: () => Promise<void>;
   onDownloadBeforeAfter: () => Promise<void>;
+  onOpenAudit?: () => void;
 }) {
   return (
     <Panel
@@ -1342,6 +1438,17 @@ function StepExport({
         Both documents are rendered from build {build.id}. Re-generating the same approved build
         produces a byte-identical file.
       </p>
+      {onOpenAudit && (
+        <div className="btn-row" style={{ marginTop: "12px" }}>
+          <button
+            type="button"
+            className="btn btn--quiet btn--small"
+            onClick={onOpenAudit}
+          >
+            Continue to the Full record — every event, hash-chained →
+          </button>
+        </div>
+      )}
     </Panel>
   );
 }
