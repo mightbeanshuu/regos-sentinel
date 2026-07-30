@@ -25,9 +25,12 @@ from pypdf.errors import PdfReadError
 
 from .models import Provenance, StrictModel
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-MAX_PAGE_COUNT = 40
-MAX_PASSAGES = 400
+#: Sized for real SEBI publishing: ordinary circulars run 2–40 pages, but Master
+#: Circulars regularly reach several hundred (the CSCRF framework alone is 205).
+#: 400 pages / 25 MB admits every SEBI document we have measured.
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_PAGE_COUNT = 400
+MAX_PASSAGES = 4000
 MAX_DOCUMENTS_PER_SESSION = 5
 MIN_PASSAGE_CHARS = 40
 PDF_MAGIC = b"%PDF-"

@@ -60,10 +60,13 @@ OCR_RENDER_SCALE = 200 / 72
 #: the local engine then reads the same page and the fuller transcript is kept.
 MIN_REMOTE_CHARS = 32
 
-#: Machine reading covers every page the upload lane accepts — the document page
-#: limit is the OCR limit. Pages are read by a small worker pool so a fully scanned
-#: document stays within an ordinary request's patience.
-MAX_OCR_PAGES_PER_DOCUMENT = MAX_PAGE_COUNT
+#: The upload lane now accepts Master-Circular-scale documents (hundreds of pages),
+#: but machine reading is synchronous with the upload request — at a few seconds per
+#: scanned page, an unbounded read would outlive any request. Sixty pages through the
+#: worker pool covers every scanned circular we have measured while staying inside a
+#: live request's patience; pages beyond the bound are honestly reported unreadable
+#: and the document's limitations name them.
+MAX_OCR_PAGES_PER_DOCUMENT = min(60, MAX_PAGE_COUNT)
 
 #: Concurrent page reads. The slow half (the tesseract subprocess, or the remote
 #: call) parallelises safely; the pdfium rasteriser is serialised separately below.
