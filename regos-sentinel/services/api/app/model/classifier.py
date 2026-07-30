@@ -31,7 +31,7 @@ from .dataset import LABELS
 
 WEIGHTS_PATH = Path(__file__).with_name("weights.json")
 
-MODEL_VERSION = "regos-timing/1.1.0"
+MODEL_VERSION = "regos-timing/1.2.0"
 
 # --------------------------------------------------------------------------- #
 # Features
@@ -63,10 +63,13 @@ _CLOCK_START = (
 #: "of issuance", "after pay-out", "of its operationalization"). This pattern names
 #: the event-noun shapes that start a clock, mined from 26 real SEBI circulars.
 _CLOCK_START_RE = re.compile(
-    r"\b(?:of|from|after|before)\s+(?:the\s+|its\s+|such\s+)?"
+    # Up to three intervening words lets "of cyber audit report submission" and
+    # "from the time of request" name their event — real framework wording.
+    r"\b(?:of|from|after|before)\s+(?:[\w'-]+\s+){0,3}?"
     r"(?:date|submission|completion|termination|receipt|issuance|filing|approval|grant"
-    r"|operationali[sz]ation|commencement|detection|discovery|intimation|obtaining"
-    r"|pay[\s-]{0,2}out|expiry)\b",
+    r"|operationali[sz]ation|commencement|detection|detecting|noticing|discovery"
+    r"|intimation|obtaining|pay[\s-]{0,2}out|expiry|request|reporting|notification"
+    r"|assessment|activity|exercise|incident)\b",
     re.IGNORECASE,
 )
 
@@ -80,14 +83,17 @@ _ABSOLUTE_DATE = re.compile(
     rf"\b(?:on or before|not later than|no later than|by|before|from|with effect from"
     rf"|w\.?e\.?f\.?)\s+{_MONTH}\s+\d{{1,2}},?\s+\d{{4}}"
     r"|\b(?:by|before|at)\s+(?:the\s+)?end of the\s+(?:day|week|month|quarter|year|financial year)"
-    r"|\bon or before\s+(?:the\s+)?next\s+(?:trading|working|business)\s+day\b",
+    r"|\bon or before\s+(?:the\s+)?next\s+(?:trading|working|business)\s+day\b"
+    rf"|\b(?:timeline|deadline)\b[^.]{{0,60}}?\bshall be\s+{_MONTH}\s+\d{{1,2}},?\s+\d{{4}}",
     re.IGNORECASE,
 )
 
 #: Named periodicities. "annually" or "half-yearly" states a period exactly as
 #: "every six months" does, and real SEBI wording leans on these words heavily.
 _PERIODICITY = re.compile(
-    r"\b(?:annual(?:ly)?|half[\s-]?yearly|six[\s-]?monthly|quarterly|monthly|weekly|daily)\b",
+    r"\b(?:annual(?:ly)?|half[\s-]?yearly|six[\s-]?monthly|quarterly|monthly|weekly|daily"
+    r"|once (?:a|in a|every) (?:financial )?year|twice (?:a|every) year"
+    r"|beginning of (?:the|every) financial year)\b",
     re.IGNORECASE,
 )
 
@@ -101,11 +107,26 @@ _RECURRENCE = re.compile(
 _URGENCY = (
     "immediate", "immediately", "promptly", "expedite", "timely manner",
     "as soon as", "without undue delay", "regular", "regularly", "periodic",
-    "periodically", "continuous", "ongoing", "frequently", "from time to time",
-    "whenever necessary",
+    "periodically", "continuous", "ongoing", "frequently",
+    "whenever necessary", "stipulated time", "time bound", "reasonable time",
+    "prescribed time", "required time frame", "defined timeframe",
 )
 
+#: "from time to time" is almost always narrative in real framework prose ("SEBI has
+#: issued advisories from time to time") — its own feature lets the model learn that,
+#: instead of it dragging every history sentence into URGENCY_ONLY.
+_FROM_TIME_TO_TIME = "from time to time"
+
 _IMPERATIVE = ("shall", "must", "are to be", "need to")
+
+#: Act-now urgency is a different linguistic animal from vague recurrence: "remediate
+#: immediately" mandates a response; "on a periodic basis" gestures at a rhythm. Both
+#: are URGENCY_ONLY, but the strong form co-occurs with duties while recurrent words
+#: also live in narrative prose — one combined feature lets the second dilute the first.
+_URGENCY_STRONG = (
+    "immediate", "immediately", "promptly", "forthwith", "expedite",
+    "as soon as", "without undue delay", "time bound",
+)
 
 
 def features(text: str) -> Dict[str, float]:
@@ -133,6 +154,10 @@ def features(text: str) -> Dict[str, float]:
         found["has_clock_start"] = 1.0
     if urgency:
         found["has_urgency"] = 1.0
+        if any(word in urgency_text for word in _URGENCY_STRONG):
+            found["urgency_strong"] = 1.0
+        else:
+            found["urgency_recurrent"] = 1.0
     if duration and clock_start:
         found["duration_and_clock_start"] = 1.0
     if duration and not clock_start:
@@ -145,8 +170,18 @@ def features(text: str) -> Dict[str, float]:
         found["periodicity_word"] = 1.0
         if not clock_start and not absolute_date:
             found["periodicity_without_anchor"] = 1.0
-    if any(word in padded for word in _IMPERATIVE):
+    imperative = any(word in padded for word in _IMPERATIVE)
+    if imperative:
         found["imperative"] = 1.0
+    if _FROM_TIME_TO_TIME in padded:
+        found["from_time_to_time"] = 1.0
+    if urgency and not imperative:
+        found["urgency_without_imperative"] = 1.0
+    # An urgency word inside a "shall" duty is a mandated-urgency shape ("shall be
+    # remediated immediately") — without this interaction, the framework's many
+    # timing-free "shall" duties teach `imperative` to vote NO_TIMING and drown it.
+    if urgency and imperative and not duration:
+        found["urgency_and_imperative"] = 1.0
     if " not exceed" in padded or " maximum" in padded or " upper" in padded:
         found["ceiling_language"] = 1.0
     if " within " in padded:
@@ -161,6 +196,8 @@ FEATURE_NAMES: Tuple[str, ...] = (
     "has_duration",
     "has_clock_start",
     "has_urgency",
+    "urgency_strong",
+    "urgency_recurrent",
     "duration_and_clock_start",
     "duration_without_clock_start",
     "urgency_without_duration",
@@ -168,12 +205,85 @@ FEATURE_NAMES: Tuple[str, ...] = (
     "periodicity_word",
     "periodicity_without_anchor",
     "imperative",
+    "from_time_to_time",
+    "urgency_without_imperative",
+    "urgency_and_imperative",
     "ceiling_language",
     "within",
     "recurrence",
     "unit:minute", "unit:hour", "unit:day", "unit:week", "unit:month", "unit:year",
     "unit:business day", "unit:calendar day", "unit:trading day", "unit:working day",
 )
+
+
+# --------------------------------------------------------------------------- #
+# Learned tokens
+# --------------------------------------------------------------------------- #
+
+#: The docstring above argues against bag-of-words: at this sample size "VAPT" would
+#: end up predicting something. The learned-token block is allowed anyway, under three
+#: controls that answer that argument. A token must appear in at least
+#: ``_TOKEN_MIN_DF`` sentences AND at least ``_TOKEN_MIN_SOURCES`` distinct source
+#: documents (a word that lives in one circular cannot become a feature); only the
+#: ``token_budget`` strongest class associations are kept; and the vocabulary is
+#: rebuilt inside every training fold, so document-held-out evaluation measures the
+#: block with no leakage — and decides whether it ships at all.
+
+_TOKEN_RE = re.compile(r"[a-z]{3,}")
+_TOKEN_MIN_DF = 5
+_TOKEN_MIN_SOURCES = 3
+
+
+def _tokens(text: str) -> set:
+    return set(_TOKEN_RE.findall(text.lower()))
+
+
+def _select_vocabulary(
+    rows: Sequence[Tuple[str, str, str]], token_budget: int
+) -> List[str]:
+    """Pick the tokens whose presence most separates the labels, guarded as above.
+
+    ``rows`` are ``(text, label, source)`` triples from the TRAINING split only.
+    """
+    if token_budget <= 0:
+        return []
+    df: Dict[str, int] = {}
+    sources: Dict[str, set] = {}
+    by_label: Dict[str, Dict[str, int]] = {label: {} for label in LABELS}
+    label_totals: Dict[str, int] = {label: 0 for label in LABELS}
+    for text, label, source in rows:
+        label_totals[label] += 1
+        for token in _tokens(text):
+            df[token] = df.get(token, 0) + 1
+            sources.setdefault(token, set()).add(source)
+            by_label[label][token] = by_label[label].get(token, 0) + 1
+
+    scored: List[Tuple[float, str]] = []
+    total = sum(label_totals.values())
+    for token, count in df.items():
+        if count < _TOKEN_MIN_DF or len(sources[token]) < _TOKEN_MIN_SOURCES:
+            continue
+        strongest = 0.0
+        for label in LABELS:
+            inside = by_label[label].get(token, 0)
+            outside = count - inside
+            in_total = label_totals[label]
+            out_total = total - in_total
+            odds = math.log(
+                ((inside + 0.5) / (in_total + 1.0))
+                / ((outside + 0.5) / (out_total + 1.0))
+            )
+            strongest = max(strongest, abs(odds))
+        scored.append((strongest, token))
+    scored.sort(reverse=True)
+    return sorted(token for _, token in scored[:token_budget])
+
+
+def token_features(text: str, vocabulary: Sequence[str]) -> Dict[str, float]:
+    if not vocabulary:
+        return {}
+    present = _tokens(text)
+    return {f"tok:{token}": 1.0 for token in vocabulary if token in present}
 
 
 # --------------------------------------------------------------------------- #
@@ -195,6 +305,15 @@ class TimingClassifier:
         self.weights: Dict[str, Dict[str, float]] = weights or {
             label: {name: 0.0 for name in FEATURE_NAMES} for label in LABELS
         }
+        first_row = next(iter(self.weights.values()))
+        self.vocabulary: List[str] = sorted(
+            name[len("tok:"):] for name in first_row if name.startswith("tok:")
+        )
+
+    def _vector(self, text: str) -> Dict[str, float]:
+        vector = features(text)
+        vector.update(token_features(text, self.vocabulary))
+        return vector
 
     # -- training ---------------------------------------------------------- #
 
@@ -204,7 +323,22 @@ class TimingClassifier:
         epochs: int = 400,
         learning_rate: float = 0.35,
         l2: float = 0.01,
+        balanced: bool = False,
     ) -> TimingClassifier:
+        # Balanced weighting stops the largest class from buying the bias term:
+        # real corpora are mostly NO_TIMING sentences, and an unweighted fit lets
+        # that majority outvote a rare-but-load-bearing shape like mandated urgency.
+        counts = {label: 0 for label in LABELS}
+        for _, label in examples:
+            counts[label] += 1
+        weight = {
+            label: (
+                len(examples) / (len(LABELS) * counts[label])
+                if balanced and counts[label]
+                else 1.0
+            )
+            for label in LABELS
+        }
         for _ in range(epochs):
             for vector, label in examples:
                 probabilities = dict(zip(LABELS, self._probabilities(vector)))
@@ -215,9 +349,39 @@ class TimingClassifier:
                         if name not in row:
                             continue
                         # L2 keeps a feature that fires in one example from dominating,
-                        # which matters a great deal at this sample size.
-                        row[name] += learning_rate * (error * value - l2 * row[name])
+                        # which matters a great deal at this sample size. Learned tokens
+                        # carry triple the penalty: they are auxiliary signal and must
+                        # never outvote the linguistic features on a short sentence.
+                        penalty = l2 * (3.0 if name.startswith("tok:") else 1.0)
+                        step = weight[label] * error * value - penalty * row[name]
+                        row[name] += learning_rate * step
         return self
+
+    def fit_texts(
+        self,
+        examples: Sequence,
+        token_budget: int = 0,
+        epochs: int = 400,
+        learning_rate: float = 0.35,
+        l2: float = 0.01,
+        balanced: bool = False,
+    ) -> TimingClassifier:
+        """Fit from :class:`~app.model.dataset.Example` rows directly.
+
+        With ``token_budget > 0`` a vocabulary is selected from THESE examples only
+        and token-presence features join the hand-designed ones — callers that split
+        folds get a leak-free per-fold vocabulary for free.
+        """
+        self.vocabulary = _select_vocabulary(
+            [(item.text, item.label, item.source.split(" · ")[0]) for item in examples],
+            token_budget,
+        )
+        names = list(FEATURE_NAMES) + [f"tok:{token}" for token in self.vocabulary]
+        self.weights = {label: {name: 0.0 for name in names} for label in LABELS}
+        vectors = [(self._vector(item.text), item.label) for item in examples]
+        return self.fit(
+            vectors, epochs=epochs, learning_rate=learning_rate, l2=l2, balanced=balanced,
+        )
 
     # -- inference --------------------------------------------------------- #
 
@@ -229,7 +393,7 @@ class TimingClassifier:
         return _softmax(scores)
 
     def predict(self, text: str) -> Tuple[str, float]:
-        vector = features(text)
+        vector = self._vector(text)
         probabilities = self._probabilities(vector)
         best = max(range(len(LABELS)), key=lambda index: probabilities[index])
         return LABELS[best], probabilities[best]
@@ -240,7 +404,7 @@ class TimingClassifier:
         This is the reason for building our own rather than calling one. A weight per
         active feature is an account of the decision that a person can argue with.
         """
-        vector = features(text)
+        vector = self._vector(text)
         label, confidence = self.predict(text)
         contributions = sorted(
             (
@@ -269,7 +433,8 @@ class TimingClassifier:
                 {
                     "model_version": MODEL_VERSION,
                     "labels": list(LABELS),
-                    "features": list(FEATURE_NAMES),
+                    "features": list(FEATURE_NAMES)
+                    + [f"tok:{token}" for token in self.vocabulary],
                     "weights": self.weights,
                     "metrics": metrics or {},
                 },
@@ -307,7 +472,12 @@ def model_card() -> Dict[str, object]:
     real_documents = {item.source.split(" · ")[0] for item in real}
     payload = json.loads(WEIGHTS_PATH.read_text()) if WEIGHTS_PATH.exists() else {}
     return {
-        "name": "RegOS timing classifier",
+        "name": "Avadhi — the RegOS timing classifier",
+        "name_meaning": (
+            "Avadhi (\u0905\u0935\u0927\u093f) is Hindi for 'period / stipulated duration' — "
+            "the exact word SEBI's own Hindi circular text uses for the thing this "
+            "model reads."
+        ),
         "version": MODEL_VERSION,
         "task": (
             "Given one sentence of regulation, say whether it supports a computable "

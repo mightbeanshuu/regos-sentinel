@@ -39,7 +39,7 @@ class PassageScore(StrictModel):
 class DocumentScore(StrictModel):
     document_id: str
     sha256: str
-    model_name: str = "RegOS timing classifier"
+    model_name: str = "Avadhi — the RegOS timing classifier"
     model_version: str
     generated_by: str = "COMMITTED_MODEL_WEIGHTS"
     passages_total: int

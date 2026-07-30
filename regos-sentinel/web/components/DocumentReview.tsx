@@ -39,7 +39,7 @@ function ModelScorecard({ document }: { document: UploadedDocument }) {
 
   return (
     <Panel
-      title="Model scorecard"
+      title="Avadhi — model scorecard"
       description={`Generated fresh by ${score.model_name} ${score.model_version} — committed weights, no network.`}
     >
       {score.with_timing_language === 0 && (

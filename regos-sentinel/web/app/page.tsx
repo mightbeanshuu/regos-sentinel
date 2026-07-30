@@ -44,6 +44,17 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function Home() {
   const [state, setState] = useState<WorkspaceState | null>(null);
+  const [bootSeconds, setBootSeconds] = useState(0);
+
+  // Free-tier hosting sleeps between visits; the judges should know the wait is
+  // expected and bounded, not a hang.
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setBootSeconds((prior) => prior + 1),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [receipt, setReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
@@ -186,13 +197,27 @@ export default function Home() {
         </span>
         <p className="micro">RegOS Sentinel</p>
         <h1 className="page-title">
-          {error ? "The API is not reachable" : "Loading the demo workspace…"}
+          {error ? "The API is not reachable" : "Waking the sealed engine…"}
         </h1>
-        <p className="lede">{error ?? "Connecting to the prototype state."}</p>
+        <p className="lede">
+          {error
+            ?? (bootSeconds < 8
+              ? "Connecting to the prototype state."
+              : bootSeconds < 30
+                ? "The demo API sleeps between visits on free hosting — the first wake takes a moment."
+                : "Still warming — the workspace loads the instant the engine answers.")}
+        </p>
         {!error && (
-          <span className="boot-track" aria-hidden="true">
-            <span className="boot-track-fill" />
-          </span>
+          <>
+            <span className="boot-track" aria-hidden="true">
+              <span className="boot-track-fill" />
+            </span>
+            <p className="boot-eta">
+              <span className="boot-eta-dot" aria-hidden="true" />
+              usually ready in under a minute
+              <span className="boot-eta-clock mono">{String(Math.floor(bootSeconds / 60)).padStart(1, "0")}:{String(bootSeconds % 60).padStart(2, "0")}</span>
+            </p>
+          </>
         )}
         {error && (
           <button type="button" className="btn btn--primary" onClick={() => void load()}>

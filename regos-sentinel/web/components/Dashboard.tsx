@@ -248,7 +248,7 @@ export function Dashboard({
 
         {/* ---- The committed model's read ------------------------------ */}
         <section className="b-card b-dial">
-          <p className="b-label"><IconGauge /> Deadline clarity — committed model</p>
+          <p className="b-label"><IconGauge /> Deadline clarity — read by Avadhi, our committed model</p>
           {docScore ? (
             <div className="stack-s b-modelread">
               <p className="scorecard-value">

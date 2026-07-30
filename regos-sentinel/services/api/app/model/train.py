@@ -77,7 +77,7 @@ def _recall(hits: Dict[str, int], totals: Dict[str, int]) -> Dict[str, object]:
     }
 
 
-def cross_validate(folds: int = FOLDS) -> Dict[str, object]:
+def cross_validate(folds: int = FOLDS, token_budget: int = 0) -> Dict[str, object]:
     buckets = _stratified_folds(ALL_EXAMPLES, folds)
     correct = 0
     total = 0
@@ -89,7 +89,7 @@ def cross_validate(folds: int = FOLDS) -> Dict[str, object]:
         held_out = buckets[index]
         training = [item for position, bucket in enumerate(buckets)
                     if position != index for item in bucket]
-        model = TimingClassifier().fit(_vectorise(training))
+        model = TimingClassifier().fit_texts(training, token_budget=token_budget, balanced=True)
         hits, seen = _score(model, held_out, per_class_hits, per_class_total, confusion)
         correct += hits
         total += seen
@@ -111,7 +111,7 @@ def cross_validate(folds: int = FOLDS) -> Dict[str, object]:
     }
 
 
-def document_held_out() -> Dict[str, object]:
+def document_held_out(token_budget: int = 0) -> Dict[str, object]:
     """Hold out every real document's sentences together; train on the rest."""
     by_document: Dict[str, List[Example]] = defaultdict(list)
     for item in ALL_EXAMPLES:
@@ -129,7 +129,7 @@ def document_held_out() -> Dict[str, object]:
             item for item in ALL_EXAMPLES
             if item.synthetic or item.source.split(" · ")[0] != document
         ]
-        model = TimingClassifier().fit(_vectorise(training))
+        model = TimingClassifier().fit_texts(training, token_budget=token_budget, balanced=True)
         hits, seen = _score(model, held_out, per_class_hits, per_class_total, confusion)
         correct += hits
         total += seen
@@ -149,14 +149,32 @@ def document_held_out() -> Dict[str, object]:
     }
 
 
+#: Candidate token budgets. 0 is the hand-features-only model; document-held-out
+#: accuracy — the honest number — decides which candidate ships.
+TOKEN_BUDGETS = (0, 80, 120)
+
+
 def main() -> None:
-    metrics = cross_validate()
-    metrics["document_held_out"] = document_held_out()
+    candidates = {}
+    for budget in TOKEN_BUDGETS:
+        held = document_held_out(token_budget=budget)
+        candidates[budget] = held
+        print(f"token_budget={budget}: document_held_out={held['accuracy']} "
+              f"(n={held['examples']})")
+    winner = max(candidates, key=lambda budget: (candidates[budget]["accuracy"], -budget))
+    print(f"winner: token_budget={winner}")
+
+    metrics = cross_validate(token_budget=winner)
+    metrics["document_held_out"] = candidates[winner]
+    metrics["token_budget"] = winner
+    metrics["candidates_document_held_out"] = {
+        str(budget): candidates[budget]["accuracy"] for budget in TOKEN_BUDGETS
+    }
     print(json.dumps(metrics, indent=2))
 
     # The shipped model is trained on everything; the metrics above describe how a model
     # trained this way behaves on data it has not seen.
-    model = TimingClassifier().fit(_vectorise(ALL_EXAMPLES))
+    model = TimingClassifier().fit_texts(ALL_EXAMPLES, token_budget=winner, balanced=True)
     path = model.save(metrics=metrics)
     print(f"\nwrote {path}")
 

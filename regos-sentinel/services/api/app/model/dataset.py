@@ -296,6 +296,20 @@ EXAMPLES: List[Example] = [
             NO_TIMING, True, "constructed"),
     Example("Physical access to the data centre shall be restricted.",
             NO_TIMING, True, "constructed"),
+    # Mandated urgency inside a "shall" duty — the framework's many timing-free
+    # "shall" duties otherwise teach the imperative to vote NO_TIMING.
+    Example("Vulnerabilities shall be remediated immediately.",
+            URGENCY_ONLY, True, "constructed"),
+    Example("The misconfiguration shall be rectified immediately upon detection.",
+            URGENCY_ONLY, True, "constructed"),
+    Example("Access of separated employees must be revoked immediately.",
+            URGENCY_ONLY, True, "constructed"),
+    Example("The intermediary shall promptly inform the exchange of the failure.",
+            URGENCY_ONLY, True, "constructed"),
+    Example("Backups shall be restored without undue delay.",
+            URGENCY_ONLY, True, "constructed"),
+    Example("Suspicious transactions must be escalated as soon as they are noticed.",
+            URGENCY_ONLY, True, "constructed"),
 ]
 
 
