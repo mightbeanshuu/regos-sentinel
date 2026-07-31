@@ -3552,7 +3552,14 @@ body {
 
 /* ---------- Evidence vault cards (Stitch port) ----------------------------- */
 
-.vault-cards { display: flex; flex-direction: column; gap: var(--s4); margin-top: var(--s4); }
+.vault-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--s4);
+  margin-top: var(--s4);
+  align-items: stretch;
+}
+.vault-cards > .meta { grid-column: 1 / -1; }
 .vault-card {
   border-radius: 16px;
   padding: var(--s4);
@@ -3561,6 +3568,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+  min-height: 190px;
 }
 .vault-card--verified { border-color: var(--ok-line); background: var(--ok-wash); }
 .vault-card--pending { border-color: var(--review-line); background: var(--review-wash); }
@@ -3703,28 +3711,22 @@ body {
 }
 .exec-trend-legend li::before { content: "● "; color: var(--accent); font-size: 0.5rem; vertical-align: 2px; }
 
-.vault-card { flex-direction: row; gap: var(--s4); align-items: flex-start; flex-wrap: wrap; }
 .vault-card > .vault-thumb {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 84px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   border-radius: 10px;
-  background: linear-gradient(150deg, oklch(0.36 0.05 252), oklch(0.24 0.03 250));
+  background: var(--bg-2);
   border: 1px solid var(--line-2);
-  color: var(--ink-2);
+  color: var(--ink-3);
+  margin-bottom: var(--s2);
 }
-.vault-card > .vault-thumb svg { width: 26px; height: 26px; }
-.vault-card > .vault-card-head,
-.vault-card > .micro,
-.vault-card > .vault-card-hash,
-.vault-card > .meta { flex: 1 1 calc(100% - 80px); min-width: 200px; }
-.vault-card > .vault-card-head { margin-left: 0; }
-.vault-card > .micro,
-.vault-card > .vault-card-hash,
-.vault-card > .meta { margin-left: 80px; flex-basis: 100%; }
+.vault-card > .vault-thumb svg { width: 20px; height: 20px; }
+.vault-card .vault-card-head { align-items: flex-start; }
+.vault-card > .meta { margin-top: auto; }
 
 /* ---------- Four assistants layout ---------------------------------------- */
 
