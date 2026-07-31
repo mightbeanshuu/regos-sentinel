@@ -18,6 +18,8 @@ import { Callout, DataRow, Disclosure, Hash, Panel, Quote, StateLabel, Tag } fro
  * other three are there to prove the same workflow holds elsewhere.
  * ------------------------------------------------------------------------- */
 
+const CASE_TONE: Record<string, string> = { A: "royal", B: "ok", C: "royal", D: "review" };
+
 export function ScenarioSelector({
   catalogue,
   active,
@@ -27,28 +29,100 @@ export function ScenarioSelector({
   active: ScenarioId;
   onSelect: (id: ScenarioId) => void;
 }) {
+  const selected = catalogue.scenarios.find((item) => item.id === active) ?? catalogue.scenarios[0];
+  const outcomeFor = (id: ScenarioId) =>
+    catalogue.outcomes?.find((item) => item.scenario_id === id) ?? null;
+  const outcome = outcomeFor(active);
+  const matched = outcome?.status === "SCENARIO_DEMONSTRATED";
+
   return (
-    <section className="scenario-bar" aria-label="Demonstration scenarios">
-      <div className="scenario-bar-head">
-        <p className="micro">{catalogue.label}</p>
+    <section className="cp" aria-label="Demonstration cases">
+      <p className="micro">Four questions a regulator would ask — each runs live against the engine.</p>
+      <div className="cp-grid" role="tablist" aria-label="Choose a case">
+        {catalogue.scenarios.map((scenario) => {
+          const on = scenario.id === active;
+          const run = outcomeFor(scenario.id);
+          const tone = CASE_TONE[scenario.label] ?? "royal";
+          return (
+            <button
+              key={scenario.id}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              className={`cp-card cp-card--${tone}${on ? " cp-card--on" : ""}`}
+              onClick={() => onSelect(scenario.id)}
+            >
+              {scenario.label === "D" && (
+                <span className="cp-ribbon">Real SEBI advisory · May 2026</span>
+              )}
+              <span className={`cp-badge cp-badge--${tone}`} aria-hidden="true">{scenario.label}</span>
+              <span className="cp-title">{scenario.title}</span>
+              <span className="cp-q">{scenario.question}</span>
+              <span className={`cp-chip${run ? (run.status === "SCENARIO_DEMONSTRATED" ? " cp-chip--ok" : " cp-chip--diff") : ""}`}>
+                {run
+                  ? run.status === "SCENARIO_DEMONSTRATED"
+                    ? "Ran · matched the promise"
+                    : "Ran · differences found"
+                  : "Not run yet"}
+              </span>
+              {on && <span className="cp-underline" aria-hidden="true" />}
+            </button>
+          );
+        })}
       </div>
-      <div className="scenario-tabs" role="tablist" aria-label="Choose a case">
-        {catalogue.scenarios.map((scenario) => (
-          <button
-            key={scenario.id}
-            type="button"
-            role="tab"
-            aria-selected={scenario.id === active}
-            className={`scenario-tab${scenario.id === active ? " scenario-tab--on" : ""}`}
-            onClick={() => onSelect(scenario.id)}
-          >
-            <span className="scenario-tab-label" aria-hidden="true">{scenario.label}</span>
-            <span className="scenario-tab-text">
-              <span className="scenario-tab-title">{scenario.title}</span>
-              <span className="scenario-tab-question">{scenario.question}</span>
+
+      <div className="cp-band">
+        <div className="cp-band-col">
+          <p className="cp-band-h">Expected — written before the run</p>
+          <p className="cp-band-line">
+            <span className="cp-pen" aria-hidden="true">✎</span>
+            <span className="clamp2" title={selected.citation_quote}>
+              &ldquo;{selected.citation_quote}&rdquo; <span className="meta">· {selected.citation_locator}</span>
             </span>
-          </button>
-        ))}
+          </p>
+          <p className="cp-band-line">
+            <span className="cp-pen" aria-hidden="true">✎</span>
+            <span className="clamp2" title={selected.expected_outcome}>{selected.expected_outcome}</span>
+          </p>
+        </div>
+        <div className={`cp-eq${outcome ? (matched ? " cp-eq--ok" : " cp-eq--diff") : ""}`}>
+          <span className="cp-eq-sign" aria-hidden="true">{outcome ? (matched ? "=" : "≠") : "→"}</span>
+          <span className="cp-eq-word">
+            {outcome
+              ? matched
+                ? "The run matched the promise"
+                : "The run differed — shown, not hidden"
+              : "Run it and compare"}
+          </span>
+        </div>
+        <div className="cp-band-col">
+          <p className="cp-band-h">What actually happened</p>
+          {outcome ? (
+            <>
+              {outcome.checks.slice(0, 2).map((check) => (
+                <p className="cp-band-line" key={check.id ?? check.question}>
+                  <span className={check.passed ? "cp-mark cp-mark--ok" : "cp-mark cp-mark--diff"} aria-hidden="true">
+                    {check.passed ? "✓" : "!"}
+                  </span>
+                  <span className="clamp2" title={check.observed}>{check.observed}</span>
+                </p>
+              ))}
+              <p className="cp-receipt mono">{selected.automated_test} · replayed on every build</p>
+            </>
+          ) : (
+            <p className="meta">Not run yet — the expected outcome is already written down.</p>
+          )}
+        </div>
+        <button
+          type="button"
+          className="btn btn--primary cp-open"
+          onClick={() => {
+            onSelect(active);
+            document.querySelector("#scenario-case, .jr-rail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
+          Open this case
+        </button>
       </div>
     </section>
   );
@@ -336,7 +410,7 @@ export function ScenarioCase({
   }, [outcome]);
 
   return (
-    <div className="stack-l">
+    <div className="stack-l" id="scenario-case">
       <ScenarioBrief scenario={scenario} />
 
       <Panel
