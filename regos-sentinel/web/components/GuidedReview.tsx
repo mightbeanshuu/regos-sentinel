@@ -285,14 +285,20 @@ export function GuidedReview(props: GuidedReviewProps) {
           <section className="jr-sect">
             <h2 className="jr-h"><span>3.</span> Your decision</h2>
             {blocked ? (
-              <StepHumanDecision
-                {...props}
-                q17a={q17a}
-                document={document}
-                referencesLoaded={referencesLoaded}
-                reading={reading}
-                blockedDeadline={blockedDeadline}
-              />
+              <div className="jr-doccard jr-doccard--left jr-doccard--attn">
+                <span className="micro">Needs you</span>
+                <p className="meta">
+                  The source states the duration, not the start. A person must choose the
+                  clock-start policy — the full decision desk is directly below this board.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--small"
+                  onClick={() => window.document.querySelector("#step-human")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                >
+                  Open the decision desk ↓
+                </button>
+              </div>
             ) : approved && reading ? (
               <div className="jr-doccard jr-doccard--left">
                 <span className="micro">Recorded</span>
@@ -407,6 +413,17 @@ export function GuidedReview(props: GuidedReviewProps) {
           </section>
         </div>
       </div>
+
+      {blocked && (
+        <StepHumanDecision
+          {...props}
+          q17a={q17a}
+          document={document}
+          referencesLoaded={referencesLoaded}
+          reading={reading}
+          blockedDeadline={blockedDeadline}
+        />
+      )}
 
       <p className="meta jr-foot">Decision support — a person approved every outcome on this page.</p>
     </div>

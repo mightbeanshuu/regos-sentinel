@@ -3963,3 +3963,4 @@ body {
 .jr-tile:hover { background: var(--bg-2); }
 .jr-tile:disabled { opacity: 0.5; cursor: default; }
 .jr-foot { text-align: center; }
+.jr-doccard--attn { border-color: var(--review-line); background: var(--review-wash); }
