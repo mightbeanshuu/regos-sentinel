@@ -358,7 +358,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <main className="page">
+      <main className={tab === "dashboard" ? "page page--flush" : "page"}>
         {error && (
           <p className="banner" role="alert" style={{ marginBottom: "24px" }}>
             <span aria-hidden="true">✕</span>
