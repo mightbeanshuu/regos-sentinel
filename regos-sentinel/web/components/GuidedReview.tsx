@@ -10,7 +10,7 @@ import type {
   LiveSourceVerificationReceipt,
   WorkspaceState,
 } from "../lib/types";
-import { Callout, Counts, DataRow, Field, Hash, Panel, Quote, StateLabel, Tag } from "./ui";
+import { Callout, Counts, DataRow, Disclosure, Field, Hash, Panel, Quote, StateLabel, Tag } from "./ui";
 import { IncidentReportingClock } from "./IncidentReportingClock";
 import { RegulationMap } from "./impact/RegulationMap";
 
@@ -126,85 +126,289 @@ export function GuidedReview(props: GuidedReviewProps) {
 
   return (
     <div className="stack-l">
-      <Stepper states={stepStates} />
+      {/* ---- Compact journey rail ----------------------------------------- */}
+      <nav className="jr-rail" aria-label="Review progress">
+        {STEPS.map((label, index) => {
+          const status = stepStates[index];
+          return (
+            <span className="jr-rail-item" key={label}>
+              <span className={`jr-rail-word jr-rail-word--${status}`}>{label}</span>
+              <span className={`jr-rail-dot jr-rail-dot--${status}`} aria-hidden="true">
+                {status === "done" ? "✓" : status === "blocked" ? "!" : ""}
+              </span>
+              {index < STEPS.length - 1 && (
+                <span
+                  className={`jr-rail-line${status === "done" ? " jr-rail-line--done" : ""}`}
+                  aria-hidden="true"
+                />
+              )}
+            </span>
+          );
+        })}
+      </nav>
 
-      <CaseSummary
-        state={state}
-        control={control}
-        hasBuild={Boolean(build)}
-        busy={busy || sourceBusy}
-        onStart={props.onRunBuild}
-      />
+      {/* ---- The case, one strip ------------------------------------------ */}
+      <header className="jr-case">
+        <span className="jr-chip">{state.entity_profile.legal_name}</span>
+        <span className="jr-chip jr-chip--grow">
+          Existing rule: <strong>{control ? "close every security finding within 3 months" : "—"}</strong>
+        </span>
+        <span className="jr-chip jr-chip--event">
+          New event: {state.findings.length} high-severity finding{state.findings.length === 1 ? "" : "s"}
+        </span>
+        {!build && (
+          <button
+            type="button"
+            className="btn btn--primary btn--small"
+            disabled={busy || sourceBusy}
+            onClick={() => void props.onRunBuild()}
+          >
+            Start the review
+          </button>
+        )}
+      </header>
 
-      <StepSource {...props} />
 
-      {build && (
-        <StepCompare
-          state={state}
-          build={build}
-          control={control}
-          q15={q15}
-          q17a={q17a}
-          blockedDeadline={blockedDeadline}
-          failedTests={failedTests}
-          reviewNeededTests={reviewNeededTests}
-          approved={approved}
-        />
-      )}
+      {/* ---- The journey board -------------------------------------------- */}
+      <div className="jr-grid">
+        {/* ---------------- LEFT: 1 get the text · 2 compare -------------- */}
+        <div className="jr-col">
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>1.</span> Get the official text</h2>
+            <div className="jr-duo">
+              <div className="jr-doccard">
+                <span className="jr-docglyph" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z" />
+                  </svg>
+                </span>
+                <p className="jr-doctitle">{document?.title ?? "No source registered"}</p>
+                {document && <p className="meta">Published {formatDate(document.published_at)}</p>}
+                {document && (
+                  <a className="proof-link" href={document.source_url} target="_blank" rel="noreferrer">
+                    Open official source ↗
+                  </a>
+                )}
+              </div>
+              <div className="jr-doccard">
+                <span className="jr-docglyph jr-docglyph--seal" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 11c0 3.5-1 6.8-2.75 9.57M5.8 18.53A13.9 13.9 0 0 0 8 11a4 4 0 1 1 8 0c0 1-.07 2-.2 3m-2.12 6.84A21.9 21.9 0 0 0 15.17 17m3.84 1.13c.65-2.27 1-4.66 1-7.13A8 8 0 0 0 8 4.07M3 15.36C3.64 14.05 4 12.57 4 11c0-1.46.39-2.82 1.07-4" />
+                  </svg>
+                </span>
+                {document && (
+                  <p className="jr-hash mono" title={document.content_hash}>
+                    {document.content_hash.slice(0, 12)}…{document.content_hash.slice(-6)}
+                  </p>
+                )}
+                <p className="meta">
+                  {receipt
+                    ? "This exact text, frozen — matched against the official page."
+                    : "This exact text, frozen. Verify it against the official page."}
+                </p>
+                <button
+                  type="button"
+                  className={`btn btn--small ${receipt ? "btn--secondary" : "btn--primary"}`}
+                  disabled={busy || sourceBusy}
+                  onClick={() => void props.onVerifySource()}
+                >
+                  {receipt ? "✓ Verified — check again" : "Verify official source"}
+                </button>
+              </div>
+            </div>
+            <Disclosure summary="The full source panel">
+              <StepSource {...props} />
+            </Disclosure>
+          </section>
 
-      {blocked && (
-        <StepHumanDecision
-          {...props}
-          q17a={q17a}
-          document={document}
-          referencesLoaded={referencesLoaded}
-          reading={reading}
-          blockedDeadline={blockedDeadline}
-        />
-      )}
-
-      {approved && build && reading && (
-        <div className="decision-sealed" role="status">
-          <span className="decision-sealed-badge" aria-hidden="true">
-            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" clipRule="evenodd" d="M5 9V7a5 5 0 0 1 10 0v2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Zm8-2v2H7V7a3 3 0 0 1 6 0Z" />
-            </svg>
-            Sealed
-          </span>
-          <span className="decision-sealed-check" aria-hidden="true">✓</span>
-          <div className="decision-sealed-body">
-            <p className="decision-sealed-title">Decision approved</p>
-          </div>
-          <span className="decision-sealed-divider" aria-hidden="true" />
-          <p className="decision-sealed-by">
-            Recorded by: <strong>{reading.reviewer_name} ({reading.reviewer_role})</strong>
-            <span className="meta"> · policy: {reading.trigger_policy}</span>
-          </p>
-          {state.latest_manifest?.build_id === build.id ? (
-            <code
-              className="decision-sealed-sha mono"
-              title={state.latest_manifest.manifest_sha256}
-            >
-              SHA-256 · {state.latest_manifest.manifest_sha256.slice(0, 12)}…
-            </code>
-          ) : (
-            <code className="decision-sealed-sha mono">run · {build.run_id}</code>
-          )}
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>2.</span> Compare</h2>
+            {build ? (
+              <>
+                <div className="jr-compare">
+                  <div className="jr-compare-text">
+                    <NumberedExcerpt
+                      sections={q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []}
+                    />
+                  </div>
+                  <div className="jr-minis">
+                    <div className="jr-mini jr-mini--ok">
+                      <p className="jr-mini-title">New duty found</p>
+                      <p>High-severity gaps: one week</p>
+                    </div>
+                    <div className="jr-mini jr-mini--review">
+                      <p className="jr-mini-title">Missing start date</p>
+                      <p>One week — from what?</p>
+                    </div>
+                    <div className="jr-mini jr-mini--royal">
+                      <p className="jr-mini-title">{approved ? "Already covered" : "Cannot cover both"}</p>
+                      <p>{approved ? "Split into two branches" : "One broad rule, two duties"}</p>
+                    </div>
+                  </div>
+                </div>
+                <Disclosure summary="The full comparison">
+                  <StepCompare
+                    state={state}
+                    build={build}
+                    control={control}
+                    q15={q15}
+                    q17a={q17a}
+                    blockedDeadline={blockedDeadline}
+                    failedTests={failedTests}
+                    reviewNeededTests={reviewNeededTests}
+                    approved={approved}
+                  />
+                </Disclosure>
+              </>
+            ) : (
+              <p className="jr-locked">Run the check to compare the rule against this firm.</p>
+            )}
+          </section>
         </div>
-      )}
 
-      {approved && build && (
-        <>
-          <StepImpact state={state} build={build} reducedMotion={Boolean(reducedMotion)} />
-          <StepExport
-            build={build}
-            busy={busy}
-            onDownloadReport={props.onDownloadReport}
-            onDownloadBeforeAfter={props.onDownloadBeforeAfter}
-            onOpenAudit={props.onOpenAudit}
-          />
-        </>
-      )}
+        {/* ---------------- MIDDLE: 0 the case · 3 your decision ---------- */}
+        <div className="jr-col jr-col--mid">
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>0.</span> The case</h2>
+            <div className="jr-doccard jr-doccard--left">
+              <span className="micro">{build ? (approved ? "Completed" : "In review") : "Ready"}</span>
+              <p className="jr-doctitle">{document?.title ?? "SEBI source"}</p>
+              <p className="meta">
+                A firm closes every security finding within three months. A new SEBI answer
+                says one week for the worst kind — with no stated start.
+              </p>
+            </div>
+          </section>
+
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>3.</span> Your decision</h2>
+            {blocked ? (
+              <StepHumanDecision
+                {...props}
+                q17a={q17a}
+                document={document}
+                referencesLoaded={referencesLoaded}
+                reading={reading}
+                blockedDeadline={blockedDeadline}
+              />
+            ) : approved && reading ? (
+              <div className="jr-doccard jr-doccard--left">
+                <span className="micro">Recorded</span>
+                <p className="meta">
+                  {reading.reviewer_name} ({reading.reviewer_role}) recorded the reading and
+                  the clock-start policy in writing. The full record keeps every word.
+                </p>
+              </div>
+            ) : (
+              <p className="jr-locked">
+                The decision opens when the check finds something only a person may settle.
+              </p>
+            )}
+          </section>
+        </div>
+
+        {/* ---------------- RIGHT: 4 what changes · 5 proof ---------------- */}
+        <div className="jr-col">
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>4.</span> What changes</h2>
+            {build ? (
+              <>
+                <div className="jr-ba">
+                  <div className="jr-ba-before">
+                    <span className="micro">Before</span>
+                    <p className={approved ? "jr-struck" : undefined}>
+                      Close every security finding within 3 months
+                    </p>
+                  </div>
+                  <span className="jr-ba-arrow" aria-hidden="true">→</span>
+                  <div className="jr-ba-after">
+                    <div className="jr-ba-card">
+                      <span className="micro">After</span>
+                      <p>High-severity missing patch: one week</p>
+                      <span className="jr-ba-date">
+                        {approved && state.deadline_computations.find((item) => item.computable)
+                          ? formatDate(state.deadline_computations.find((item) => item.computable)!.due_date)
+                          : "No date yet"}
+                      </span>
+                    </div>
+                    <div className="jr-ba-card">
+                      <span className="micro">After</span>
+                      <p>Everything else: three months</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="meta">One rule became two, because the source says two.</p>
+                {approved && (
+                  <Disclosure summary="The full impact picture">
+                    <StepImpact state={state} build={build} reducedMotion={Boolean(reducedMotion)} />
+                  </Disclosure>
+                )}
+              </>
+            ) : (
+              <p className="jr-locked">Changes appear after the check runs.</p>
+            )}
+          </section>
+
+          <section className="jr-sect">
+            <h2 className="jr-h"><span>5.</span> Download proof</h2>
+            {approved && build && reading ? (
+              <>
+                <div className="jr-proof">
+                  <span className="jr-proof-lock" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="jr-proof-title">
+                      Approved by {reading.reviewer_name}, {reading.reviewer_role}
+                    </p>
+                    {state.latest_manifest?.build_id === build.id && (
+                      <p className="meta mono" title={state.latest_manifest.manifest_sha256}>
+                        SHA-256 · {state.latest_manifest.manifest_sha256.slice(0, 12)}…
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="jr-tiles">
+                  <button type="button" className="jr-tile" disabled={busy}
+                    onClick={() => void props.onDownloadReport()}>
+                    <span className="jr-docglyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M7 21h10a2 2 0 0 0 2-2V9.4a1 1 0 0 0-.3-.7l-5.4-5.4a1 1 0 0 0-.7-.3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" />
+                      </svg>
+                    </span>
+                    The full report
+                  </button>
+                  <button type="button" className="jr-tile" disabled={busy}
+                    onClick={() => void props.onDownloadBeforeAfter()}>
+                    <span className="jr-docglyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z" />
+                      </svg>
+                    </span>
+                    Before and after
+                  </button>
+                </div>
+                {props.onOpenAudit && (
+                  <button type="button" className="btn btn--quiet btn--small" onClick={props.onOpenAudit}>
+                    See every step in the full record
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="jr-locked">Proof unlocks when a named person approves the decision.</p>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <p className="meta jr-foot">Decision support — a person approved every outcome on this page.</p>
     </div>
   );
 }

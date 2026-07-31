@@ -3855,3 +3855,111 @@ body {
 }
 .rcx-actionbar p { font-size: 0.8125rem; font-weight: 600; margin: 0; }
 .rcx-actionbar .btn--primary { background: #fff; color: oklch(0.35 0.07 45); }
+
+/* ---------- Review journey board ------------------------------------------- */
+
+.jr-rail { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.jr-rail-item { display: inline-flex; align-items: center; gap: var(--s2); flex: 1; min-width: 0; }
+.jr-rail-word { font-size: 0.75rem; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.jr-rail-word--done { color: var(--ok); }
+.jr-rail-word--current { color: var(--ink); text-decoration: underline; text-underline-offset: 6px; }
+.jr-rail-word--blocked { color: var(--review); }
+.jr-rail-dot {
+  width: 16px; height: 16px; border-radius: 999px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.5625rem; color: #fff;
+  background: var(--line-2);
+}
+.jr-rail-dot--done { background: var(--ok); }
+.jr-rail-dot--current { background: var(--accent); }
+.jr-rail-dot--blocked { background: var(--review); }
+.jr-rail-line { flex: 1; height: 1px; background: var(--line-2); min-width: 16px; }
+.jr-rail-line--done { background: var(--ok); }
+
+.jr-case { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.jr-chip {
+  font-size: 0.8125rem; color: var(--ink-2);
+  border: 1px solid var(--line-2); border-radius: 12px;
+  padding: 6px 14px; background: var(--surface);
+}
+.jr-chip strong { color: var(--ink); font-weight: 600; }
+.jr-chip--grow { flex: 1; min-width: 240px; }
+.jr-chip--event { color: var(--review); border-color: var(--review-line); background: var(--review-wash); font-weight: 600; }
+
+.jr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; align-items: start; }
+.jr-col { display: flex; flex-direction: column; gap: var(--s6); padding: 0 var(--s5); min-width: 0; }
+.jr-col:first-child { padding-left: 0; }
+.jr-col:last-child { padding-right: 0; }
+.jr-col--mid { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+@media (max-width: 1080px) {
+  .jr-grid { grid-template-columns: 1fr; }
+  .jr-col { padding: 0; }
+  .jr-col--mid { border: 0; }
+}
+
+.jr-sect { display: flex; flex-direction: column; gap: var(--s3); }
+.jr-h { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.jr-h span { color: var(--accent); margin-right: 4px; }
+
+.jr-duo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.jr-doccard {
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2);
+  align-items: center; text-align: center;
+}
+.jr-doccard--left { align-items: flex-start; text-align: left; }
+.jr-docglyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 68px; border-radius: 10px;
+  background: var(--bg-2); border: 1px solid var(--line-2); color: var(--ink-2);
+}
+.jr-docglyph svg { width: 26px; height: 26px; }
+.jr-docglyph--seal { width: 56px; height: 56px; border-radius: 999px; }
+.jr-doctitle { font-size: 0.8125rem; font-weight: 650; }
+.jr-hash { font-size: 0.71875rem; color: var(--ink-2); overflow-wrap: anywhere; }
+
+.jr-compare { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: var(--s3); }
+.jr-compare-text { max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); background: var(--bg-2); }
+.jr-minis { display: flex; flex-direction: column; gap: var(--s2); }
+.jr-mini { border-radius: 10px; padding: var(--s2) var(--s3); font-size: 0.6875rem; line-height: 1.4; color: var(--ink-2); border: 1px solid var(--line-2); }
+.jr-mini-title { font-weight: 700; margin-bottom: 2px; }
+.jr-mini--ok { border-color: var(--ok-line); background: var(--ok-wash); }
+.jr-mini--ok .jr-mini-title { color: var(--ok); }
+.jr-mini--review { border-color: var(--review-line); background: var(--review-wash); }
+.jr-mini--review .jr-mini-title { color: var(--review); }
+.jr-mini--royal { border-color: var(--accent-line); background: var(--accent-wash); }
+.jr-mini--royal .jr-mini-title { color: var(--accent); }
+
+.jr-locked {
+  font-size: 0.8125rem; color: var(--ink-3);
+  border: 1px dashed var(--line-2); border-radius: 12px;
+  padding: var(--s4); text-align: center;
+}
+
+.jr-ba { display: flex; align-items: center; gap: var(--s3); }
+.jr-ba-before { flex: 1; border: 1px solid var(--line-2); border-radius: 10px; padding: var(--s3); font-size: 0.75rem; background: var(--bg-2); }
+.jr-struck { text-decoration: line-through; color: var(--fail); }
+.jr-ba-arrow { color: var(--ink-3); font-size: 1.125rem; }
+.jr-ba-after { flex: 1.2; display: flex; flex-direction: column; gap: var(--s2); }
+.jr-ba-card { border: 1px solid var(--line-2); border-radius: 10px; padding: var(--s2) var(--s3); font-size: 0.75rem; background: var(--surface); }
+.jr-ba-date { display: inline-block; margin-top: 4px; font-size: 0.6875rem; font-weight: 700; color: var(--review); }
+
+.jr-proof {
+  display: flex; align-items: center; gap: var(--s3);
+  border: 1px solid var(--ok-line); background: var(--ok-wash);
+  border-radius: 12px; padding: var(--s3) var(--s4);
+}
+.jr-proof-lock { display: inline-flex; padding: 8px; border-radius: 10px; background: color-mix(in oklab, var(--ok) 18%, transparent); color: var(--ok); }
+.jr-proof-lock svg { width: 22px; height: 22px; }
+.jr-proof-title { font-size: 0.8125rem; font-weight: 700; color: var(--ok); }
+
+.jr-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.jr-tile {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  padding: var(--s4); font: inherit; font-size: 0.8125rem; font-weight: 650;
+  color: var(--ink); cursor: pointer; transition: background-color 140ms ease;
+}
+.jr-tile:hover { background: var(--bg-2); }
+.jr-tile:disabled { opacity: 0.5; cursor: default; }
+.jr-foot { text-align: center; }
