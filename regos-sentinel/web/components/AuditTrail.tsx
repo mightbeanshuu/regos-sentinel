@@ -55,8 +55,27 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
     return () => { live = false; };
   }, [state.builds.length, state.reviews.length, state.scenario_outcomes.length]);
 
+  const jumpTo = (selector: string) =>
+    document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <div className="stack-l">
+    <div className="jr-shell">
+      <aside className="jr-sidenav" aria-label="Record sections">
+        {([
+          ["#fr-sources", "Sources"],
+          ["#fr-coverage", "Coverage"],
+          ["#fr-strength", "Strength"],
+          ["#fr-decisions", "Decisions"],
+          ["#fr-checks", "Checks"],
+          ["#fr-evidence", "Evidence"],
+          ["#fr-replay", "Reproduce"],
+        ] as const).map(([target, label]) => (
+          <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
+            <span className="side-item-label">{label}</span>
+          </button>
+        ))}
+      </aside>
+      <div className="stack-l jr-body">
       <section className="audit-hero">
         <div className="stack-s">
           <h1 className="page-title">Audit trail</h1>
@@ -77,6 +96,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Sources and the gates they have cleared -------------------- */}
       <Panel
+        id="fr-sources"
         title="Sources in this workspace"
         description="See which documents were reviewed, added for reference, or still need processing."
         tight
@@ -177,6 +197,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Source coverage ------------------------------------------ */}
       <Panel
+        id="fr-coverage"
         title="Source coverage"
         description="Counts describe this declared pack only."
         tight
@@ -217,6 +238,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Requirement strength ------------------------------------- */}
       <Panel
+        id="fr-strength"
         title="Requirement strength by statement"
         description="Only required language creates mandatory work."
         tight
@@ -249,7 +271,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Decisions ------------------------------------------------- */}
       {(state.reviewer_readings.length > 0 || state.reviews.length > 0) && (
-        <Panel title="Decisions and reviewers">
+        <Panel id="fr-decisions" title="Decisions and reviewers">
           <div className="stack">
             {state.reviewer_readings.map((reading) => (
               <dl className="datalist" key={reading.id}>
@@ -290,6 +312,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Pipeline & tests ------------------------------------------ */}
       <Panel
+        id="fr-checks"
         title="Checks executed"
         description="Each check's result in the latest run."
       >
@@ -343,7 +366,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
       </Panel>
 
       {/* ---- Evidence -------------------------------------------------- */}
-      <Panel title="Evidence history" tight>
+      <Panel id="fr-evidence" title="Evidence history" tight>
         <div className="table-scroll">
           <table>
             <thead>
@@ -372,6 +395,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
 
       {/* ---- Reproducibility ------------------------------------------- */}
       <Panel
+        id="fr-replay"
         title="Reproducibility"
         description="Version identity, model receipt, replay inputs."
       >
@@ -713,6 +737,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

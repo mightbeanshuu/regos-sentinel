@@ -188,8 +188,24 @@ export function DocumentReview({
     [onBusy, onChanged, onError],
   );
 
+  const jumpTo = (selector: string) =>
+    window.document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <div className="stack-l">
+    <div className="jr-shell">
+      <aside className="jr-sidenav" aria-label="Document sections">
+        {([
+          ["#doc-add", "Add a document"],
+          ["#doc-list", "Documents"],
+          ["#doc-score", "Avadhi scorecard"],
+          ["#doc-limits", "Limitations"],
+        ] as const).map(([target, label]) => (
+          <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
+            <span className="side-item-label">{label}</span>
+          </button>
+        ))}
+      </aside>
+      <div className="stack-l jr-body">
       <section className="stack-s">
         <h1 className="page-title">Review your regulatory document</h1>
         <p className="lede">
@@ -243,7 +259,7 @@ export function DocumentReview({
       {error && <p className="banner" role="alert"><span aria-hidden="true">✕</span>{error}</p>}
 
       {/* ---- Upload -------------------------------------------------- */}
-      <Panel title="Add a document">
+      <Panel id="doc-add" title="Add a document">
         <div className="stack">
           <div
             className={`dropzone${dragging ? " dropzone--active" : ""}${busy ? " dropzone--scanning" : ""}`}
@@ -311,7 +327,7 @@ export function DocumentReview({
       </Panel>
 
       {documents.length > 1 && (
-        <Panel title="Documents in this session" tight>
+        <Panel id="doc-list" title="Documents in this session" tight>
           <div className="table-scroll">
             <table>
               <thead>
@@ -387,6 +403,7 @@ export function DocumentReview({
           onBusy={onBusy}
         />
       )}
+    </div>
     </div>
   );
 }
@@ -467,7 +484,7 @@ function DocumentDetail({
 
   return (
     <div className="stack-l">
-      <ModelScorecard document={document} />
+      <div id="doc-score"><ModelScorecard document={document} /></div>
 
       <Panel
         title={document.filename}
@@ -718,7 +735,7 @@ function DocumentDetail({
         )}
       </Panel>
 
-      <Panel title="Limitations">
+      <Panel id="doc-limits" title="Limitations">
         <ul className="stack-s">
           {document.limitations.map((line) => (
             <li key={line} className="lede">— {line}</li>

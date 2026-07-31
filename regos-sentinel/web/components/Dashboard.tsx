@@ -596,13 +596,13 @@ export function Dashboard({
             {failed.map((item) => (
               <li className="b-case b-case--fail" key={item.id}>
                 <p className="b-case-title">{checkLabel(item.id, item.name)}</p>
-                <span className="b-case-chip b-case-chip--fail">✕ Did not pass</span>
+                <span className="b-case-chip b-case-chip--fail">Did not pass</span>
               </li>
             ))}
             {waiting.map((item) => (
               <li className="b-case b-case--review" key={item.id}>
                 <p className="b-case-title">{checkLabel(item.id, item.name)}</p>
-                <span className="b-case-chip b-case-chip--review">! Needs you</span>
+                <span className="b-case-chip b-case-chip--review">Needs you</span>
               </li>
             ))}
             {blockedDates.map((item) => (
@@ -612,13 +612,13 @@ export function Dashboard({
                     ? `${state.obligations.find((o) => o.id === item.obligation_id)!.action} ${state.obligations.find((o) => o.id === item.obligation_id)!.object}`
                     : item.obligation_id}
                 </p>
-                <span className="b-case-chip b-case-chip--review">! No start date</span>
+                <span className="b-case-chip b-case-chip--review">No start date</span>
               </li>
             ))}
             {failed.length + waiting.length + blockedDates.length === 0 && (
               <li className="b-case b-case--ok">
                 <p className="b-case-title">Nothing is waiting on anyone.</p>
-                <span className="b-case-chip b-case-chip--ok">✓ Clear</span>
+                <span className="b-case-chip b-case-chip--ok">Clear</span>
               </li>
             )}
           </ul>
@@ -838,7 +838,7 @@ export function Dashboard({
                   <div className="vault-card-head">
                     <p className="vault-card-name">{doc.title}</p>
                     <span className={`rcx-chip rcx-chip--${stale ? "fail" : receipt ? "ok" : "review"}`}>
-                      {stale ? "! Changed upstream" : receipt ? "✓ Verified" : "Pinned · not re-checked"}
+                      {stale ? "Changed upstream" : receipt ? "Verified" : "Pinned · not re-checked"}
                     </span>
                   </div>
                   <p className="micro">Cryptographic fingerprint</p>
@@ -866,7 +866,7 @@ export function Dashboard({
                   <div className="vault-card-head">
                     <p className="vault-card-name">{item.name}</p>
                     <span className={`rcx-chip rcx-chip--${item.status === "CURRENT" ? "ok" : "review"}`}>
-                      {item.status === "CURRENT" ? "✓ Up to date" : labelOf(item.status)}
+                      {item.status === "CURRENT" ? "Up to date" : labelOf(item.status)}
                     </span>
                   </div>
                   <p className="micro">Cryptographic fingerprint</p>

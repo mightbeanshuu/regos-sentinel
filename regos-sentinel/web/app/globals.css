@@ -4054,3 +4054,61 @@ body {
   .jr-sidenav { position: static; flex-direction: row; flex-wrap: wrap; }
   .jr-sidenav .ag-side-run { margin-top: 0; }
 }
+
+/* ---------- SaaS chip recipe: wash + text + dot, never bordered pills ------ */
+
+.b-case-chip, .cp-chip, .rcx-chip, .exec-chip, .ag-status, .jr-chip--event {
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 4px 10px 4px 22px;
+  position: relative;
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.b-case-chip::before, .cp-chip::before, .rcx-chip::before,
+.jr-chip--event::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.exec-chip { padding-left: 10px; }
+.ag-status { padding-left: 10px; }
+.b-case-chip--ok, .cp-chip--ok, .rcx-chip--ok { background: var(--ok-wash); color: var(--ok); }
+.b-case-chip--review, .cp-chip--diff, .rcx-chip--review { background: var(--review-wash); color: var(--review); }
+.b-case-chip--fail, .rcx-chip--fail { background: var(--fail-wash); color: var(--fail); }
+.jr-chip--event { background: var(--review-wash); color: var(--review); }
+.exec-chip--ok { background: var(--ok-wash); color: var(--ok); border: 0; }
+.ag-status--ran { background: var(--ok-wash); color: var(--ok); border: 0; }
+
+/* ---------- Motion: one easing, one direction, reduced-motion safe --------- */
+
+@keyframes view-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.exec, .bento, .vault, .jr-body, .ag-main, .ag-rail, .cp {
+  animation: view-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.b-card, .ag-card, .jr-doccard, .vault-card, .attn-row, .cp-card, .exec-quick-item {
+  transition: box-shadow 180ms ease-out, transform 180ms ease-out,
+    background-color 140ms ease-out, border-color 140ms ease-out;
+}
+.b-card:hover, .ag-card:hover, .jr-doccard:hover, .vault-card:hover {
+  box-shadow: 0 1px 2px rgba(28, 32, 36, 0.05), 0 4px 12px -4px rgba(28, 32, 36, 0.08);
+  transform: translateY(-1px);
+}
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(32, 93, 177, 0.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .exec, .bento, .vault, .jr-body, .ag-main, .ag-rail, .cp { animation: none; }
+  .b-card, .ag-card, .jr-doccard, .vault-card, .attn-row, .cp-card { transition: none; }
+}
