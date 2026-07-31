@@ -28,20 +28,47 @@ import { Callout, Counts, DataRow, Disclosure, Hash, Panel, StateLabel, Tag } fr
 const PLAN_SOURCES: Array<{ id: PlannerKind; label: string; hint: string }> = [
   {
     id: "DETERMINISTIC_PLAN",
-    label: "Fixed steps",
-    hint: "The same steps in the same order every time. Nothing here is AI, and it is never described as AI.",
+    label: "Scripted — same steps every time",
+    hint: "Nothing here is AI, and it is never described as AI.",
   },
   {
     id: "MODEL_PLANNED",
-    label: "Let the AI work out the steps",
-    hint: "The AI decides what to look at next, based on what it has just read.",
+    label: "Fresh plan by AI — Gemini decides the steps",
+    hint: "The AI picks what to look at next, based on what it just read.",
   },
   {
     id: "RECORDED_MODEL_TRACE",
-    label: "Replay an earlier AI run",
-    hint: "The same steps the AI chose before, replayed without going online.",
+    label: "Replay — re-run a recorded session",
+    hint: "The steps the AI chose before, replayed without going online.",
   },
 ];
+
+/** Plain-word job lines and a tone per assistant — the approved card design. */
+const AGENT_VISUAL: Record<AgentId, { job: string; tone: string }> = {
+  REFERENCE_RESOLVER: {
+    job: "Checks that every \u2018see Table 19\u2019 really points at Table 19.",
+    tone: "ok",
+  },
+  SOURCE_SCOUT: {
+    job: "Spots when SEBI\u2019s wording quietly moves.",
+    tone: "royal",
+  },
+  ADVERSARY: {
+    job: "Tries to break our own conclusions before a regulator can.",
+    tone: "review",
+  },
+  EXTRACTOR: {
+    job: "Asks of every sentence: can this make a calendar date?",
+    tone: "green",
+  },
+};
+
+const AGENT_GLYPH: Record<AgentId, string> = {
+  REFERENCE_RESOLVER: "M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm8 14-3.8-3.8",
+  SOURCE_SCOUT: "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 2.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  ADVERSARY: "M12 3 5 5.7v5.1c0 4 2.8 7.6 7 8.7 4.2-1.1 7-4.7 7-8.7V5.7L12 3Zm0 4v4m0 0-2 3m2-3 2 3",
+  EXTRACTOR: "M7 4v3M17 4v3M4 9h16M6 6h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z",
+};
 
 export function Agents({
   state,
@@ -117,149 +144,78 @@ export function Agents({
         </Callout>
       )}
 
-      {/* ---- What may plan a run ----------------------------------------- */}
-      <Panel
-        title="Planning mode"
-        description="The record shows which mode actually ran."
-      >
-        <div className="stack-s">
-          {PLAN_SOURCES.map((item) => (
-            <label
-              key={item.id}
-              className={`choice${source === item.id ? " choice--on" : ""}`}
+      <div className="ag-shell">
+        {/* ---- Real sections only: the invented nav is not ported --------- */}
+        <aside className="ag-side" aria-label="Assistant sections">
+          {([
+            ["#ag-cards", "Assistants"],
+            ["#ag-terminal", "Watch them work"],
+            ["#ag-plan", "Planning mode"],
+          ] as const).map(([href, label]) => (
+            <button
+              key={href}
+              type="button"
+              className="side-item"
+              onClick={() => document.querySelector(href)?.scrollIntoView({ behavior: "smooth", block: "start" })}
             >
-              <input
-                type="radio"
-                name="plan-source"
-                value={item.id}
-                checked={source === item.id}
-                onChange={() => setSource(item.id)}
-              />
-              <span className="choice-title">
-                {item.label}
-                {item.id === planner?.default && <Tag value="Default" tone="neutral" />}
-              </span>
-              <span className="choice-hint">{item.hint}</span>
-            </label>
+              <span className="side-item-label">{label}</span>
+            </button>
           ))}
-        </div>
-
-        {planner && (
-          <dl className="datalist">
-            <DataRow label="Live model">
-              {planner.model_available
-                ? <span className="mono">{planner.model_id}</span>
-                : planner.offline
-                  ? "Offline mode. Nothing here reaches the network."
-                  : "No planner key configured on this deployment."}
-            </DataRow>
-            <DataRow label="Recorded runs available">
-              {planner.recorded_available.length > 0
-                ? planner.recorded_available.map(agentNameOf).join(", ")
-                : "None recorded yet."}
-            </DataRow>
-          </dl>
-        )}
-
-        {modelUnavailable && (
-          <Callout tone="neutral" title="A live model is not reachable from this deployment.">
-            <p>
-              Running an agent will fall back to the fixed sequence and label the result as
-              such. A trace that misnames its own planner would be worse than no trace.
-            </p>
-          </Callout>
-        )}
-        {noRecording && (
-          <Callout tone="neutral" title="No recorded model run exists for these agents yet.">
-            <p>Runs will fall back to the fixed sequence and say so.</p>
-          </Callout>
-        )}
-
-        <div className="btn-row">
           <button
             type="button"
-            className="btn btn--primary"
+            className="btn btn--primary ag-side-run"
             disabled={busy || agentOrder.length === 0}
             onClick={runAllLive}
           >
-            Run all four assistants
+            Run all four
           </button>
           <button
             type="button"
-            className="btn btn--quiet"
+            className="btn btn--quiet btn--small"
             disabled={busy || state.agent_runs.length === 0}
             onClick={() => void onRun(regosApi.reset)}
           >
             Clear runs
           </button>
-        </div>
-      </Panel>
+        </aside>
 
-      {/* ---- The four assistants, one card, switchable -------------------- */}
-      {catalogue && catalogue.length > 0 && (
-        <div className="agent-switch" role="tablist" aria-label="Pick an assistant">
-          {catalogue.map((item) => {
-            const itemRun = runsById.get(item.id);
-            const on = (active ?? catalogue[0].id) === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                className={`agent-switch-pill${on ? " agent-switch-pill--on" : ""}`}
-                onClick={() => setActive(item.id)}
-              >
-                {item.name}
-                <span className="meta">{itemRun ? `${itemRun.findings.length}` : "·"}</span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            className="btn btn--primary btn--small"
-            disabled={busy}
-            onClick={runAllLive}
-          >
-            Run all
-          </button>
-        </div>
-      )}
-      {catalogue
-        ?.filter((entry) => entry.id === (active ?? catalogue[0].id))
-        .map((entry) => {
-          const run = runsById.get(entry.id);
-          return (
-            <Panel
-              key={entry.id}
-              title={entry.name}
-              description={entry.autonomy}
-              aside={
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--small"
-                  disabled={busy}
-                  onClick={() => void runOne(entry.id)}
-                >
-                  {run ? "Run again" : "Run this agent"}
-                </button>
-              }
-            >
-              <dl className="datalist">
-                <DataRow label="Reads">{entry.reads}</DataRow>
-                <DataRow label="Proposes">{entry.proposes}</DataRow>
-                <DataRow label="Never does">{entry.never_does}</DataRow>
-                <DataRow label="Gated by">{entry.gated_by}</DataRow>
-              </dl>
-              <div className="agent-tools">
-                {entry.tools.map((tool) => (
-                  <span className="agent-tool-chip mono" key={tool}>{tool}</span>
-                ))}
-              </div>
+        <div className="ag-main">
+          {/* ---- The promise, as a pipeline ------------------------------- */}
+          <div className="ag-pipeline" aria-label="How the assistants are allowed to work">
+            {["Assistants read", "Fixed rules decide", "You approve"].map((step, index) => (
+              <span className="ag-node" key={step}>
+                <span className={`ag-node-dot${index === 0 ? " ag-node-dot--live" : ""}`} aria-hidden="true" />
+                <span className="ag-node-word">{step}</span>
+                {index < 2 && <span className="ag-node-arrow" aria-hidden="true">→</span>}
+              </span>
+            ))}
+          </div>
+          <p className="ag-pipeline-caption">
+            No assistant can write a record. Every step is sealed in the log.
+          </p>
 
-              {run ? (
-                <>
-                  <div className="agent-runline">
+          {/* ---- Four cards, all visible ---------------------------------- */}
+          <div className="ag-cards" id="ag-cards">
+            {(catalogue ?? []).map((entry) => {
+              const run = runsById.get(entry.id);
+              const visual = AGENT_VISUAL[entry.id];
+              return (
+                <article className="ag-card" key={entry.id}>
+                  <div className="ag-card-top">
+                    <span className={`ag-avatar ag-avatar--${visual?.tone ?? "royal"}`} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+                        strokeLinecap="round" strokeLinejoin="round">
+                        <path d={AGENT_GLYPH[entry.id]} />
+                      </svg>
+                    </span>
+                    <span className={`ag-status${run ? " ag-status--ran" : ""}`}>
+                      <span className="ag-status-dot" aria-hidden="true" />
+                      {run ? `${run.findings.length} findings` : "Ready"}
+                    </span>
+                  </div>
+                  <h3 className="ag-card-name">{agentNameOf(entry.id)}</h3>
+                  <p className="ag-card-job">{visual?.job ?? entry.autonomy}</p>
+                  {run && (
                     <span className="agent-spark" aria-hidden="true">
                       {run.steps.map((step) => (
                         <i
@@ -268,45 +224,119 @@ export function Agents({
                         />
                       ))}
                     </span>
-                    <span className="meta">
-                      {run.findings.length} findings · {run.tool_call_count} steps
-                      {run.anchor_filename ? ` · read ${run.anchor_filename}` : ""}
-                    </span>
-                  </div>
-                  <Disclosure summary="Run detail and trace">
-                    <RunDetail run={run} />
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--primary ag-card-run"
+                    disabled={busy}
+                    onClick={() => void runOne(entry.id)}
+                  >
+                    {run ? "Run again" : "Run assistant"}
+                  </button>
+                  <Disclosure summary="Details and trace">
+                    <dl className="datalist">
+                      <DataRow label="Reads">{entry.reads}</DataRow>
+                      <DataRow label="Proposes">{entry.proposes}</DataRow>
+                      <DataRow label="Never does">{entry.never_does}</DataRow>
+                      <DataRow label="Gated by">{entry.gated_by}</DataRow>
+                    </dl>
+                    <div className="agent-tools">
+                      {entry.tools.map((tool) => (
+                        <span className="agent-tool-chip mono" key={tool}>{tool}</span>
+                      ))}
+                    </div>
+                    {run ? (
+                      <RunDetail run={run} />
+                    ) : (
+                      <p className="empty">
+                        Not run yet. Nothing is claimed about this agent until it has run and
+                        its trace is recorded.
+                      </p>
+                    )}
                   </Disclosure>
-                </>
-              ) : (
-                <p className="empty">
-                  Not run yet. Nothing is claimed about this agent until it has been run and
-                  its trace recorded.
-                </p>
-              )}
-            </Panel>
-          );
-        })}
+                </article>
+              );
+            })}
+          </div>
 
-      {/* ---- Agent health: recorded counts only --------------------------- */}
-      <div className="agent-health">
-        <span className="micro">Agent health — recorded counts</span>
-        <span>
-          {state.agent_runs.length} runs · {[...runsById.keys()].length} of 4 agents run ·{" "}
-          {state.agent_runs.reduce((sum, run) => sum + run.findings.length, 0)} findings ·{" "}
-          {challenges?.landed.length ?? 0} challenges landed
-        </span>
+          {/* ---- Health strip: recorded counts only ----------------------- */}
+          <div className="agent-health">
+            <span>
+              {[...runsById.keys()].length} of 4 assistants run ·{" "}
+              {state.agent_runs.reduce((sum, run) => sum + run.findings.length, 0)} findings ·{" "}
+              {state.agent_runs.length > 0 && state.agent_runs.every((run) => run.chain_verified)
+                ? "every run verified"
+                : `${state.agent_runs.filter((run) => run.chain_verified).length} of ${state.agent_runs.length} runs verified`}
+              {" · "}{challenges?.landed.length ?? 0} challenges landed
+            </span>
+          </div>
+        </div>
+
+        <aside className="ag-rail">
+          {/* ---- Watch them work ------------------------------------------ */}
+          <section className="ag-rail-card" id="ag-terminal">
+            <p className="sub-title">Watch them work</p>
+            <AgentConsole
+              agents={agentOrder}
+              planner={source}
+              busy={busy}
+              onFinished={refresh}
+              controlRef={consoleRef}
+            />
+          </section>
+
+          {/* ---- Planning mode -------------------------------------------- */}
+          <section className="ag-rail-card" id="ag-plan">
+            <p className="sub-title">Planning mode</p>
+            <div className="stack-s">
+              {PLAN_SOURCES.map((item) => (
+                <label
+                  key={item.id}
+                  className={`choice${source === item.id ? " choice--on" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="plan-source"
+                    value={item.id}
+                    checked={source === item.id}
+                    onChange={() => setSource(item.id)}
+                  />
+                  <span className="choice-title">
+                    {item.label}
+                    {item.id === planner?.default && <Tag value="Default" tone="neutral" />}
+                  </span>
+                  <span className="choice-hint">{item.hint}</span>
+                </label>
+              ))}
+            </div>
+            {planner && (
+              <dl className="datalist">
+                <DataRow label="Live model">
+                  {planner.model_available
+                    ? <span className="mono">{planner.model_id}</span>
+                    : planner.offline
+                      ? "Offline mode. Nothing here reaches the network."
+                      : "No planner key configured on this deployment."}
+                </DataRow>
+                <DataRow label="Recorded runs">
+                  {planner.recorded_available.length > 0
+                    ? planner.recorded_available.map(agentNameOf).join(", ")
+                    : "None recorded yet."}
+                </DataRow>
+              </dl>
+            )}
+            {modelUnavailable && (
+              <p className="meta">
+                A live model is not reachable — runs fall back to the scripted sequence and
+                the trace says so.
+              </p>
+            )}
+            {noRecording && (
+              <p className="meta">No recording exists yet — runs fall back and say so.</p>
+            )}
+          </section>
+        </aside>
       </div>
-
-      {/* ---- Watch the work, live ----------------------------------------- */}
-      <Panel title="Live run">
-        <AgentConsole
-          agents={agentOrder}
-          planner={source}
-          busy={busy}
-          onFinished={refresh}
-          controlRef={consoleRef}
-        />
-      </Panel>
     </div>
   );
 }

@@ -15,11 +15,11 @@ import { IncidentReportingClock } from "./IncidentReportingClock";
 import { RegulationMap } from "./impact/RegulationMap";
 
 const STEPS = [
-  "Source",
+  "Get the official text",
   "Compare",
-  "Human decision",
-  "Operational impact",
-  "Export",
+  "Your decision",
+  "What changes",
+  "Download proof",
 ] as const;
 
 type StepState = "upcoming" | "current" | "done" | "blocked";
@@ -456,7 +456,7 @@ function StepCompare({
             <p className="sub-title">Impact on the firm&rsquo;s controls</p>
 
             <article className="rcx-card rcx-card--ok">
-              <h3 className="rcx-card-title">Two distinct requirements in one control</h3>
+              <h3 className="rcx-card-title">New duty found</h3>
               <p className="meta">
                 Existing control {control.id} closes every VAPT finding in three months. The
                 source states <span className="strong-ink">one week</span> for high-severity
@@ -471,7 +471,7 @@ function StepCompare({
 
             {!approved && blockedDeadline && (
               <article className="rcx-card rcx-card--review">
-                <h3 className="rcx-card-title">Risk: the week has no stated start</h3>
+                <h3 className="rcx-card-title">Missing start date</h3>
                 <p className="meta">
                   SEBI states a one-week duration, but the reviewed source does not state when
                   that week starts. No due date is calculated until a compliance officer records
@@ -486,7 +486,7 @@ function StepCompare({
                     <span className="strong-ink">Not stated in the reviewed source</span>
                   </DataRow>
                   <DataRow label="Due date">
-                    <span className="strong-ink">Not calculated</span>
+                    <span className="rcx-nodate">No date yet</span>
                   </DataRow>
                 </dl>
                 <span className="rcx-chip rcx-chip--review">Needs your decision</span>
@@ -496,7 +496,7 @@ function StepCompare({
             <article className={`rcx-card ${approved ? "rcx-card--royal" : "rcx-card--fail"}`}>
               {approved ? (
                 <>
-                  <h3 className="rcx-card-title">Control now matches the source</h3>
+                  <h3 className="rcx-card-title">Already covered</h3>
                   <p className="meta">
                     The control was split into two branches after {build.reviewer} recorded the
                     firm&rsquo;s trigger policy in writing.
@@ -505,7 +505,7 @@ function StepCompare({
                 </>
               ) : (
                 <>
-                  <h3 className="rcx-card-title">Check failed</h3>
+                  <h3 className="rcx-card-title">One control cannot cover both</h3>
                   <p className="meta">One broad three-month control cannot represent both requirements.</p>
                   {(failedTests.length > 0 ? failedTests : reviewNeededTests.slice(0, 1)).map((test) => (
                     <p key={test.id} className="meta">{test.name} — {test.message}</p>
@@ -516,6 +516,21 @@ function StepCompare({
             </article>
           </div>
         </div>
+
+        {!approved && (
+          <div className="rcx-actionbar">
+            <p>This decision is recorded against your name.</p>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => document.querySelector("#step-human")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                Record my decision
+              </button>
+            </div>
+          </div>
+        )}
 
         {state.findings.length > 0 && (
           <div className="stack-s" style={{ marginTop: "16px" }}>
@@ -1314,7 +1329,7 @@ function StepImpact({
                       <DataRow label="Due date">
                         <span className="strong-ink">{formatDate(computation.due_date)}</span>
                       </DataRow>
-                      <DataRow label="Source">
+                      <DataRow label="Get the official text">
                         <span className="meta">{computation.citation.locator}</span>
                       </DataRow>
                     </dl>
