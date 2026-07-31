@@ -7,23 +7,23 @@
 
 :root {
   /* Ink ------------------------------------------------------------------ */
-  --ink:      oklch(0.22 0.030 258);
-  --ink-2:    oklch(0.38 0.028 258);
-  --ink-3:    oklch(0.52 0.022 258);
+  --ink:      #1c2024;   /* slate12 — never pure black */
+  --ink-2:    #60646c;   /* slate11 */
+  --ink-3:    #80838d;   /* slate10 — metadata only */
 
-  /* Surfaces ------------------------------------------------------------- */
-  --surface:  oklch(1 0 0);
-  --bg:       oklch(0.976 0.004 258);
-  --bg-2:     oklch(0.988 0.003 258);
-  --line:     oklch(0.905 0.008 258);
-  --line-2:   oklch(0.845 0.012 258);
+  /* Surfaces — pure-white cards on a faintly tinted canvas. --------------- */
+  --surface:  #ffffff;
+  --bg:       #f9f9fb;   /* slate2 canvas */
+  --bg-2:     #f0f0f3;   /* slate3 wells, hovers, chart tracks */
+  --line:     #e8e8ec;   /* slate4 card hairline */
+  --line-2:   #d9d9e0;   /* slate6 interactive borders */
 
   /* Accent — SEBI's own institutional blues, sampled from sebi.gov.in:
      #205DB1 (interactive royal) and #154063 (deep navy). AA as text on white. */
   --accent:       oklch(0.455 0.125 257);
   --accent-deep:  oklch(0.345 0.075 248);
-  --accent-wash:  oklch(0.965 0.016 252);
-  --accent-line:  oklch(0.860 0.045 252);
+  --accent-wash:  #edf3fa;
+  --accent-line:  #c3d7ee;
 
   /* Semantic states ------------------------------------------------------ */
   --ok:           oklch(0.495 0.085 179);
@@ -121,6 +121,7 @@ html {
 }
 
 body {
+  font-variant-numeric: tabular-nums;
   margin: 0;
   min-width: 320px;
   font-family: var(--sans);
@@ -4032,3 +4033,24 @@ body {
 
 .page--flush { max-width: none; padding: var(--s4) clamp(16px, 2.5vw, 44px) var(--s7); }
 .page--flush .cmd { min-height: calc(100dvh - 200px); }
+
+/* ---------- Review side rail ------------------------------------------------ */
+
+.jr-shell { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: var(--s5); align-items: start; }
+.jr-sidenav {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.jr-body { min-width: 0; gap: var(--s5); }
+@media (max-width: 1080px) {
+  .jr-shell { grid-template-columns: 1fr; }
+  .jr-sidenav { position: static; flex-direction: row; flex-wrap: wrap; }
+  .jr-sidenav .ag-side-run { margin-top: 0; }
+}

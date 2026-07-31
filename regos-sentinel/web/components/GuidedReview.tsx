@@ -124,8 +124,36 @@ export function GuidedReview(props: GuidedReviewProps) {
     return steps;
   }, [receipt, build, approved, blocked]);
 
+  const jumpTo = (selector: string) =>
+    window.document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <div className="stack-l">
+    <div className="jr-shell">
+      <aside className="jr-sidenav" aria-label="Review sections">
+        {([
+          [".cp", "Pick a case"],
+          ["#jr-s0", "The case"],
+          ["#jr-s1", "Get the text"],
+          ["#jr-s2", "Compare"],
+          ["#jr-s3", "Your decision"],
+          ["#jr-s4", "What changes"],
+          ["#jr-s5", "Download proof"],
+        ] as const).map(([target, label]) => (
+          <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
+            <span className="side-item-label">{label}</span>
+          </button>
+        ))}
+        {blocked && (
+          <button
+            type="button"
+            className="btn btn--primary ag-side-run"
+            onClick={() => jumpTo("#step-human")}
+          >
+            Decision desk
+          </button>
+        )}
+      </aside>
+      <div className="stack-l jr-body">
       {/* ---- Compact journey rail ----------------------------------------- */}
       <nav className="jr-rail" aria-label="Review progress">
         {STEPS.map((label, index) => {
@@ -173,7 +201,7 @@ export function GuidedReview(props: GuidedReviewProps) {
       <div className="jr-grid">
         {/* ---------------- LEFT: 1 get the text · 2 compare -------------- */}
         <div className="jr-col">
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s1">
             <h2 className="jr-h"><span>1.</span> Get the official text</h2>
             <div className="jr-duo">
               <div className="jr-doccard">
@@ -223,7 +251,7 @@ export function GuidedReview(props: GuidedReviewProps) {
             </Disclosure>
           </section>
 
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s2">
             <h2 className="jr-h"><span>2.</span> Compare</h2>
             {build ? (
               <>
@@ -270,7 +298,7 @@ export function GuidedReview(props: GuidedReviewProps) {
 
         {/* ---------------- MIDDLE: 0 the case · 3 your decision ---------- */}
         <div className="jr-col jr-col--mid">
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s0">
             <h2 className="jr-h"><span>0.</span> The case</h2>
             <div className="jr-doccard jr-doccard--left">
               <span className="micro">{build ? (approved ? "Completed" : "In review") : "Ready"}</span>
@@ -282,7 +310,7 @@ export function GuidedReview(props: GuidedReviewProps) {
             </div>
           </section>
 
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s3">
             <h2 className="jr-h"><span>3.</span> Your decision</h2>
             {blocked ? (
               <div className="jr-doccard jr-doccard--left jr-doccard--attn">
@@ -317,7 +345,7 @@ export function GuidedReview(props: GuidedReviewProps) {
 
         {/* ---------------- RIGHT: 4 what changes · 5 proof ---------------- */}
         <div className="jr-col">
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s4">
             <h2 className="jr-h"><span>4.</span> What changes</h2>
             {build ? (
               <>
@@ -357,7 +385,7 @@ export function GuidedReview(props: GuidedReviewProps) {
             )}
           </section>
 
-          <section className="jr-sect">
+          <section className="jr-sect" id="jr-s5">
             <h2 className="jr-h"><span>5.</span> Download proof</h2>
             {approved && build && reading ? (
               <>
@@ -426,6 +454,7 @@ export function GuidedReview(props: GuidedReviewProps) {
       )}
 
       <p className="meta jr-foot">Decision support — a person approved every outcome on this page.</p>
+      </div>
     </div>
   );
 }
