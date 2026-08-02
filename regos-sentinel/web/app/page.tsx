@@ -37,7 +37,7 @@ const TABS = [
   { id: "dashboard", label: "Dashboard", icon: IconGauge },
   { id: "guided", label: "Review a requirement", icon: IconDecision },
   { id: "document", label: "Your own document", icon: IconClauses },
-  { id: "agents", label: "AI agents", icon: IconAgents },
+  { id: "agents", label: "AI assistants", icon: IconAgents },
   { id: "audit", label: "Full record", icon: IconLedger },
 ] as const;
 
@@ -84,7 +84,11 @@ export default function Home() {
       setCatalogue(scenarioCatalogue);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to reach the RegOS API.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not reach the RegOS service. Check your connection and try again.",
+      );
     }
   }, []);
 
@@ -108,7 +112,11 @@ export default function Home() {
           });
         }
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "That action could not be completed.");
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "That action could not be completed. Nothing was changed. Try again, or restart the demo.",
+        );
       } finally {
         setBusy(false);
       }
@@ -123,7 +131,9 @@ export default function Home() {
       setReceipt(await regosApi.verifyLiveSource());
     } catch (caught) {
       setSourceError(
-        caught instanceof Error ? caught.message : "Live source verification is unavailable.",
+        caught instanceof Error
+          ? caught.message
+          : "The check against the live SEBI website could not run just now. Try again shortly.",
       );
     } finally {
       setSourceBusy(false);
@@ -136,7 +146,7 @@ export default function Home() {
     try {
       await operation();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That download failed.");
+      setError(caught instanceof Error ? caught.message : "That download failed. Try again.");
     } finally {
       setBusy(false);
     }
@@ -198,15 +208,15 @@ export default function Home() {
         </span>
         <p className="micro">RegOS Sentinel</p>
         <h1 className="page-title">
-          {error ? "The API is not reachable" : "Waking the sealed engine…"}
+          {error ? "Could not connect" : "Starting up…"}
         </h1>
         <p className="lede">
           {error
             ?? (bootSeconds < 8
-              ? "Connecting to the prototype state."
+              ? "Connecting to the demo."
               : bootSeconds < 30
-                ? "The demo API sleeps between visits on free hosting — the first wake takes a moment."
-                : "Still warming — the workspace loads the instant the engine answers.")}
+                ? "This demo goes to sleep between visits, so the first load takes a moment."
+                : "Still starting — the dashboard opens as soon as it is ready.")}
         </p>
         {!error && (
           <>
@@ -314,12 +324,12 @@ export default function Home() {
                       disabled={busy || sourceBusy}
                       onClick={() => void restart()}
                     >
-                      Sign out — reset this profile
+                      Reset this profile and clear the demo
                     </button>
                   </div>
                   <p className="meta">
-                    One synthetic broker profile ships with this build; a profile per
-                    onboarded broker is the multi-tenant story.
+                    This demo has one synthetic broker profile. In a live deployment each
+                    broker would have their own.
                   </p>
                 </div>
               </details>
@@ -328,7 +338,7 @@ export default function Home() {
         </div>
       </header>
 
-      <nav className="tabs" aria-label="Main">
+      <nav className="tabs" aria-label="Main sections">
         <div className="tablist" role="tablist">
           {TABS.map((item, index) => {
             const TabIcon = item.icon;
@@ -512,8 +522,8 @@ export default function Home() {
       <footer className="app-footer">
         <div className="app-footer-inner">
           <p>
-            Decision support · not legal advice · not a SEBI determination · synthetic broker
-            data · no automated filing
+            This tool supports your decisions. It is not legal advice, it is not a SEBI
+            determination, the broker data is synthetic, and nothing is filed automatically.
           </p>
         </div>
       </footer>

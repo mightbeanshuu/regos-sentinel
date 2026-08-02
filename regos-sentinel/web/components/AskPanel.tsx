@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
+import { plainError, plainPhrase } from "../lib/presentation";
 import type { AssistantAnswer } from "../lib/types";
 import { Callout } from "./ui";
 
@@ -18,9 +19,9 @@ import { Callout } from "./ui";
 
 /** Topic pills — each maps to a real question the answers engine can take. */
 const SUGGESTIONS: Array<{ label: string; question: string }> = [
-  { label: "VAPT deadlines", question: "How long do I have to close VAPT findings?" },
+  { label: "Vulnerability test (VAPT) deadlines", question: "How long do I have to close VAPT findings?" },
   { label: "SEBI patching rules", question: "What does SEBI say about patching?" },
-  { label: "What needs me", question: "What needs my decision?" },
+  { label: "What needs my decision", question: "What needs my decision?" },
   { label: "Next deadline", question: "When is my next deadline?" },
 ];
 
@@ -31,25 +32,55 @@ interface ChatTurn {
   error: string | null;
 }
 
+/**
+ * What kind of answer this is, said before the answer itself. The kind is the first
+ * thing a compliance officer needs: a quotation carries SEBI's authority, a computed
+ * line carries only this workspace's own records, and a refusal carries neither.
+ * Written out rather than composed from `Tag`, whose label pass would lower-case SEBI.
+ */
+function AnswerKind({ answer }: { answer: AssistantAnswer }) {
+  const meta =
+    answer.kind === "QUOTED"
+      ? { tone: "accent", glyph: "❝", label: "Quoted from SEBI" }
+      : answer.kind === "COMPUTED"
+        ? { tone: "accent", glyph: "=", label: "Computed from your workspace" }
+        : { tone: "neutral", glyph: "·", label: "No answer in the source" };
+  return (
+    <p>
+      <span className={meta.tone === "neutral" ? "tag" : `tag tag--${meta.tone}`}>
+        <span aria-hidden="true">{meta.glyph}</span>
+        {meta.label}
+      </span>
+    </p>
+  );
+}
+
 function AnswerBody({ answer }: { answer: AssistantAnswer }) {
   if (answer.kind === "REFUSED") {
     return (
-      <Callout tone="neutral" title="No answer in the source">
-        <p>{answer.answer}</p>
-        {answer.note && <p className="meta">{answer.note}</p>}
-      </Callout>
+      <>
+        <AnswerKind answer={answer} />
+        <Callout tone="neutral" title="No answer in the source">
+          <p>{answer.answer}</p>
+          {answer.note && <p className="meta">{plainPhrase(answer.note)}</p>}
+        </Callout>
+      </>
     );
   }
   if (answer.kind === "COMPUTED") {
     return (
-      <Callout tone="accent" title="From your workspace">
-        <p>{answer.answer}</p>
-        {answer.note && <p className="meta">{answer.note}</p>}
-      </Callout>
+      <>
+        <AnswerKind answer={answer} />
+        <Callout tone="accent" title="From your own records">
+          <p>{answer.answer}</p>
+          {answer.note && <p className="meta">{plainPhrase(answer.note)}</p>}
+        </Callout>
+      </>
     );
   }
   return (
     <>
+      <AnswerKind answer={answer} />
       {answer.plain && (
         <Callout tone="accent" title="In plain words">
           <p>{answer.plain}</p>
@@ -78,7 +109,7 @@ function AnswerBody({ answer }: { answer: AssistantAnswer }) {
           </p>
         )}
       </figure>
-      <p className="meta">{answer.note}</p>
+      <p className="meta">{plainPhrase(answer.note)}</p>
     </>
   );
 }
@@ -115,8 +146,7 @@ export function AskPanel() {
         prior.map((turn) => (turn.id === id ? { ...turn, answer } : turn)),
       );
     } catch (caught) {
-      const message =
-        caught instanceof Error ? caught.message : "That question could not be sent.";
+      const message = plainError(caught, "That question could not be sent.");
       setTurns((prior) =>
         prior.map((turn) => (turn.id === id ? { ...turn, error: message } : turn)),
       );
@@ -130,8 +160,9 @@ export function AskPanel() {
       <div className="chat-intro">
         <h2 className="chat-hero">Ask RegOS</h2>
         <p className="chat-hero-sub">
-          Your compliance assistant for SEBI regulations. Type a query below or explore
-          topics — answers are quoted or computed, never guessed.
+          Your compliance assistant for SEBI regulations. Type a question below or pick a
+          topic — every answer is either quoted from SEBI or worked out from your own
+          records, never guessed.
         </p>
       </div>
 
@@ -200,7 +231,7 @@ export function AskPanel() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          {asking ? "Looking…" : "Search/Ask"}
+          {asking ? "Looking…" : "Ask"}
         </button>
       </form>
     </div>

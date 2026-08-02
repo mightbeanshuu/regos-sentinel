@@ -73,7 +73,7 @@ export function CciDial({ report }: { report: CciReport }) {
   return (
     <div className="cci cci--glass">
       <div className="cci-dial">
-        <svg viewBox="0 0 200 200" role="img" aria-label={`Score ${report.score} of 100`}>
+        <svg viewBox="0 0 200 200" role="img" aria-label={`Cyber Capability Index: ${report.score} out of 100. Band: ${report.band}.`}>
           <circle
             className="cci-track"
             cx="100"
@@ -98,11 +98,45 @@ export function CciDial({ report }: { report: CciReport }) {
       </div>
 
       <div className="cci-read">
+        <p className="micro">Band</p>
         <p className="cci-band">{report.band}</p>
         <p className="cci-meaning">{report.band_meaning}</p>
+        {/* The ratio, glanceable. The sentence under it says what the gap means — the
+            bar never replaces the words, it only makes them quicker to read. The inline
+            track is used rather than the full `Meter` row because this column is only
+            ~34ch wide: a three-column meter wraps its figure onto a line of its own. */}
+        <p className="cci-coverage">
+          Parameters assessed{" "}
+          <span
+            className="meter--inline"
+            role="meter"
+            aria-label="Parameters assessed"
+            aria-valuenow={report.parameters_assessed}
+            aria-valuemin={0}
+            aria-valuemax={report.parameters_total}
+            aria-valuetext={`${report.parameters_assessed} of ${report.parameters_total}`}
+          >
+            <span className="meter-track">
+              <span
+                className="meter-fill meter-fill--accent"
+                style={{
+                  transform: `scaleX(${
+                    report.parameters_total > 0
+                      ? report.parameters_assessed / report.parameters_total
+                      : 0
+                  })`,
+                }}
+              />
+            </span>
+            <span className="meter-figure">
+              {report.parameters_assessed}/{report.parameters_total}
+            </span>
+          </span>
+        </p>
         <p className="cci-coverage">
           Based on {report.parameters_assessed} of {report.parameters_total} parameters.
-          The rest are marked not assessed — scoring them zero would be a guess.
+          The other {report.parameters_total - report.parameters_assessed} are not assessed —
+          scoring them zero would be a guess.
         </p>
       </div>
     </div>

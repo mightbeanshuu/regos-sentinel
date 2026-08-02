@@ -31,7 +31,7 @@ const STAGES: Stage[] = [
   {
     x: 16,
     title: "SEBI source",
-    subtitle: "fetched & fingerprinted",
+    subtitle: "downloaded, with a\nfingerprint recorded",
     icon: (
       <>
         <path d="M5 2.8h7.2L15 5.6v11.6H5z" />
@@ -43,7 +43,7 @@ const STAGES: Stage[] = [
   {
     x: 262,
     title: "Fixed rules",
-    subtitle: "12 deterministic checks",
+    subtitle: "12 fixed automated checks",
     icon: (
       <>
         <rect x="4" y="2.8" width="12" height="14.4" rx="1.8" />
@@ -65,8 +65,8 @@ const STAGES: Stage[] = [
   },
   {
     x: 754,
-    title: "Sealed proof",
-    subtitle: "replayable build",
+    title: "Sealed record",
+    subtitle: "can be reproduced exactly",
     icon: (
       <>
         <path d="M10 2.6 4 4.8v4.6c0 3.6 2.5 6.9 6 7.8 3.5-.9 6-4.2 6-7.8V4.8z" />
@@ -97,9 +97,17 @@ function StageCard({ stage }: { stage: Stage }) {
       <text className="flowmap-title" x={cx} y={CARD_Y + 76} textAnchor="middle">
         {stage.title}
       </text>
-      <text className="flowmap-sub" x={cx} y={CARD_Y + 96} textAnchor="middle">
-        {stage.subtitle}
-      </text>
+      {stage.subtitle.split("\n").map((line, index) => (
+        <text
+          key={line}
+          className="flowmap-sub"
+          x={cx}
+          y={CARD_Y + 96 + index * 14}
+          textAnchor="middle"
+        >
+          {line}
+        </text>
+      ))}
     </g>
   );
 }
@@ -279,9 +287,9 @@ export function FlowMap() {
 
       <p className="flowmap-sr">
         How it works: first, the SEBI source document is fetched and
-        fingerprinted. Second, twelve fixed deterministic rules check it.
+        fingerprinted. Second, twelve fixed automated rules check it.
         Third, a named person decides, and that decision is recorded. Fourth,
-        the result is sealed into a replayable proof. Whenever the regulatory
+        the result is sealed into a record that can be reproduced exactly. Whenever the regulatory
         text is silent, the system stops instead of guessing and routes the
         item to a person — the &ldquo;Needs you&rdquo; branch.
       </p>

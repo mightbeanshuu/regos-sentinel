@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { regosApi } from "../lib/api";
 import { formatDate, formatTimestamp } from "../lib/presentation";
 import type { DocumentCaseRecord, UploadedDocument } from "../lib/types";
-import { Field, Panel, StateLabel } from "./ui";
+import { DataRow, Field, Panel, StateLabel } from "./ui";
 
 /**
  * The Case A ritual, generated from any uploaded circular: RegOS names the worst
@@ -96,15 +96,15 @@ export function DocumentCasePanel({
 
   return (
     <Panel
-      title="The case in this document"
-      description="RegOS names the worst period-without-clock-start passage — the defect Case A demonstrates — and stages it for your decision."
+      title="The deadline gap in this document"
+      description="RegOS finds the passage in this document that states how long you have but never says when the clock starts — the same gap as Case A — and puts it in front of you to decide."
       aside={record ? <StateLabel value={record.state} /> : undefined}
     >
       {!record && !noDefect && (
         <div className="stack-s">
           <p className="lede">
-            The committed model reads every passage; among the possible requirements, the
-            period-without-clock-start wording with the highest confidence becomes the case.
+            Avadhi reads every passage. Of the ones that look like requirements, the clearest
+            example of a period with no stated starting point becomes your case.
           </p>
           <div className="btn-row">
             <button
@@ -130,11 +130,46 @@ export function DocumentCasePanel({
       )}
 
       {noDefect && (
-        <p className="lede">{noDefect}</p>
+        <p className="lede">
+          This document contains no passage that states a period without saying when it
+          starts. There is nothing to decide here.
+        </p>
       )}
 
       {record && <CaseBody record={record} busy={busy} act={act} />}
     </Panel>
+  );
+}
+
+/**
+ * What the button below still needs, ticked off live. A disabled button that
+ * does not say why is a dead end; this is the list that answers it.
+ *
+ * These sit on the dark sienna commit bar, where the ok/neutral tone tokens
+ * would fall below contrast. The glyph and the spoken word carry the state
+ * instead, and the colour is simply the bar's own text colour.
+ */
+function PreflightList({ items }: { items: Array<{ label: string; done: boolean }> }) {
+  const left = items.filter((item) => !item.done).length;
+  return (
+    <div className="doccase-verdicts" role="group" aria-label="What this decision still needs">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="state"
+          style={{ color: "inherit", opacity: item.done ? 1 : 0.72 }}
+        >
+          <span className="state-glyph" aria-hidden="true">{item.done ? "✓" : "○"}</span>
+          <span>
+            {item.label}
+            <span className="visually-hidden">{item.done ? " — recorded" : " — still needed"}</span>
+          </span>
+        </span>
+      ))}
+      <span className="visually-hidden">
+        {left === 0 ? "Everything needed is recorded." : `${left} still needed.`}
+      </span>
+    </div>
   );
 }
 
@@ -156,20 +191,47 @@ function CaseBody({
       <div className="doccase-quote">
         <p className="mono meta">{record.locator}</p>
         <p className="doccase-text">{record.text}</p>
-        <div className="doccase-verdicts">
-          <span className="doccase-chip doccase-chip--review">
-            Model: says how long, not from when · {Math.round(record.model_confidence * 100)}%
-          </span>
-          <span className={`doccase-chip${record.verdicts_agree ? " doccase-chip--ok" : ""}`}>
-            {record.verdicts_agree
-              ? "✓ Fixed rule reads it the same way"
-              : "Fixed rule differs — shown, not hidden"}
-          </span>
-          <span className="doccase-chip">
-            Picked from {record.candidates_considered}{" "}
-            {record.candidates_considered === 1 ? "candidate" : "candidates"}
-          </span>
-        </div>
+        {/* Labelled facts rather than three unlabelled chips: each line says
+            what it is before it says what it found. */}
+        <dl className="datalist">
+          <DataRow label="RegOS's reading">
+            <span className="strong-ink">Says how long, not from when</span>{" "}
+            <>
+              <span className="meter meter--inline">
+                <span
+                  className="meter-track"
+                  role="meter"
+                  aria-label="How confident the reader is"
+                  aria-valuenow={Math.round(record.model_confidence * 100)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <span
+                    className="meter-fill meter-fill--review"
+                    style={{ transform: `scaleX(${Math.min(1, Math.max(0, record.model_confidence))})` }}
+                  />
+                </span>
+                <span className="meter-figure">
+                  {Math.round(record.model_confidence * 100)}%
+                </span>
+              </span>
+              <span className="meta"> confident</span>
+            </>
+          </DataRow>
+          <DataRow label="Do the fixed rules agree?">
+            <span className={`doccase-chip${record.verdicts_agree ? " doccase-chip--ok" : " doccase-chip--review"}`}>
+              {record.verdicts_agree
+                ? "✓ Yes — the fixed rule reads it the same way"
+                : "! No — the fixed rule differs, shown not hidden"}
+            </span>
+          </DataRow>
+          <DataRow label="Chosen from">
+            {record.candidates_considered}{" "}
+            {record.candidates_considered === 1
+              ? "passage that states a period"
+              : "passages that state a period"}
+          </DataRow>
+        </dl>
       </div>
 
       {record.state === "READING_PENDING" && (
@@ -180,7 +242,8 @@ function CaseBody({
       )}
       {record.state === "APPROVED" && <CaseSealed record={record} />}
 
-      <p className="meta clamp2" title={record.limitation}>{record.limitation}</p>
+      {/* A must-read caveat never truncates. */}
+      <p className="lede">{record.limitation}</p>
     </div>
   );
 }
@@ -261,7 +324,7 @@ function CaseReadingStage({
 
           <div
             className="decision-card decision-card--locked"
-            aria-label="System suggestion, hidden until you commit your reading"
+            aria-label="System suggestion, hidden until you record your reading"
           >
             <div className="decision-skel" aria-hidden="true">
               <span style={{ width: "34%" }} />
@@ -276,8 +339,9 @@ function CaseReadingStage({
                   <path d="M7 9V6.6a3 3 0 0 1 6 0V9" />
                 </svg>
               </span>
+              {/* The card's own aria-label already says it is hidden until the
+                  reading is recorded; the lock says it visually. */}
               <p className="decision-lock-title">System suggestion</p>
-              <p className="meta">(Blurred until you commit your reading)</p>
             </div>
           </div>
         </div>
@@ -319,7 +383,7 @@ function CaseReadingStage({
                 checked={policyChoice === "none"}
                 onChange={() => setPolicyChoice("none")}
               />
-              <span>No policy — leave the date uncomputed</span>
+              <span>No policy — leave the due date blank</span>
             </label>
           </div>
           {policyChoice === "custom" && (
@@ -334,19 +398,23 @@ function CaseReadingStage({
               )}
             </Field>
           )}
-          <p className="meta">
-            Recorded as &ldquo;confirmed by a compliance officer&rdquo; — never as wording
-            from the document.
-          </p>
         </div>
       </div>
 
       <div className="decision-commit">
-        <p className="decision-commit-title">Your reading is committed before the reveal.</p>
         <p className="decision-commit-sub">
-          It is time-stamped before the suggestion is shown and cannot be rewritten in
-          this session.
+          Your reading is time-stamped before the suggestion is shown and cannot be
+          rewritten in this session.
         </p>
+        {/* What is still missing, before the button that needs it. */}
+        <PreflightList
+          items={[
+            { label: "Your reading", done: interpretation.trim().length >= 8 },
+            { label: "Your name", done: name.trim().length >= 2 },
+            { label: "Your role", done: role.trim().length >= 2 },
+            { label: "A clock-start policy", done: policy.trim().length >= 8 },
+          ]}
+        />
         <div className="btn-row">
           <button
             type="button"
@@ -370,7 +438,7 @@ function CaseReadingStage({
           </button>
           {policyChoice === "none" && (
             <p className="decision-commit-hint">
-              Pick a clock-start policy to continue — or the date stays uncomputed.
+              Pick a clock-start policy to continue — or no due date will be worked out.
             </p>
           )}
         </div>
@@ -437,8 +505,8 @@ function CaseApprovalStage({
               <p className="decision-card-title">System suggestion</p>
               <p className="strong-ink">{reading.revealed_system_suggestion}</p>
               <p className="meta">
-                Revealed {formatTimestamp(reading.system_suggestion_revealed_at)} · fixed-rule
-                wording from the two verdicts, never model prose
+                Revealed {formatTimestamp(reading.system_suggestion_revealed_at)}. This wording
+                comes from the two fixed-rule readings, word for word — not from AI writing.
               </p>
             </div>
             <div className="decision-agree" role="radiogroup" aria-label="Agreement with the suggestion">
@@ -498,14 +566,14 @@ function CaseApprovalStage({
           <div className="decision-card">
             <p className="decision-card-title">Due date calculator</p>
             <Field
-              label="Committed trigger policy"
+              label="The clock-start policy you recorded"
               hint="Recorded before the suggestion was shown; cannot be edited now."
             >
               {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
             </Field>
             <Field
-              label="Trigger event date"
-              hint="Leave blank and no due date will be computed — honestly blocked."
+              label="Date the clock starts"
+              hint="Leave this blank and no due date will be worked out. That is a valid outcome, not a failure."
             >
               {(aria) => (
                 <input
@@ -524,7 +592,8 @@ function CaseApprovalStage({
               </span>
               <span className="meta">
                 Based on {record.locator} — {record.duration_label ?? "the stated period"} from
-                the trigger date. Preview only; the engine records the real date on approval.
+                the trigger date. This is a preview. RegOS records the actual due date when you
+                approve.
               </span>
             </div>
           </div>
@@ -535,9 +604,20 @@ function CaseApprovalStage({
         <div className="decision-actionbar-copy">
           <p className="decision-commit-title">This decision is recorded against your name.</p>
           <p className="decision-commit-sub">
-            Approval creates an ordinary signed requirement in this document&rsquo;s record —
-            it appears under Requirements and in the exported reports.
+            The clock-start is recorded as confirmed by a compliance officer — never as
+            wording from the document. Approval creates an ordinary signed requirement in
+            this document&rsquo;s record; it appears under Requirements and in the exported
+            reports.
           </p>
+          <PreflightList
+            items={[
+              { label: "Whether you agree", done: Boolean(agreement) },
+              { label: "Who must act", done: actor.trim().length >= 2 },
+              { label: "What they must do", done: action.trim().length >= 2 },
+              { label: "What it applies to", done: object.trim().length >= 2 },
+              { label: "Your reason", done: reason.trim().length >= 8 },
+            ]}
+          />
         </div>
         <div className="btn-row decision-actionbar-actions">
           <button
@@ -589,16 +669,26 @@ function CaseSealed({ record }: { record: DocumentCaseRecord }) {
         <p className="decision-sealed-title">Decision approved</p>
       </div>
       <span className="decision-sealed-divider" aria-hidden="true" />
-      <p className="decision-sealed-by">
-        Recorded by: <strong>{approval.reviewer_name} ({approval.reviewer_role})</strong>
-        <span className="meta"> · policy: {approval.trigger_policy}</span>
-        {approval.due_date ? (
-          <span className="meta"> · due {formatDate(approval.due_date)}</span>
-        ) : (
-          <span className="meta"> · no due date — {approval.blocked_reason}</span>
-        )}
-      </p>
-      <code className="decision-sealed-sha mono">req · {approval.requirement_id}</code>
+      {/* A receipt reads as labelled facts, not as one middot-joined sentence. */}
+      <dl className="datalist decision-sealed-by">
+        <DataRow label="Recorded by">
+          <strong>{approval.reviewer_name}</strong> ({approval.reviewer_role})
+        </DataRow>
+        <DataRow label="Clock starts">{approval.trigger_policy}</DataRow>
+        <DataRow label="Due date">
+          {approval.due_date ? (
+            <strong>{formatDate(approval.due_date)}</strong>
+          ) : (
+            <>
+              <strong>No due date</strong>{" "}
+              <span className="meta">— {approval.blocked_reason}</span>
+            </>
+          )}
+        </DataRow>
+        <DataRow label="Requirement reference">
+          <span className="mono">{approval.requirement_id}</span>
+        </DataRow>
+      </dl>
     </div>
   );
 }

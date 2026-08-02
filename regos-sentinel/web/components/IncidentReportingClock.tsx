@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { formatDate } from "../lib/presentation";
+import { formatDate, plainPhrase } from "../lib/presentation";
 import type { WorkspaceState } from "../lib/types";
 import { StateLabel, Tag } from "./ui";
 
@@ -18,6 +18,26 @@ type ClockRow = {
   triggerProvenance: string | null;
   durationProvenance: string | null;
 };
+
+const DAY_MS = 86_400_000;
+
+/**
+ * "in 6 days" / "3 days overdue", worked out from the due date the API sent. If there
+ * is no date, or one this cannot parse, no suffix is shown — none is invented.
+ */
+function relativeToToday(due: string | null): { text: string; overdue: boolean } | null {
+  if (!due) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(due);
+  if (!match) return null;
+  const dueMs = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const today = new Date();
+  const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const days = Math.round((dueMs - todayMs) / DAY_MS);
+  if (days === 0) return { text: "today", overdue: false };
+  if (days > 0) return { text: `in ${days} day${days === 1 ? "" : "s"}`, overdue: false };
+  const late = -days;
+  return { text: `${late} day${late === 1 ? "" : "s"} overdue`, overdue: true };
+}
 
 function buildRows(state: WorkspaceState): ClockRow[] {
   const byFinding = new Map(state.deadline_computations.map((item) => [item.finding_id, item]));
@@ -95,7 +115,7 @@ function ClockFace({
 
   return (
     <div className="irc-clock" aria-hidden={false}>
-      <svg viewBox="0 0 140 140" role="img" aria-label={`Reporting clock for ${row.findingId}`}>
+      <svg viewBox="0 0 140 140" role="img" aria-label={`Reporting clock for ${row.title}`}>
         {ticks.map((t, i) => (
           <line key={i} className="irc-tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />
         ))}
@@ -125,7 +145,7 @@ function ClockFace({
         {!row.computable ? (
           <>
             <span className="irc-centre-label">Clock not started</span>
-            <span className="irc-centre-meta">Trigger not set</span>
+            <span className="irc-centre-meta">Nothing to count from</span>
           </>
         ) : progress !== null && progress >= 1 ? (
           <>
@@ -185,23 +205,33 @@ export function IncidentReportingClock({
 
   return (
     <div className={`irc-table${compact ? " irc-table--compact" : ""}`}>
-      <div className="irc-head" aria-hidden="true">
-        <span>Finding</span>
+      <div className="irc-head">
+        <span>Security finding</span>
         <span>Period</span>
         <span>Due</span>
         <span />
       </div>
-      {rows.map((row) => (
+      {rows.map((row) => {
+        const relative = row.computable ? relativeToToday(row.dueDate) : null;
+        return (
         <details key={row.findingId} className="irc-row">
           <summary className="irc-row-summary">
             <span className="irc-row-name">
               <span className="mono irc-row-id">{row.findingId}</span>
               <span className="irc-row-title">{row.title}</span>
             </span>
-            <span className="irc-row-period">{row.durationLabel ?? "Not assessed"}</span>
+            <span className="irc-row-period">{row.durationLabel ?? "Not assessed yet"}</span>
             <span className="irc-row-status">
               {row.computable && row.dueDate ? (
-                <strong className="strong-ink">{formatDate(row.dueDate)}</strong>
+                <>
+                  <strong className="strong-ink">{formatDate(row.dueDate)}</strong>
+                  {relative && (
+                    <span className={relative.overdue ? "rel-time rel-time--overdue" : "rel-time"}>
+                      {" · "}
+                      {relative.text}
+                    </span>
+                  )}
+                </>
               ) : (
                 <StateLabel value="BLOCK" />
               )}
@@ -213,14 +243,14 @@ export function IncidentReportingClock({
               <ClockFace row={row} nowMs={nowMs} reducedMotion={reducedMotion} />
             ) : (
               <p className="irc-noclock">
-                No clock can run here — {row.blockedReason ?? "the reviewed source states no starting event"}
+                No clock can run here — {row.blockedReason ? plainPhrase(row.blockedReason) : "the reviewed source never says what starts the clock"}
               </p>
             )}
             <dl className="datalist irc-meta">
               <div className="irc-meta-row">
                 <dt>Period stated</dt>
                 <dd>
-                  {row.durationLabel ?? "Not assessed"}{" "}
+                  {row.durationLabel ?? "Not assessed yet"}{" "}
                   {row.durationProvenance && <Tag value={row.durationProvenance} />}
                 </dd>
               </div>
@@ -241,14 +271,22 @@ export function IncidentReportingClock({
                 </dd>
               </div>
               <div className="irc-meta-row">
-                <dt>Report / close by</dt>
+                <dt>Report or close it by</dt>
                 <dd>
                   {row.computable && row.dueDate ? (
-                    <strong className="strong-ink">{formatDate(row.dueDate)}</strong>
+                    <>
+                      <strong className="strong-ink">{formatDate(row.dueDate)}</strong>
+                      {relative && (
+                        <span className={relative.overdue ? "rel-time rel-time--overdue" : "rel-time"}>
+                          {" · "}
+                          {relative.text}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <StateLabel value="BLOCK" />
-                      {row.blockedReason && <p className="meta">{row.blockedReason}</p>}
+                      {row.blockedReason && <p className="meta">{plainPhrase(row.blockedReason)}</p>}
                     </>
                   )}
                 </dd>
@@ -261,13 +299,14 @@ export function IncidentReportingClock({
                   className="btn btn--secondary btn--small"
                   onClick={onResolve}
                 >
-                  Set the clock-start — make the decision
+                  Decide what starts the clock
                 </button>
               </div>
             )}
           </div>
         </details>
-      ))}
+        );
+      })}
     </div>
   );
 }

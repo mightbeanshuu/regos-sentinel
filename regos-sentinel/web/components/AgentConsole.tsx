@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 
 import { apiOrigin } from "../lib/api";
-import { glossFor } from "../lib/presentation";
+import { agentNameOf, glossFor, labelOf, toolPlainOf } from "../lib/presentation";
 import type { AgentId, PlannerKind } from "../lib/types";
 
 /** Imperative handle so the Run-all buttons drive this console directly. */
@@ -34,13 +34,6 @@ interface Line {
   text: string;
 }
 
-const AGENT_NAMES: Record<AgentId, string> = {
-  REFERENCE_RESOLVER: "reference-finder",
-  SOURCE_SCOUT: "change-watcher",
-  ADVERSARY: "challenger",
-  EXTRACTOR: "deadline-reader",
-};
-
 /**
  * The console shows the machine's own vocabulary — that is what a console is for, and
  * a compliance officer watching one expects to see the machinery. But a verdict like
@@ -48,21 +41,9 @@ const AGENT_NAMES: Record<AgentId, string> = {
  * and shouting it in an enum wastes it. Tool names and verdicts get a plain gloss on
  * the line beneath; everything else is left exactly as the system recorded it.
  */
-const TOOL_PLAIN: Record<string, string> = {
-  list_unresolved_references: "list the pointers that lead nowhere yet",
-  search_corpus: "search the pinned SEBI excerpts",
-  fetch_span: "open one pinned excerpt and fingerprint it",
-  verify_quote: "check a quotation really appears in the passage",
-  read_span: "read one passage of the source in full",
-  analyse_span_timing: "judge whether that passage supports a real deadline",
-  analyse_timing: "judge whether wording supports a real deadline",
-  list_active_obligations: "list the requirements that would reach a person",
-  read_entity_facts: "read the facts about this firm",
-  list_statements: "list the requirements pulled out of the source",
-  list_known_sources: "list the SEBI documents registered here",
-  compare_registered_sources: "compare the reviewed document against the newer one",
-  compare_span_sets: "compare two sets of passages",
-};
+function consoleNameOf(agent: AgentId): string {
+  return agentNameOf(agent).toLowerCase().replaceAll(" ", "-");
+}
 
 function clockOf(): string {
   return new Date().toLocaleTimeString("en-GB", { hour12: false });
@@ -83,6 +64,7 @@ export function AgentConsole({
 }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [running, setRunning] = useState<AgentId | null>(null);
+  const [announcement, setAnnouncement] = useState("");
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sourceRef = useRef<EventSource | null>(null);
@@ -116,7 +98,8 @@ export function AgentConsole({
     (agent: AgentId) => {
       sourceRef.current?.close();
       setRunning(agent);
-      push("meta", `$ regos agents run ${AGENT_NAMES[agent]} --planner ${planner}`);
+      setAnnouncement(`${agentNameOf(agent)} run started.`);
+      push("meta", `$ regos agents run ${consoleNameOf(agent)} --planner ${planner}`);
 
       const source = new EventSource(
         `${apiOrigin}/api/v1/agents/${agent}/stream?planner=${planner}`,
@@ -127,6 +110,7 @@ export function AgentConsole({
       source.addEventListener("planner", (event) => {
         const data = JSON.parse((event as MessageEvent).data);
         push("meta", `planner: ${data.planner}`);
+        push("meta", `   ${labelOf(String(data.planner))}`);
         push("meta", `goal:    ${data.goal}`);
         push("meta", `tools:   ${(data.tools as string[]).join(", ")}`);
       });
@@ -141,7 +125,7 @@ export function AgentConsole({
           ? JSON.stringify(data.input)
           : "";
         push("call", `→ ${data.tool}(${args})`);
-        const plain = TOOL_PLAIN[String(data.tool)];
+        const plain = toolPlainOf(String(data.tool));
         if (plain) push("meta", `   ${plain}`);
       });
 
@@ -182,7 +166,7 @@ export function AgentConsole({
           return;
         }
         if (source.readyState === EventSource.CLOSED) {
-          push("error", "! the connection to the API dropped");
+          push("error", "! The connection to the RegOS server dropped, so this run stopped. Press Watch again to retry.");
           queueRef.current = [];
           setRunning(null);
           source.close();
@@ -191,6 +175,7 @@ export function AgentConsole({
 
       source.addEventListener("done", () => {
         push("done", "done.");
+        setAnnouncement(`${agentNameOf(agent)} run finished.`);
         source.close();
         onFinished();
         const next = queueRef.current.shift();
@@ -228,17 +213,19 @@ export function AgentConsole({
         <span className="console-dots" aria-hidden="true">
           <span /><span /><span />
         </span>
-        <span className="console-title">regos — live agent run</span>
+        <span className="console-title">RegOS — assistant running live</span>
         {running && (
-          <span className="console-live">running {AGENT_NAMES[running]}</span>
+          <span className="console-live">running {consoleNameOf(running)}</span>
         )}
       </div>
 
-      <div className="console-body" ref={bodyRef} role="log" aria-live="polite">
+      <p className="visually-hidden" role="status" aria-live="polite">{announcement}</p>
+
+      <div className="console-body" ref={bodyRef} role="log" aria-live="off">
         {lines.length === 0 ? (
           <p className="console-empty">
-            Nothing has run yet. Start an agent below and every tool call it makes will
-            appear here as it happens.
+            Nothing has run yet. Start an assistant below and every step it takes
+            appears here as it happens.
           </p>
         ) : (
           lines.map((line) => (
@@ -256,8 +243,8 @@ export function AgentConsole({
         )}
       </div>
 
-      <div className="console-bar" style={{ borderTop: "1px solid oklch(1 0 0 / 0.08)", borderBottom: "none" }}>
-        <div className="btn-row" style={{ margin: 0, flexWrap: "wrap" }}>
+      <div className="console-bar console-bar--foot">
+        <div className="btn-row">
           {agents.map((agent) => (
             <button
               key={agent}
@@ -266,7 +253,7 @@ export function AgentConsole({
               disabled={busy || running !== null}
               onClick={() => run(agent)}
             >
-              Watch {AGENT_NAMES[agent]}
+              Watch the {agentNameOf(agent).toLowerCase()}
             </button>
           ))}
           <button
@@ -275,7 +262,7 @@ export function AgentConsole({
             disabled={lines.length === 0 || running !== null}
             onClick={() => setLines([])}
           >
-            Clear
+            Clear this view
           </button>
         </div>
       </div>

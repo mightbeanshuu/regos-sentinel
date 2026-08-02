@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
-import { formatBytes, formatTimestamp } from "../lib/presentation";
+import {
+  formatBytes,
+  formatTimestamp,
+  labelOf,
+  plainError,
+  toneOf,
+} from "../lib/presentation";
 import type {
   DocumentLimits,
   DocumentScore,
@@ -12,77 +18,123 @@ import type {
   UploadedDocument,
 } from "../lib/types";
 import { DocumentCasePanel } from "./DocumentCase";
-import { Callout, Counts, DataRow, Field, Hash, Panel, StateLabel, Tag } from "./ui";
-
-const TIMING_PLAIN: Record<string, string> = {
-  PERIOD_AND_TRIGGER: "Date can be worked out",
-  PERIOD_ONLY: "Says how long, not from when",
-  URGENCY_ONLY: "Says urgent, no period",
-  NO_TIMING: "No timing language",
-};
+import {
+  Callout,
+  DataRow,
+  Disclosure,
+  Empty,
+  Field,
+  Hash,
+  Meter,
+  Panel,
+  SegBar,
+  Skeleton,
+  Stat,
+  StatRow,
+  StateLabel,
+  Tag,
+} from "./ui";
 
 /** The committed model's read of one uploaded document — fetched fresh. */
-/** The browser's raw "Failed to fetch" means the free-tier API is waking, not a dead end. */
-function plainError(caught: unknown, fallback: string): string {
-  if (caught instanceof TypeError || (caught instanceof Error && /failed to fetch/i.test(caught.message))) {
-    return "The engine is waking up (free hosting sleeps between visits) — give it a few seconds and try again.";
-  }
-  return caught instanceof Error ? caught.message : fallback;
-}
-
 function ModelScorecard({ document }: { document: UploadedDocument }) {
   const [score, setScore] = useState<DocumentScore | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     regosApi
       .documentScore(document.id)
-      .then((value) => { if (!cancelled) setScore(value); })
-      .catch(() => { if (!cancelled) setScore(null); });
+      .then((value) => { if (!cancelled) { setScore(value); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setScore(null); setLoading(false); } });
     return () => { cancelled = true; };
   }, [document.id, document.passages]);
 
-  if (!score || score.passages_total === 0) return null;
-  const max = Math.max(...Object.values(score.timing_counts), 1);
+  /* A request still in flight is not an absence: it gets the shape of the
+     answer, and only a finished request that returned nothing gets a verdict. */
+  if (loading) {
+    return (
+      <Panel title="How clear are this document's deadlines?">
+        <Skeleton kind="stat" />
+      </Panel>
+    );
+  }
+  if (!score || score.passages_total === 0) {
+    return (
+      <Panel title="How clear are this document's deadlines?">
+        <Empty
+          title="No score for this document"
+          hint="Nothing in this file has been read as a passage yet, so there is nothing to score."
+        />
+      </Panel>
+    );
+  }
+
+  const timing = Object.entries(score.timing_counts);
 
   return (
     <Panel
-      title="Avadhi — model scorecard"
-      description={`Generated fresh by ${score.model_name} ${score.model_version} — committed weights, no network.`}
+      title="How clear are this document's deadlines?"
+      description={`Read by Avadhi, the built-in deadline reader (${score.model_name} ${score.model_version}). It runs on this machine and never sends your document anywhere.`}
     >
-      {score.with_timing_language === 0 && (
-        <p className="meta">
-          The model read all {score.passages_total} passages — none carries timing
-          language, so no deadline can honestly be computed from this document. That is
-          the answer, not an error.
-        </p>
-      )}
-      <div className="scorecard">
-        <div className="scorecard-figure">
-          <span className="scorecard-value">
-            {score.deadline_clarity === null
-              ? "—"
-              : `${Math.round(score.deadline_clarity * 100)}%`}
-          </span>
-          <span className="scorecard-label">Deadline clarity</span>
-          <span className="meta">{score.clarity_formula}</span>
-        </div>
-        <div className="scorecard-bars">
-          {Object.entries(score.timing_counts).map(([label, count]) => (
-            <div className="cci-row" key={label}>
-              <span className="cci-row-title">{TIMING_PLAIN[label] ?? label}</span>
-              <span className="cci-bar" aria-hidden="true">
-                <span
-                  className={`cci-bar-fill${label === "PERIOD_AND_TRIGGER" ? " cci-bar-fill--ok" : label === "NO_TIMING" ? "" : " cci-bar-fill--review"}`}
-                  style={{ transform: `scaleX(${count / max})` }}
-                />
-              </span>
-              <span className="cci-row-score">{count}</span>
-            </div>
-          ))}
-        </div>
+      <div className="stack">
+        <StatRow>
+          <Stat
+            size="l"
+            value={
+              score.deadline_clarity === null
+                ? "—"
+                : `${Math.round(score.deadline_clarity * 100)}%`
+            }
+            label="Deadline clarity"
+            tone={score.blocked_durations > 0 ? "review" : undefined}
+            context={
+              score.deadline_clarity === null
+                ? "not computable — no timing language in this document"
+                : undefined
+            }
+          />
+        </StatRow>
+
+        <p className="lede">{score.clarity_formula}</p>
+
+        {/* A distribution gets a distribution display: one bar, one legend. */}
+        <SegBar
+          segments={timing.map(([label, count]) => ({
+            label: labelOf(label),
+            count,
+            tone: toneOf(label),
+          }))}
+          ariaLabel={timing
+            .map(([label, count]) => `${count} ${labelOf(label).toLowerCase()}`)
+            .join(", ")}
+        />
+
+        {score.with_timing_language === 0 && (
+          <p className="lede">
+            The model read all {score.passages_total} passages — none carries timing
+            language, so no deadline can honestly be computed from this document. That is
+            the answer, not an error.
+          </p>
+        )}
+
+        <Disclosure summary="How each passage was read, class by class">
+          <div>
+            {timing.map(([label, count]) => (
+              <Meter
+                key={label}
+                label={labelOf(label)}
+                value={count}
+                max={score.passages_total}
+                tone={toneOf(label)}
+                valueLabel={`${count}/${score.passages_total}`}
+              />
+            ))}
+          </div>
+        </Disclosure>
+
+        <p className="lede">{score.limitation}</p>
       </div>
-      <p className="meta clamp2" title={score.limitation}>{score.limitation}</p>
     </Panel>
   );
 }
@@ -197,7 +249,7 @@ export function DocumentReview({
         {([
           ["#doc-add", "Add a document"],
           ["#doc-list", "Documents"],
-          ["#doc-score", "Avadhi scorecard"],
+          ["#doc-score", "Deadline clarity"],
           ["#doc-limits", "Limitations"],
         ] as const).map(([target, label]) => (
           <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
@@ -209,49 +261,54 @@ export function DocumentReview({
       <section className="stack-s">
         <h1 className="page-title">Review your regulatory document</h1>
         <p className="lede">
-          Upload a public or sandbox PDF. Fingerprinted, passages extracted, anything
-          uncertain routed to you.
+          Upload a PDF you are allowed to share. RegOS records its fingerprint, reads each
+          passage, and sends anything uncertain to you to decide.
         </p>
       </section>
 
       {documents.length > 0 && (
-        <Counts
-          glass
-          items={[
-            { value: documents.length, label: "Documents in session" },
-            {
-              value: documents.reduce(
-                (sum, item) =>
-                  sum + item.passages.filter((p) => p.classification === "NEEDS_REVIEW").length,
-                0,
-              ),
-              label: "Pending review",
-            },
-            {
-              value: documents.reduce(
-                (sum, item) => sum + item.passages.filter((p) => p.reviewed_by).length,
-                0,
-              ),
-              label: "Readings recorded",
-            },
-            {
-              value: documents.reduce((sum, item) => sum + item.requirements.length, 0),
-              label: "Approvals recorded",
-            },
-          ]}
-        />
+        <StatRow glass>
+          <Stat value={documents.length} label="Documents in session" />
+          <Stat
+            value={documents.reduce(
+              (sum, item) =>
+                sum + item.passages.filter((p) => p.classification === "NEEDS_REVIEW").length,
+              0,
+            )}
+            label="Pending review"
+            tone={
+              documents.some((item) =>
+                item.passages.some((p) => p.classification === "NEEDS_REVIEW"),
+              )
+                ? "review"
+                : undefined
+            }
+          />
+          <Stat
+            value={documents.reduce(
+              (sum, item) => sum + item.passages.filter((p) => p.reviewed_by).length,
+              0,
+            )}
+            label="Readings recorded"
+          />
+          <Stat
+            value={documents.reduce((sum, item) => sum + item.requirements.length, 0)}
+            label="Approvals recorded"
+          />
+        </StatRow>
       )}
 
       <Callout tone="review">
         <p>
-          Session-only. Fixed-rule classification, no model call, no legal interpretation.
-          Nothing becomes mandatory work until a named person approves it.
+          Nothing is saved after you close this tab. Passages are sorted by fixed rules, not by
+          AI, and none of it is legal advice. Nothing becomes mandatory work until a named
+          person approves it.
         </p>
         {limits && (
           <p className="meta">
             {limits.ocr_available
               ? "Scanned pages are machine-read (OCR); recovered text is always labelled machine-read."
-              : "Machine reading (OCR) is not enabled on this deployment — scanned pages stay unread."}
+              : "Machine reading (OCR) is switched off here — scanned pages stay unread."}
           </p>
         )}
       </Callout>
@@ -279,14 +336,14 @@ export function DocumentReview({
             <p className="meta">
               PDF only · up to {maxMb} MB · up to {limits?.max_pages ?? 40} pages
             </p>
-            {/* The visible "Choose PDF" button is the real control; this input stays out of
-                the tab order but keeps a name for assistive technology. */}
+            {/* The visible "Choose PDF" button is the real control. This input is out
+                of the tab order and unnamed, so assistive technology does not announce
+                a control nobody can reach. */}
             <input
               ref={inputRef}
               type="file"
               accept="application/pdf,.pdf"
               className="visually-hidden"
-              aria-label="Choose a PDF to review"
               tabIndex={-1}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -312,7 +369,7 @@ export function DocumentReview({
 
           <Field
             label="Authority, if you know it"
-            hint="Recorded as metadata you supplied. RegOS never treats this as proof that a document is official."
+            hint="Recorded as information you typed in. RegOS never treats it as proof that the document is official."
           >
             {(aria) => (
               <input
@@ -372,7 +429,8 @@ export function DocumentReview({
             Run the assistants on this document
           </button>
           <p className="meta">
-            All four read this document only; findings appear under AI agents.
+            All four assistants read only this document. What they find appears on the AI
+            assistants tab.
           </p>
         </div>
       )}
@@ -459,6 +517,13 @@ function DocumentDetail({
     (passage) => filter === "ALL" || passage.classification === filter,
   );
 
+  const classCounts = Object.fromEntries(
+    CLASSIFICATIONS.map((value) => [
+      value,
+      document.passages.filter((passage) => passage.classification === value).length,
+    ]),
+  ) as Record<PassageClass, number>;
+
   /* The drawer follows the table: an explicit pick wins; otherwise the first
      passage still waiting on a person, then the first visible one. */
   const drawerPassage =
@@ -488,56 +553,97 @@ function DocumentDetail({
 
       <Panel
         title={document.filename}
-        description="User-uploaded source. No official status."
         aside={<StateLabel value={document.state} showHint />}
       >
         <div className="stack">
+          {/* The four figures a reader checks first. */}
+          <StatRow>
+            <Stat
+              value={`${scope.pages_read}/${scope.page_count}`}
+              label="Pages read"
+              context={
+                scope.pages_unreadable.length > 0
+                  ? `${scope.pages_unreadable.length} could not be read`
+                  : undefined
+              }
+            />
+            <Stat value={scope.passages_reviewed} label="Passages reviewed" />
+            <Stat value={scope.possible_requirements} label="Possible requirements" />
+            <Stat
+              value={scope.passages_needing_review}
+              label="Still need review"
+              tone={scope.passages_needing_review > 0 ? "review" : undefined}
+              attention={scope.passages_needing_review > 0}
+            />
+          </StatRow>
+
+          {/* What RegOS read but did not turn into work — the count and, on the
+              same row, the effect that count had. */}
+          <div className="stack-s">
+            <p className="sub-title">What was not turned into work</p>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Kind</th>
+                    <th scope="col" className="table-num">Count</th>
+                    <th scope="col">Effect</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Recommendations</td>
+                    <td className="table-num">{scope.recommendations_not_converted}</td>
+                    <td className="meta">No mandatory task created</td>
+                  </tr>
+                  <tr>
+                    <td>Permissions</td>
+                    <td className="table-num">{scope.permissions_not_converted}</td>
+                    <td className="meta">No mandatory task created</td>
+                  </tr>
+                  <tr>
+                    <td>Background passages</td>
+                    <td className="table-num">{scope.background}</td>
+                    <td className="meta">No mandatory task created</td>
+                  </tr>
+                  <tr>
+                    <td>Duplicate or superseded</td>
+                    <td className="table-num">{scope.duplicates}</td>
+                    <td className="meta">No mandatory task created</td>
+                  </tr>
+                  <tr>
+                    <td>Pages RegOS could not read</td>
+                    <td className="table-num">
+                      {scope.pages_unreadable.length > 0
+                        ? scope.pages_unreadable.join(", ")
+                        : "none"}
+                    </td>
+                    <td className="meta">
+                      Not reviewed. No content was invented for them.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <dl className="datalist">
             <DataRow label="File fingerprint"><Hash value={document.sha256} /></DataRow>
             <DataRow label="File size">{formatBytes(document.byte_count)}</DataRow>
             <DataRow label="Uploaded">{formatTimestamp(document.uploaded_at)}</DataRow>
             <DataRow label="Authority (as entered)">
               {document.authority_label}{" "}
-              <span className="meta">· user-provided metadata, not verified</span>
+              <span className="meta">· typed in by you, not verified</span>
             </DataRow>
-            <DataRow label="Extraction">
-              {document.scope.pages_machine_read.length > 0
-                ? "Deterministic text extraction · no model call · machine-read (OCR) pages labelled"
-                : "Deterministic text extraction · no model call"}
+            <DataRow label="How the text was read">
+              Read by fixed rules. Any page recovered by machine reading (OCR) is labelled.
             </DataRow>
             {document.scope.pages_machine_read.length > 0 && (
               <DataRow label="Pages machine-read (OCR)">
                 {document.scope.pages_machine_read.join(", ")}{" "}
-                <span className="meta">· recovered text is labelled machine-read, never treated as a text layer</span>
+                <span className="meta">· recovered text is always labelled machine-read, and never treated as if SEBI had typed it.</span>
               </DataRow>
             )}
-          </dl>
-
-          <Counts
-            items={[
-              { value: `${scope.pages_read}/${scope.page_count}`, label: "pages read" },
-              { value: scope.passages_reviewed, label: "passages reviewed" },
-              { value: scope.possible_requirements, label: "possible requirements" },
-              { value: scope.passages_needing_review, label: "still need review" },
-            ]}
-          />
-
-          <dl className="datalist">
-            <DataRow label="Recommendations not converted">
-              {scope.recommendations_not_converted}{" "}
-              <span className="meta">— no mandatory task created</span>
-            </DataRow>
-            <DataRow label="Permissions not converted">
-              {scope.permissions_not_converted}{" "}
-              <span className="meta">— no mandatory task created</span>
-            </DataRow>
-            <DataRow label="Background passages">{scope.background}</DataRow>
-            <DataRow label="Duplicate or superseded">{scope.duplicates}</DataRow>
-            <DataRow label="Pages with no extractable text">
-              {scope.pages_unreadable.length > 0
-                ? scope.pages_unreadable.join(", ")
-                : "none"}
-            </DataRow>
           </dl>
 
           {scope.pages_unreadable.length > 0 && (
@@ -545,7 +651,7 @@ function DocumentDetail({
               <p>
                 {ocrAvailable
                   ? "These pages carry no text layer and machine reading (OCR) recovered nothing usable from them, so they were not reviewed and no content was invented for them."
-                  : "These pages carry no text layer, and machine reading (OCR) is not enabled on this deployment, so they were not reviewed and no content was invented for them."}
+                  : "These pages carry no text layer, and machine reading (OCR) is switched off here, so they were not reviewed and no content was invented for them."}
               </p>
             </Callout>
           )}
@@ -557,25 +663,30 @@ function DocumentDetail({
               disabled={busy}
               onClick={() => void download(() => regosApi.downloadReviewPacket(document.id))}
             >
-              Download draft review packet
+              Download the draft review pack
             </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={busy || !approved}
-              onClick={() => void download(() => regosApi.downloadDocumentReport(document.id))}
-            >
-              Download Compliance Build Report
-            </button>
+            <div className="stack-s">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={busy || !approved}
+                onClick={() => void download(() => regosApi.downloadDocumentReport(document.id))}
+              >
+                Download the approved compliance report
+              </button>
+              {/* The reason a disabled button is disabled belongs under it. */}
+              {!approved && (
+                <p className="meta">Available after you approve at least one requirement.</p>
+              )}
+            </div>
             <button type="button" className="btn btn--danger-quiet btn--small" onClick={onRemove}>
               Remove document
             </button>
           </div>
           {!approved && (
             <p className="meta">
-              The draft packet is watermarked <span className="strong-ink">DRAFT — NOT
-              APPROVED</span>. The Compliance Build Report becomes available once a named person
-              approves at least one structured requirement.
+              The draft pack is watermarked <span className="strong-ink">DRAFT — NOT
+              APPROVED</span>.
             </p>
           )}
         </div>
@@ -629,48 +740,77 @@ function DocumentDetail({
 
       <Panel
         title="Passages"
-        description="Nothing here creates work on its own."
+        description="Every passage RegOS read. Open one to record your own reading, or to approve a requirement from it. Nothing here creates work on its own."
+      >
+        <div className="stack">
+          {/* How the whole document was read, as one distribution. */}
+          <SegBar
+            segments={CLASSIFICATIONS.map((value) => ({
+              label: labelOf(value),
+              count: classCounts[value],
+              tone: toneOf(value),
+            }))}
+            ariaLabel={CLASSIFICATIONS.map(
+              (value) => `${classCounts[value]} ${labelOf(value).toLowerCase()}`,
+            ).join(", ")}
+          />
+          <p className="meta">
+            Recommendations and permissions never become mandatory work: no task is created
+            from either.
+          </p>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Every passage"
         aside={
-          <div className="field" style={{ minWidth: "220px" }}>
-            <label className="visually-hidden" htmlFor="passage-filter">
-              Filter passages by classification
-            </label>
-            <select
-              id="passage-filter"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as PassageClass | "ALL")}
+          /* Chips, not a dropdown: the counts are visible without opening
+             anything, and the filter in force reads at a glance. */
+          <div className="audit-filters" role="group" aria-label="Filter passages by how they were read">
+            <button
+              type="button"
+              className={`audit-filter${filter === "ALL" ? " audit-filter--on" : ""}`}
+              aria-pressed={filter === "ALL"}
+              onClick={() => setFilter("ALL")}
             >
-              <option value="ALL">All passages ({document.passages.length})</option>
-              {CLASSIFICATIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value === "POSSIBLE_REQUIREMENT" && "Possible requirement"}
-                  {value === "RECOMMENDATION" && "Recommended — no mandatory task"}
-                  {value === "PERMISSION" && "Optional — no mandatory task"}
-                  {value === "BACKGROUND" && "Background only"}
-                  {value === "DUPLICATE_OR_SUPERSEDED" && "Duplicate or superseded"}
-                  {value === "NEEDS_REVIEW" && "Needs interpretation"}
-                  {" "}({document.passages.filter((p) => p.classification === value).length})
-                </option>
-              ))}
-            </select>
+              All {document.passages.length}
+            </button>
+            {CLASSIFICATIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={`audit-filter${filter === value ? " audit-filter--on" : ""}`}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+              >
+                {labelOf(value)} {classCounts[value]}
+              </button>
+            ))}
           </div>
         }
         tight
       >
         {visible.length === 0 ? (
-          <div className="empty">
-            <p className="lede">No passages match this filter.</p>
-          </div>
+          <Empty
+            title="No passages match this filter"
+            hint="Nothing in this document was read that way."
+            action={
+              <button type="button" className="btn btn--secondary btn--small" onClick={() => setFilter("ALL")}>
+                Show all passages
+              </button>
+            }
+          />
         ) : (
           <div className="docreview-layout">
             <div className="table-scroll docreview-table">
               <table>
+                {/* Two columns, not four: beside a 380px drawer, four columns
+                    squeezed the passage text — the one thing that names the row —
+                    to 75px. The locator and the reading ride above the text. */}
                 <thead>
                   <tr>
-                    <th scope="col">Passage</th>
-                    <th scope="col">Text</th>
-                    <th scope="col">Reading</th>
-                    <th scope="col">Status</th>
+                    <th scope="col">Passage, and how RegOS read it</th>
+                    <th scope="col">Your action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -693,19 +833,23 @@ function DocumentDetail({
                           }
                         }}
                       >
-                        <td className="mono meta">{passage.locator}</td>
                         <td>
-                          <span className="clamp2 docreview-cell-text" title={passage.text}>
+                          <span className="micro mono">{passage.locator} · </span>
+                          <StateLabel value={passage.classification} />
+                          <span className="docreview-cell-text" title={passage.text}>
                             {passage.text}
                           </span>
                         </td>
-                        <td><StateLabel value={passage.classification} /></td>
                         <td className="docreview-cell-status">
-                          {passageApproved
-                            ? "Approved"
-                            : passage.reviewed_by
-                              ? `Reviewed by ${passage.reviewed_by}`
-                              : "Pending review"}
+                          {/* A chip, not a sentence — the reviewer's name is in the
+                              drawer beside the passage it belongs to. */}
+                          {passageApproved ? (
+                            <Tag value="Approved" tone="ok" />
+                          ) : passage.reviewed_by ? (
+                            <Tag value="Reviewed" tone="neutral" />
+                          ) : (
+                            <Tag value="Pending" tone="review" />
+                          )}
                         </td>
                       </tr>
                     );
@@ -715,8 +859,8 @@ function DocumentDetail({
             </div>
 
             {drawerPassage && (
-              <aside className="review-drawer" aria-label="Review drawer">
-                <p className="review-drawer-title">Review drawer</p>
+              <aside className="review-drawer" aria-label="The passage you are reviewing">
+                <p className="review-drawer-title">The passage you are reviewing</p>
                 <PassageRow
                   key={drawerPassage.id}
                   passage={drawerPassage}
@@ -736,11 +880,31 @@ function DocumentDetail({
       </Panel>
 
       <Panel id="doc-limits" title="Limitations">
-        <ul className="stack-s">
-          {document.limitations.map((line) => (
-            <li key={line} className="lede">— {line}</li>
-          ))}
-        </ul>
+        {/* Every limitation, in full: what is limited on the left, what that
+            means on the right. No sentence is shortened or hidden. */}
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">What is limited</th>
+                <th scope="col">What that means</th>
+              </tr>
+            </thead>
+            <tbody>
+              {document.limitations.map((line) => {
+                const split = line.indexOf(". ");
+                const head = split > 0 ? line.slice(0, split + 1) : line;
+                const rest = split > 0 ? line.slice(split + 2) : "";
+                return (
+                  <tr key={line}>
+                    <td colSpan={rest ? 1 : 2}>{head}</td>
+                    {rest && <td className="meta">{rest}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Panel>
     </div>
   );
@@ -801,7 +965,7 @@ function PassageRow({
         </p>
       )}
       {alreadyApproved && (
-        <p className="meta">A structured requirement has already been approved from this passage.</p>
+        <p className="meta">A requirement has already been approved from this passage.</p>
       )}
 
       <div className="btn-row">
@@ -818,7 +982,7 @@ function PassageRow({
             className="btn btn--primary btn--small"
             onClick={() => setMode(mode === "approve" ? "none" : "approve")}
           >
-            {mode === "approve" ? "Cancel" : "Approve a requirement from this"}
+            {mode === "approve" ? "Cancel" : "Approve a requirement from this passage"}
           </button>
         )}
       </div>
@@ -866,12 +1030,9 @@ function ReclassifyForm({
               value={classification}
               onChange={(event) => setClassification(event.target.value as PassageClass)}
             >
-              <option value="POSSIBLE_REQUIREMENT">Possible requirement</option>
-              <option value="RECOMMENDATION">Recommended — no mandatory task</option>
-              <option value="PERMISSION">Optional — no mandatory task</option>
-              <option value="BACKGROUND">Background only</option>
-              <option value="DUPLICATE_OR_SUPERSEDED">Duplicate or superseded</option>
-              <option value="NEEDS_REVIEW">Still needs interpretation</option>
+              {CLASSIFICATIONS.map((value) => (
+                <option key={value} value={value}>{labelOf(value)}</option>
+              ))}
             </select>
           )}
         </Field>

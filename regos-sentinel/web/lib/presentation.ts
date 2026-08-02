@@ -46,7 +46,7 @@ const STATES: Record<string, StateMeta> = {
     "review",
     "A compliance officer has to decide something the source does not state.",
   ),
-  FAILED: meta("Check failed", "fail", "A deterministic check did not pass."),
+  FAILED: meta("Check failed", "fail", "A fixed automated check did not pass."),
   APPROVED: meta("Approved", "ok"),
 
   // ---- Individual checks ----------------------------------------------
@@ -77,9 +77,9 @@ const STATES: Record<string, StateMeta> = {
   CURRENT: meta("Up to date", "ok"),
   NEEDS_REVALIDATION: meta("Review again", "review"),
   MACHINE_READ_OCR: meta(
-    "Machine-read (OCR)",
+    "Read from a scanned page",
     "review",
-    "Text recovered from a scanned page by OCR — verify against the original before relying on it.",
+    "Text recovered from a scanned page by machine reading (OCR) — verify against the original before relying on it.",
   ),
   ADVISORY_GAP: meta("Advisory gap", "review", "Recorded as guidance. No mandatory task."),
   NOT_EVALUATED: meta("Not checked yet", "neutral"),
@@ -92,7 +92,11 @@ const STATES: Record<string, StateMeta> = {
   HUMAN_POLICY: meta("Confirmed by compliance officer", "accent"),
 
   // ---- References ------------------------------------------------------
-  RESOLVED_HASHED: meta("Loaded and fingerprinted", "ok"),
+  RESOLVED_HASHED: meta(
+    "Loaded and fingerprinted",
+    "ok",
+    "Loaded, and a fingerprint of its exact contents was recorded.",
+  ),
   UNRESOLVED: meta("Not yet loaded", "review"),
 
   // ---- Corpus packs ----------------------------------------------------
@@ -117,13 +121,17 @@ const STATES: Record<string, StateMeta> = {
 
   // ---- Applicability ---------------------------------------------------
   APPLIES: meta("Applies", "ok"),
-  SCHEMA_VALIDATED: meta("Validated against the NIST schema", "ok"),
+  SCHEMA_VALIDATED: meta(
+    "Checked against the NIST reporting format",
+    "ok",
+    "NIST is the US standards body whose open reporting format this export follows.",
+  ),
 
   // ---- Benchmark outcomes ---------------------------------------------
   CORRECT: meta("Correct", "ok"),
   INCORRECT: meta("Incorrect", "fail"),
-  ABSTAINED_CORRECTLY: meta("Correctly deferred to a human", "ok"),
-  ABSTAINED_UNNECESSARILY: meta("Deferred when it need not have", "review"),
+  ABSTAINED_CORRECTLY: meta("Correctly asked a person to decide", "ok"),
+  ABSTAINED_UNNECESSARILY: meta("Asked a person to decide when it did not need to", "review"),
 
   // ---- Uploaded document lifecycle ------------------------------------
   ADDED: meta("Added", "neutral"),
@@ -133,40 +141,56 @@ const STATES: Record<string, StateMeta> = {
   READY_FOR_APPROVAL: meta("Ready for approval", "accent"),
   COULD_NOT_READ_DOCUMENT: meta("Could not read document", "fail"),
 
+  // ---- Document-case reading lifecycle ---------------------------------
+  READING_PENDING: meta(
+    "Your reading not recorded yet",
+    "review",
+    "Write down your own reading before the system's suggestion is revealed.",
+  ),
+  READING_COMMITTED: meta("Your reading recorded — approval next", "accent"),
+
   // ---- Who planned an agent run ---------------------------------------
   // These are "accent", not "review". The planner chooses which tool to call; it
   // does not decide anything, and the findings under it are produced by fixed
   // rules. Marking a model-planned route as needing review would say something
   // untrue about what the model contributed.
   MODEL_PLANNED: meta(
-    "Route chosen by a model",
+    "A model chose which steps to run",
     "accent",
-    "A model picked which tools to call. Fixed rules produced every finding below.",
+    "A model picked which look-ups to make. Fixed rules produced every finding below.",
   ),
   RECORDED_MODEL_TRACE: meta(
-    "Replay of a recorded model run",
+    "Re-run of a saved model session",
     "accent",
-    "The same calls a model chose earlier, replayed with no network.",
+    "The same steps a model chose earlier, run again from a saved record. Nothing was sent to the model this time.",
   ),
   DETERMINISTIC_PLAN: meta(
-    "Fixed sequence — not AI",
+    "Fixed sequence of steps — not AI",
     "accent",
-    "Written in code. Nothing here was chosen by a model.",
+    "The order of steps is fixed in advance. Nothing here was chosen by a model.",
   ),
 
   // ---- Agent step outcomes ---------------------------------------------
-  OK: meta("Ran", "ok"),
+  OK: meta("Completed", "ok"),
   TOOL_ERROR: meta(
     "Refused",
     "fail",
     "The tool would not accept the call. It is recorded, not hidden.",
   ),
-  REJECTED_BY_GATE: meta("Rejected by a gate", "review"),
+  REJECTED_BY_GATE: meta(
+    "Blocked by a safety rule",
+    "review",
+    "A fixed rule refused this value before it could reach a control.",
+  ),
 
   // ---- What an agent found ---------------------------------------------
-  REFERENCE_RESOLVED: meta("Pointer resolved", "ok"),
-  REFERENCE_UNRESOLVED: meta("Pointer left unresolved", "review"),
-  REFERENCE_UNVERIFIED: meta("Candidate could not be verified", "review"),
+  REFERENCE_RESOLVED: meta("Cross-reference followed", "ok"),
+  REFERENCE_UNRESOLVED: meta(
+    "Cross-reference not followed",
+    "review",
+    "The document this passage points to has not been read yet.",
+  ),
+  REFERENCE_UNVERIFIED: meta("Possible match — not confirmed against the source", "review"),
   CHALLENGE_LANDED: meta(
     "Challenge landed",
     "review",
@@ -182,7 +206,7 @@ const STATES: Record<string, StateMeta> = {
     "review",
     "The cited passage was never read, so no conclusion is available.",
   ),
-  NOTHING_TO_CHALLENGE: meta("Nothing compiled to challenge", "neutral"),
+  NOTHING_TO_CHALLENGE: meta("No draft requirements yet, so nothing to challenge", "neutral"),
   TIMING_COMPUTABLE: meta("A date can be computed", "ok"),
   TIMING_BLOCKED: meta("No date can be computed", "review"),
   TIMING_NOT_ASSESSED: meta("Timing not assessed", "review"),
@@ -194,6 +218,24 @@ const STATES: Record<string, StateMeta> = {
   RECOMMENDATION: meta("Recommended — no mandatory task", "neutral"),
   PERMISSION: meta("Optional — no mandatory task", "neutral"),
   BACKGROUND: meta("Background only", "neutral"),
+
+  // ---- Timing classes (Avadhi, the deadline reader) --------------------
+  PERIOD_AND_TRIGGER: meta("States a period and when it starts", "ok"),
+  PERIOD_ONLY: meta("Says how long, but not from when", "review"),
+  URGENCY_ONLY: meta("Urgent wording, no measurable period", "review"),
+  NO_TIMING: meta("No timing wording", "neutral"),
+
+  // ---- Benchmark settings ----------------------------------------------
+  CONSERVATIVE: meta("Cautious — defers more to a person", "neutral"),
+  BALANCED: meta("Balanced", "neutral"),
+  PERMISSIVE: meta("Permissive — defers less to a person", "neutral"),
+
+  // ---- Assistant autonomy ----------------------------------------------
+  PROPOSE_ONLY: meta(
+    "Proposes only",
+    "accent",
+    "It can raise a problem. It can never change a record.",
+  ),
 };
 
 /**
@@ -205,16 +247,230 @@ const STATES: Record<string, StateMeta> = {
 const CHANGE_KINDS: Record<string, StateMeta> = {
   ADDED: meta("New passage", "accent", "Not present in the version now in force."),
   CHANGED: meta("Wording or strength changed", "review"),
-  SUPERSEDED: meta("Superseded", "review", "The passage a live control was built from moved."),
+  SUPERSEDED: meta(
+    "Superseded",
+    "review",
+    "The SEBI wording that a current control relies on has been replaced by newer wording.",
+  ),
   UNCHANGED: meta("No change", "neutral"),
 };
 
 const ACTORS: Record<string, StateMeta> = {
   SOURCE: meta("The source", "neutral", "Read from the official document."),
   AI: meta("AI proposes", "review", "A draft only. Nothing here reaches a control unreviewed."),
-  DETERMINISTIC: meta("Fixed rules enforce", "accent", "Code, not judgement."),
+  DETERMINISTIC: meta("Fixed rules enforce", "accent", "A fixed rule, not a judgement call."),
   HUMAN: meta("A person decides", "accent", "Named, with a written reason."),
 };
+
+/** Recorded audit events, said as things that happened rather than enum names. */
+const EVENT_TYPES: Record<string, string> = {
+  COMPLIANCE_BUILD_COMPLETED: "The full compliance check ran",
+  SCOPED_SOURCE_REFERENCES_RESOLVED: "Cross-references in the source were followed",
+  INDEPENDENT_REVIEW_READING_COMMITTED: "A reviewer recorded their own reading",
+  MATERIAL_INTERPRETATION_APPROVED: "A compliance officer approved an interpretation",
+  ENTITY_FACT_CONFIRMED: "A fact about the firm was confirmed",
+  APPLICABILITY_FACTS_CONFIRMED: "The facts that decide what applies were confirmed",
+  BENCHMARK_COMPLETED: "The benchmark ran",
+  DEMO_WORKSPACE_CREATED: "The demo profile was created",
+  AGENT_RUN_COMPLETED: "An assistant finished its run",
+};
+
+export function eventLabelOf(value: string): string {
+  return EVENT_TYPES[value] ?? stateOf(value).label;
+}
+
+/** What a statement does operationally, in the reader's words. */
+const EFFECTS: Record<string, string> = {
+  CONTROL_GENERATING: "Creates a control",
+  ADVISORY_ONLY_NO_COMPLIANCE_FAILURE: "Guidance only — missing it is not a compliance failure",
+  OPTION_RECORDED_NO_TASK: "Recorded as an option — creates no task",
+  CONTROL_GENERATING_AFTER_REFERENCE_CLOSURE:
+    "Creates a control once the cross-reference is followed",
+  CALENDAR_BASIS_FINANCIAL_YEAR: "Dates follow the Indian financial year",
+  APPLICABILITY_HIGHEST_CATEGORY: "Applies at the firm's highest registration category",
+  APPLICABILITY_NOT_REMOVED_BY_NON_OPERATION:
+    "Still applies even if the activity is not currently carried on",
+};
+
+export function effectOf(value: string): string {
+  return EFFECTS[value] ?? stateOf(value).label;
+}
+
+/** Backend work_type values (note: these keys use spaces, not underscores). */
+const WORK_TYPES: Record<string, string> = {
+  "MANDATORY PATCH REMEDIATION": "Apply a missing security patch",
+  "MANDATORY CONTROL REMEDIATION": "Update the firm's control",
+};
+
+export function workTypeOf(value: string): string {
+  return WORK_TYPES[value] ?? stateOf(value).label;
+}
+
+/** Backend legal_state strings arrive as shouted prose; say them quietly. */
+const LEGAL_STATES: Record<string, string> = {
+  "GUIDANCE — READ WITH CSCRF": "Guidance — read together with the CSCRF framework",
+  "IN FORCE — READ WITH CSCRF": "In force — read together with the CSCRF framework",
+  "IN FORCE — NOT PROCESSED BY THIS PROTOTYPE": "In force — not processed by this prototype",
+  "UNKNOWN — SUPPLIED BY A VISITOR": "Status unknown — supplied by a visitor",
+};
+
+export function legalStateOf(value: string): string {
+  return LEGAL_STATES[value] ?? value;
+}
+
+/**
+ * Plain gloss for every read-only look-up an assistant can make. The console shows the
+ * machine name and this gloss beneath; capability lists elsewhere show the gloss first.
+ */
+export const TOOL_PLAIN: Record<string, string> = {
+  list_unresolved_references: "list the cross-references not followed yet",
+  search_corpus: "search the pinned SEBI excerpts",
+  fetch_span: "open one pinned excerpt and fingerprint it",
+  verify_quote: "check a quotation really appears in the passage",
+  read_span: "read one passage of the source in full",
+  analyse_span_timing: "judge whether that passage supports a real deadline",
+  analyse_timing: "judge whether wording supports a real deadline",
+  list_active_obligations: "list the requirements that would reach a person",
+  read_entity_facts: "read the facts about this firm",
+  list_statements: "list the requirements pulled out of the source",
+  list_known_sources: "list the SEBI documents registered here",
+  compare_registered_sources: "compare the reviewed document against the newer one",
+  compare_span_sets: "compare two sets of passages",
+};
+
+export function toolPlainOf(value: string): string | null {
+  return TOOL_PLAIN[value] ?? null;
+}
+
+/**
+ * The API speaks precisely and the audit record keeps its exact words. These maps say the
+ * same thing to a compliance officer, keyed by the stable ids the backend already sends,
+ * so no server string has to change and no sealed record moves.
+ */
+const CHECKPOINTS: Record<string, { name: string; description: string }> = {
+  "G1-SOURCE-IDENTITY": {
+    name: "The right document",
+    description: "The document is tied to who published it, which version it is, and a fingerprint of its exact contents.",
+  },
+  "G2-SEGMENTATION": {
+    name: "Split into passages",
+    description: "The text is divided into numbered passages, each one findable by page and paragraph.",
+  },
+  "G3-COVERAGE": {
+    name: "Nothing skipped",
+    description: "Every passage in scope has a recorded decision about what was done with it.",
+  },
+  "G4-OBLIGATION-EXTRACTION": {
+    name: "Duties written out",
+    description: "Passages that create a duty are turned into draft requirements in a fixed format.",
+  },
+  "G5-PROVENANCE": {
+    name: "Where each value came from",
+    description: "Every value records whether SEBI's text, a fixed rule, a model or a person produced it.",
+  },
+  "G6-APPLICABILITY": {
+    name: "Does it apply to this firm",
+    description: "Each requirement is decided against the firm's own facts, with a record either way.",
+  },
+  "G7-HUMAN-REVIEW": {
+    name: "A person approved it",
+    description: "Anything open to interpretation is approved by a named person with a written reason.",
+  },
+  "G8-REPORT-GENERATION": {
+    name: "Report and sealed record",
+    description: "The approved result produces a report and a sealed record that can be reproduced exactly.",
+  },
+};
+
+export function checkpointOf(id: string, fallbackName: string, fallbackDescription: string) {
+  return CHECKPOINTS[id] ?? { name: fallbackName, description: fallbackDescription };
+}
+
+/** The six pipeline stages on the "where the AI is" board, in the reader's words. */
+const STAGES: Record<string, { name: string; plain: string }> = {
+  P1: {
+    name: "Reading the document",
+    plain: "Reads the official PDF and splits it into passages, each findable by page.",
+  },
+  P2: {
+    name: "Drafting the requirements",
+    plain: "Proposes who must do what, by when, and quotes the wording it relied on.",
+  },
+  P3: {
+    name: "Checking the draft's shape",
+    plain: "Refuses any proposal that does not have every field it must have.",
+  },
+  P4: {
+    name: "Applying the safety rules",
+    plain: "Refuses a date with no stated starting point, keeps guidance out of mandatory work, and decides what applies from the firm's facts.",
+  },
+  P5: {
+    name: "A person decides",
+    plain: "A named person settles what the document leaves open, in writing.",
+  },
+  P6: {
+    name: "Approved work",
+    plain: "Creates tasks, updates evidence, and seals a record that can be reproduced exactly.",
+  },
+};
+
+export function stageOf(id: string, fallbackName: string, fallbackPlain: string) {
+  return STAGES[id] ?? { name: fallbackName, plain: fallbackPlain };
+}
+
+/**
+ * Backend prose that reaches the screen word for word. Exact-match only, falling back to
+ * the original, so a sentence that changes on the server is shown as written rather than
+ * silently mistranslated.
+ */
+const PHRASES: Record<string, string> = {
+  // What the AI proposes
+  "Identify candidate actors, actions and objects in a passage":
+    "Spot who must act, what they must do, and what it applies to",
+  "Suggest the conditions a requirement appears to depend on":
+    "Suggest the conditions a requirement appears to depend on",
+  "Preserve the exact quotation it drew each field from":
+    "Keep the exact quotation each value came from",
+  // What fixed rules enforce
+  "Validate every proposal against the obligation schema":
+    "Check every proposal has each field it must have",
+  "Enforce provenance on each derived field":
+    "Record where every value came from",
+  "Create tasks, update evidence and seal the build record":
+    "Create tasks, update evidence, and seal the record",
+  // What a person decides
+  "Accept or reject each candidate interpretation":
+    "Accept or reject each proposed reading",
+  // Evidence kinds
+  "Synthetic VAPT finding register metadata":
+    "Synthetic register of security-test (VAPT) findings — file details only",
+  "Synthetic vendor SLA metadata":
+    "Synthetic vendor service-level agreement — file details only",
+  "Approved policy metadata": "Approved policy — file details only",
+  // Scope and measurement notes
+  "None. No span of this circular has been read or classified.":
+    "None. No passage of this circular has been read or sorted.",
+  "Measured on the committed extraction cache for the reviewed FAQ scope, on one model at temperature 0. It is a prototype measurement over a small pinned input, not a statement about model accuracy in general.":
+    "Measured on the saved reading of the reviewed FAQ, using one model with its settings fixed. It is a prototype measurement over a small, pinned input — not a claim about how accurate the model is in general.",
+};
+
+export function plainPhrase(text: string): string {
+  return PHRASES[text] ?? text;
+}
+
+/**
+ * One wording for a dropped connection everywhere. The browser's raw "Failed to fetch"
+ * usually means the free-tier server is waking, not a dead end.
+ */
+export function plainError(caught: unknown, fallback: string): string {
+  if (
+    caught instanceof TypeError ||
+    (caught instanceof Error && /failed to fetch/i.test(caught.message))
+  ) {
+    return "RegOS is starting up — wait a few seconds and try again.";
+  }
+  return caught instanceof Error ? caught.message : fallback;
+}
 
 export function changeKindOf(value: string): StateMeta {
   return CHANGE_KINDS[value] ?? stateOf(value);
@@ -240,7 +496,7 @@ const CHECKS: Record<string, string> = {
   "TEST-REFERENCE-CLOSURE-001": "Every cross-reference to the main framework has been followed",
   "TEST-DEONTIC-FORCE-001": "Things SEBI recommends are not treated as things it requires",
   "TEST-DEADLINE-TRACE-001": "Every date shows where it came from",
-  "TEST-IMPACT-001": "The knock-on effects have been worked out",
+  "TEST-IMPACT-001": "Every control, task and evidence item affected by this change has been listed",
   "TEST-FY-PERIODICITY-001": "Reporting periods follow the Indian financial year",
   "TEST-APPLICABILITY-HARD-CASES-001": "What applies to this firm matches its registrations",
   "TEST-ADVERSARY-001": "Nothing has been flagged as doubtful",
@@ -253,11 +509,11 @@ export function checkLabel(id: string, fallback: string): string {
 /** Nouns and product terms that must never reach the primary workflow in raw form. */
 const TERMS: Record<string, string> = {
   "Coverage Ledger": "Source coverage",
-  "Inspector Mode": "Review workspace",
+  "Inspector Mode": "Review screen",
   "Applicability Receipt": "Why this applies",
   "Reg-Diff": "What changed",
-  "Compliance Build Manifest": "Audit-ready build record",
-  Manifest: "Audit-ready build record",
+  "Compliance Build Manifest": "Audit-ready record of this review",
+  Manifest: "Audit-ready record of this review",
   "Compliance Twin": "Live compliance map",
   "Deontic force": "Requirement strength",
   "Indexed spans": "Reviewed passages",

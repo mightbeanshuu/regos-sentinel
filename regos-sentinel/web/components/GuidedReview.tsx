@@ -1,16 +1,37 @@
 "use client";
 
 import { animate, stagger } from "animejs";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { formatDate, formatTimestamp, labelOf } from "../lib/presentation";
+import {
+  checkLabel,
+  formatDate,
+  formatTimestamp,
+  labelOf,
+  plainPhrase,
+  workTypeOf,
+} from "../lib/presentation";
 import type {
   BuildRun,
   LiveSourceVerificationReceipt,
   WorkspaceState,
 } from "../lib/types";
-import { Callout, Counts, DataRow, Disclosure, Field, Hash, Panel, Quote, StateLabel, Tag } from "./ui";
+import {
+  Callout,
+  CompareCols,
+  DataRow,
+  Disclosure,
+  Field,
+  Hash,
+  Meter,
+  Panel,
+  Quote,
+  Stat,
+  StatRow,
+  StateLabel,
+  Tag,
+} from "./ui";
 import { IncidentReportingClock } from "./IncidentReportingClock";
 import { RegulationMap } from "./impact/RegulationMap";
 
@@ -23,6 +44,21 @@ const STEPS = [
 ] as const;
 
 type StepState = "upcoming" | "current" | "done" | "blocked";
+
+/** What a screen reader hears in place of the rail's coloured dot. */
+const STEP_STATE_WORD: Record<StepState, string> = {
+  upcoming: "not started",
+  current: "current step",
+  done: "completed",
+  blocked: "needs your decision",
+};
+
+/** `FAQ-Q17-A` → `Q17(a)`. A relabelling of a real id, never a new fact. */
+function questionLabelOf(spanId: string): string {
+  const bare = spanId.replace(/^FAQ-/, "");
+  const parts = /^([A-Za-z]+\d+)-([A-Za-z])$/.exec(bare);
+  return parts ? `${parts[1]}(${parts[2].toLowerCase()})` : bare;
+}
 
 interface GuidedReviewProps {
   state: WorkspaceState;
@@ -51,40 +87,6 @@ interface GuidedReviewProps {
   onDownloadBeforeAfter: () => Promise<void>;
   /** Jump to the Full record tab — the workflow's final destination. */
   onOpenAudit?: () => void;
-}
-
-function Stepper({ states }: { states: StepState[] }) {
-  return (
-    <ol className="stepper" aria-label="Review progress">
-      {STEPS.map((label, index) => {
-        const status = states[index];
-        return (
-          <li
-            key={label}
-            className={`step${status === "upcoming" ? "" : ` step--${status}`}`}
-            aria-current={status === "current" || status === "blocked" ? "step" : undefined}
-          >
-            <span className="step-marker" aria-hidden="true">
-              {status === "done" ? "✓" : status === "blocked" ? "!" : index + 1}
-            </span>
-            <span className="step-label">
-              {label}
-              <span className="visually-hidden">
-                {" — "}
-                {status === "done"
-                  ? "completed"
-                  : status === "blocked"
-                    ? "needs review"
-                    : status === "current"
-                      ? "current step"
-                      : "not started"}
-              </span>
-            </span>
-          </li>
-        );
-      })}
-    </ol>
-  );
 }
 
 export function GuidedReview(props: GuidedReviewProps) {
@@ -124,83 +126,110 @@ export function GuidedReview(props: GuidedReviewProps) {
     return steps;
   }, [receipt, build, approved, blocked]);
 
+  const computedDeadline = state.deadline_computations.find((item) => item.computable);
+  const activeStep = stepStates.findIndex(
+    (status) => status === "current" || status === "blocked",
+  );
+
   const jumpTo = (selector: string) =>
     window.document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="jr-shell">
-      <aside className="jr-sidenav" aria-label="Review sections">
-        {([
-          [".cp", "Pick a case"],
-          ["#jr-s0", "The case"],
-          ["#jr-s1", "Get the text"],
-          ["#jr-s2", "Compare"],
-          ["#jr-s3", "Your decision"],
-          ["#jr-s4", "What changes"],
-          ["#jr-s5", "Download proof"],
-        ] as const).map(([target, label]) => (
-          <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
-            <span className="side-item-label">{label}</span>
-          </button>
-        ))}
-        {blocked && (
-          <button
-            type="button"
-            className="btn btn--primary ag-side-run"
-            onClick={() => jumpTo("#step-human")}
-          >
-            Decision desk
-          </button>
-        )}
-      </aside>
+    <div className="jr-shell jr-shell--solo">
       <div className="stack-l jr-body">
-      {/* ---- Compact journey rail ----------------------------------------- */}
-      <nav className="jr-rail" aria-label="Review progress">
-        {STEPS.map((label, index) => {
-          const status = stepStates[index];
-          return (
-            <span className="jr-rail-item" key={label}>
-              <span className={`jr-rail-word jr-rail-word--${status}`}>{label}</span>
-              <span className={`jr-rail-dot jr-rail-dot--${status}`} aria-hidden="true">
-                {status === "done" ? "✓" : status === "blocked" ? "!" : ""}
-              </span>
-              {index < STEPS.length - 1 && (
-                <span
-                  className={`jr-rail-line${status === "done" ? " jr-rail-line--done" : ""}`}
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-          );
-        })}
-      </nav>
-
-      {/* ---- The case, one strip ------------------------------------------ */}
-      <header className="jr-case">
-        <span className="jr-chip">{state.entity_profile.legal_name}</span>
-        <span className="jr-chip jr-chip--grow">
-          Existing rule: <strong>{control ? "close every security finding within 3 months" : "—"}</strong>
-        </span>
-        <span className="jr-chip jr-chip--event">
-          New event: {state.findings.length} high-severity finding{state.findings.length === 1 ? "" : "s"}
-        </span>
-        {!build && (
-          <button
-            type="button"
-            className="btn btn--primary btn--small"
-            disabled={busy || sourceBusy}
-            onClick={() => void props.onRunBuild()}
-          >
-            Start the review
-          </button>
-        )}
+      <header className="jr-journey-head">
+        <div className="stack-s">
+          <h1 className="page-title">Review a requirement</h1>
+          <p className="lede">
+            Follow the cited source, check the firm&rsquo;s control, and record a human
+            decision only where the source leaves a gap.
+          </p>
+        </div>
+        <ol className="jr-progress" aria-label="Review progress">
+          {STEPS.map((label, index) => {
+            const status = stepStates[index];
+            const here = index === activeStep;
+            return (
+              <li
+                key={label}
+                className={`jr-progress-item jr-progress-item--${status}`}
+                aria-current={here ? "step" : undefined}
+              >
+                <span className="jr-progress-index" aria-hidden="true">
+                  {status === "done" ? "✓" : status === "blocked" ? "!" : index + 1}
+                </span>
+                <span>
+                  {label}
+                  <span className="visually-hidden"> — {STEP_STATE_WORD[status]}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </header>
+      {/* ---- The journey, in the order it is read -------------------------
+          Only the steps that have a real prerequisite are rendered. This keeps
+          the officer focused on the next accountable action rather than a wall
+          of locked cards. */}
+      <div className="stack-l">
+          <section className="jr-sect" id="jr-s0">
+            <h2 className="jr-h"><span>0.</span> The case</h2>
+            <div className="jr-doccard jr-doccard--left">
+              {/* The card is a flex column that packs to content; the facts list
+                  keeps the card's full width so its rows never go ragged. */}
+              <dl className="datalist" style={{ alignSelf: "stretch" }}>
+                <DataRow label="Firm">
+                  <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
+                  <span className="meta">
+                    · {state.entity_profile.cscrf_category} · Synthetic demo data
+                  </span>
+                </DataRow>
+                <DataRow label="Rule in force today">
+                  {control ? (
+                    <>
+                      <span className="strong-ink">{control.id}</span>{" "}
+                      <span className="meta">
+                        — {control.previous_rule_summary ?? control.rule_summary}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="meta">No control recorded for this firm yet.</span>
+                  )}
+                </DataRow>
+                <DataRow label="What changed">
+                  <span className="strong-ink">
+                    {state.findings.length} high-severity finding
+                    {state.findings.length === 1 ? "" : "s"}
+                  </span>
+                  {state.findings.length > 0 && (
+                    <ul className="stack-s" style={{ marginTop: "4px" }}>
+                      {state.findings.map((finding) => (
+                        <li key={finding.id} className="meta">
+                          {finding.id} — {finding.title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DataRow>
+              </dl>
+              <div className="btn-row">
+                {build ? (
+                  <StateLabel value={build.status} />
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy || sourceBusy}
+                    onClick={() => void props.onRunBuild()}
+                  >
+                    {busy && <span className="spinner" aria-hidden="true" />}
+                    Start the review
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
 
-
-      {/* ---- The journey board -------------------------------------------- */}
-      <div className="jr-grid">
-        {/* ---------------- LEFT: 1 get the text · 2 compare -------------- */}
-        <div className="jr-col">
           <section className="jr-sect" id="jr-s1">
             <h2 className="jr-h"><span>1.</span> Get the official text</h2>
             <div className="jr-duo">
@@ -211,7 +240,7 @@ export function GuidedReview(props: GuidedReviewProps) {
                     <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z" />
                   </svg>
                 </span>
-                <p className="jr-doctitle">{document?.title ?? "No source registered"}</p>
+                <p className="jr-doctitle">{document?.title ?? "No SEBI document added yet — add one to start."}</p>
                 {document && <p className="meta">Published {formatDate(document.published_at)}</p>}
                 {document && (
                   <a className="proof-link" href={document.source_url} target="_blank" rel="noreferrer">
@@ -226,15 +255,11 @@ export function GuidedReview(props: GuidedReviewProps) {
                     <path d="M12 11c0 3.5-1 6.8-2.75 9.57M5.8 18.53A13.9 13.9 0 0 0 8 11a4 4 0 1 1 8 0c0 1-.07 2-.2 3m-2.12 6.84A21.9 21.9 0 0 0 15.17 17m3.84 1.13c.65-2.27 1-4.66 1-7.13A8 8 0 0 0 8 4.07M3 15.36C3.64 14.05 4 12.57 4 11c0-1.46.39-2.82 1.07-4" />
                   </svg>
                 </span>
-                {document && (
-                  <p className="jr-hash mono" title={document.content_hash}>
-                    {document.content_hash.slice(0, 12)}…{document.content_hash.slice(-6)}
-                  </p>
-                )}
+                {document && <Hash value={document.content_hash} label="source document" />}
                 <p className="meta">
                   {receipt
-                    ? "This exact text, frozen — matched against the official page."
-                    : "This exact text, frozen. Verify it against the official page."}
+                    ? "A saved copy of this exact text, checked against the official page."
+                    : "A saved copy of this exact text. Verify it against the official page."}
                 </p>
                 <button
                   type="button"
@@ -246,12 +271,12 @@ export function GuidedReview(props: GuidedReviewProps) {
                 </button>
               </div>
             </div>
-            <Disclosure summary="The full source panel">
+            <Disclosure summary="All details about this source">
               <StepSource {...props} />
             </Disclosure>
           </section>
 
-          <section className="jr-sect" id="jr-s2">
+          {build && <section className="jr-sect" id="jr-s2">
             <h2 className="jr-h"><span>2.</span> Compare</h2>
             {build ? (
               <>
@@ -272,7 +297,7 @@ export function GuidedReview(props: GuidedReviewProps) {
                     </div>
                     <div className="jr-mini jr-mini--royal">
                       <p className="jr-mini-title">{approved ? "Already covered" : "Cannot cover both"}</p>
-                      <p>{approved ? "Split into two branches" : "One broad rule, two duties"}</p>
+                      <p>{approved ? "Split into two rules" : "One broad rule, two duties"}</p>
                     </div>
                   </div>
                 </div>
@@ -293,24 +318,9 @@ export function GuidedReview(props: GuidedReviewProps) {
             ) : (
               <p className="jr-locked">Run the check to compare the rule against this firm.</p>
             )}
-          </section>
-        </div>
+          </section>}
 
-        {/* ---------------- MIDDLE: 0 the case · 3 your decision ---------- */}
-        <div className="jr-col jr-col--mid">
-          <section className="jr-sect" id="jr-s0">
-            <h2 className="jr-h"><span>0.</span> The case</h2>
-            <div className="jr-doccard jr-doccard--left">
-              <span className="micro">{build ? (approved ? "Completed" : "In review") : "Ready"}</span>
-              <p className="jr-doctitle">{document?.title ?? "SEBI source"}</p>
-              <p className="meta">
-                A firm closes every security finding within three months. A new SEBI answer
-                says one week for the worst kind — with no stated start.
-              </p>
-            </div>
-          </section>
-
-          <section className="jr-sect" id="jr-s3">
+          {(blocked || approved) && <section className="jr-sect" id="jr-s3">
             <h2 className="jr-h"><span>3.</span> Your decision</h2>
             {blocked ? (
               <div className="jr-doccard jr-doccard--left jr-doccard--attn">
@@ -322,9 +332,9 @@ export function GuidedReview(props: GuidedReviewProps) {
                 <button
                   type="button"
                   className="btn btn--primary btn--small"
-                  onClick={() => window.document.querySelector("#step-human")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  onClick={() => jumpTo("#step-human")}
                 >
-                  Open the decision desk ↓
+                  Open the decision form below ↓
                 </button>
               </div>
             ) : approved && reading ? (
@@ -340,52 +350,75 @@ export function GuidedReview(props: GuidedReviewProps) {
                 The decision opens when the check finds something only a person may settle.
               </p>
             )}
-          </section>
-        </div>
+          </section>}
 
-        {/* ---------------- RIGHT: 4 what changes · 5 proof ---------------- */}
-        <div className="jr-col">
-          <section className="jr-sect" id="jr-s4">
+          {build && <section className="jr-sect" id="jr-s4">
             <h2 className="jr-h"><span>4.</span> What changes</h2>
             {build ? (
               <>
-                <div className="jr-ba">
-                  <div className="jr-ba-before">
-                    <span className="micro">Before</span>
-                    <p className={approved ? "jr-struck" : undefined}>
-                      Close every security finding within 3 months
-                    </p>
-                  </div>
-                  <span className="jr-ba-arrow" aria-hidden="true">→</span>
-                  <div className="jr-ba-after">
-                    <div className="jr-ba-card">
-                      <span className="micro">After</span>
-                      <p>High-severity missing patch: one week</p>
-                      <span className="jr-ba-date">
-                        {approved && state.deadline_computations.find((item) => item.computable)
-                          ? formatDate(state.deadline_computations.find((item) => item.computable)!.due_date)
-                          : "No date yet"}
-                      </span>
-                    </div>
-                    <div className="jr-ba-card">
-                      <span className="micro">After</span>
-                      <p>Everything else: three months</p>
-                    </div>
-                  </div>
-                </div>
+                <CompareCols
+                  before={{
+                    label: approved && control
+                      ? `Before · version ${control.version - 1}`
+                      : "In force today",
+                    body: (
+                      <p className={approved ? "jr-struck" : undefined}>
+                        {control
+                          ? control.previous_rule_summary ?? control.rule_summary
+                          : "No control recorded for this firm yet."}
+                      </p>
+                    ),
+                  }}
+                  after={{
+                    label: approved && control
+                      ? `After · version ${control.version}`
+                      : "What the source requires",
+                    body: approved && control ? (
+                      <div className="stack-s">
+                        <p>{control.rule_summary}</p>
+                        {computedDeadline && (
+                          <p className="meta">
+                            First due date{" "}
+                            <span className="strong-ink">{formatDate(computedDeadline.due_date)}</span>{" "}
+                            · {computedDeadline.citation.locator}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="stack-s">
+                        <p>
+                          High-severity finding caused by a missing patch: one week
+                          {q17a && <span className="meta"> · {q17a.locator}</span>}
+                        </p>
+                        <p>
+                          Every other finding: three months
+                          {q15 && <span className="meta"> · {q15.locator}</span>}
+                        </p>
+                        <p className="meta">
+                          No due date is worked out until a person records when the week starts.
+                        </p>
+                      </div>
+                    ),
+                  }}
+                />
                 <p className="meta">One rule became two, because the source says two.</p>
                 {approved && (
-                  <Disclosure summary="The full impact picture">
-                    <StepImpact state={state} build={build} reducedMotion={Boolean(reducedMotion)} />
+                  <Disclosure summary="Everything this change affects: controls, dates, tasks, evidence">
+                    <StepImpact
+                      state={state}
+                      build={build}
+                      reducedMotion={Boolean(reducedMotion)}
+                      onRunCheck={() => void props.onRunBuild()}
+                    />
                   </Disclosure>
                 )}
               </>
             ) : (
               <p className="jr-locked">Changes appear after the check runs.</p>
             )}
-          </section>
+          </section>}
 
-          <section className="jr-sect" id="jr-s5">
+          {approved && <section className="jr-sect" id="jr-s5">
             <h2 className="jr-h"><span>5.</span> Download proof</h2>
             {approved && build && reading ? (
               <>
@@ -431,15 +464,14 @@ export function GuidedReview(props: GuidedReviewProps) {
                 </div>
                 {props.onOpenAudit && (
                   <button type="button" className="btn btn--quiet btn--small" onClick={props.onOpenAudit}>
-                    See every step in the full record
+                    See the full record
                   </button>
                 )}
               </>
             ) : (
               <p className="jr-locked">Proof unlocks when a named person approves the decision.</p>
             )}
-          </section>
-        </div>
+          </section>}
       </div>
 
       {blocked && (
@@ -453,82 +485,13 @@ export function GuidedReview(props: GuidedReviewProps) {
         />
       )}
 
-      <p className="meta jr-foot">Decision support — a person approved every outcome on this page.</p>
+      <p className="meta jr-foot">
+        {approved
+          ? "Decision support — a person approved every outcome on this page."
+          : "Decision support only — nothing on this page is final until a person approves it."}
+      </p>
       </div>
     </div>
-  );
-}
-
-/* ---------------------------------------------------------------------------
- * Case summary
- * ------------------------------------------------------------------------- */
-
-function CaseSummary({
-  state,
-  control,
-  hasBuild,
-  busy,
-  onStart,
-}: {
-  state: WorkspaceState;
-  control: WorkspaceState["controls"][number];
-  hasBuild: boolean;
-  busy: boolean;
-  onStart: () => Promise<void>;
-}) {
-  const findings = state.findings;
-  return (
-    <section className="stack">
-      <div className="stack-s">
-        <h1 className="page-title">
-          A SEBI rule changed. Does this broker&rsquo;s existing control still work?
-        </h1>
-        <p className="lede">
-          Source vs the firm&rsquo;s control. It stops wherever the source does not say enough.
-        </p>
-      </div>
-
-      <Panel>
-        <dl className="datalist">
-          <DataRow label="Entity">
-            <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
-            <span className="meta">
-              · {state.entity_profile.cscrf_category} ·{" "}
-              {state.entity_profile.is_qsb ? "QSB" : "Non-QSB"} · Synthetic demo data
-            </span>
-          </DataRow>
-          <DataRow label="Existing control">
-            <span className="strong-ink">{control.id}</span>{" "}
-            <span className="meta">— {control.previous_rule_summary ?? control.rule_summary}</span>
-          </DataRow>
-          <DataRow label="New event">
-            <p>A VAPT report contains two high-severity findings:</p>
-            <ul className="stack-s" style={{ marginTop: "8px" }}>
-              {findings.map((finding) => (
-                <li key={finding.id} className="meta">
-                  <span className="strong-ink">{finding.id}</span> — {finding.title}
-                  {finding.caused_by_missing_patch ? " (missing OEM patch)" : ""}
-                </li>
-              ))}
-            </ul>
-          </DataRow>
-        </dl>
-      </Panel>
-
-      {!hasBuild && (
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={busy}
-            onClick={() => void onStart()}
-          >
-            {busy && <span className="spinner" aria-hidden="true" />}
-            {busy ? "Checking the rule against the control…" : "Review the rule change"}
-          </button>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -542,7 +505,7 @@ function HashCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="hash-card">
       <p className="micro">{label}</p>
-      <p className="hash-card-value mono" aria-label={`${label}: ${value}`}>{value}</p>
+      <p className="hash-card-value mono" aria-label={`${label}, full value`}>{value}</p>
       <button
         type="button"
         className="hash-copy hash-card-copy"
@@ -556,7 +519,7 @@ function HashCard({ label, value }: { label: string; value: string }) {
           );
         }}
       >
-        {copied ? "✓ Copied" : "⧉ Copy hash"}
+        {copied ? "✓ Copied" : "⧉ Copy fingerprint"}
       </button>
     </div>
   );
@@ -575,11 +538,11 @@ function StepSource({
     <Panel
       id="step-source"
       title="1 · Verify what SEBI published"
-      description="Fetch the official document, record its fingerprint."
+      description="Download the official document and record its fingerprint."
       aside={receipt ? <StateLabel value={receipt.status} /> : <StateLabel value="READY" />}
     >
       <div className="stack">
-        <HashCard label="Source document hash" value={document.content_hash} />
+        <HashCard label="Source document fingerprint" value={document.content_hash} />
         <dl className="datalist">
           <DataRow label="Document">{document.title}</DataRow>
           <DataRow label="Published">{formatDate(document.published_at)}</DataRow>
@@ -595,7 +558,9 @@ function StepSource({
           </DataRow>
           <DataRow label="Document fingerprint">
             <Hash value={document.content_hash} />
-            <p className="meta">{document.content_hash_scope.toLowerCase()}</p>
+            <p className="meta">
+              This fingerprint covers the four excerpts a person verified, not the whole PDF.
+            </p>
           </DataRow>
           <DataRow label="Reviewed passages">
             {state.source_spans.filter((span) => span.document_id === document.id).length}
@@ -604,10 +569,10 @@ function StepSource({
             <>
               <DataRow label="Live file">
                 {receipt.page_count} pages · {(receipt.byte_count / 1024).toFixed(1)}{" "}
-                KB · HTTP {receipt.http_status}
-              </DataRow>
-              <DataRow label="Passages found in the live file">
-                {receipt.matched_span_ids.length} of {receipt.checked_span_count}
+                KB ·{" "}
+                {receipt.http_status === 200
+                  ? "the SEBI page responded normally"
+                  : `the SEBI page responded with an error (code ${receipt.http_status})`}
               </DataRow>
               <DataRow label="Live file fingerprint">
                 <Hash value={receipt.document_sha256} />
@@ -616,6 +581,23 @@ function StepSource({
             </>
           )}
         </dl>
+
+        {receipt && (
+          <Meter
+            label="Passages found in the live file"
+            value={receipt.matched_span_ids.length}
+            max={receipt.checked_span_count}
+            tone={
+              receipt.matched_span_ids.length === receipt.checked_span_count ? "ok" : "review"
+            }
+            valueLabel={`${receipt.matched_span_ids.length}/${receipt.checked_span_count}`}
+            hint={
+              receipt.matched_span_ids.length === receipt.checked_span_count
+                ? "Every reviewed passage was found again in the file SEBI is serving today."
+                : "Some reviewed passages were not found in the file SEBI is serving today."
+            }
+          />
+        )}
 
         {receipt && (
           <Callout tone="ok" title="Source verified">
@@ -686,84 +668,108 @@ function StepCompare({
       aside={<StateLabel value={build.status} />}
     >
       <div className="stack">
-        <div className="rcx">
-          <div className="rcx-doc">
-            <div className="rcx-doc-head">
-              <p className="strong-ink">Original SEBI text</p>
-              {state.documents[0] && <p className="micro">{state.documents[0].id} · {state.documents[0].title}</p>}
-            </div>
-            <div className="rcx-doc-body">
-              <NumberedExcerpt
-                sections={[
-                  ...(q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []),
-                  ...(q15 ? [{ locator: q15.locator, text: q15.text, hot: false }] : []),
-                ]}
-              />
-            </div>
+        <div className="rcx-doc">
+          <div className="rcx-doc-head">
+            <p className="strong-ink">Original SEBI text</p>
+            {state.documents[0] && <p className="micro">{state.documents[0].title}</p>}
           </div>
+          <div className="rcx-doc-body">
+            <NumberedExcerpt
+              sections={[
+                ...(q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []),
+                ...(q15 ? [{ locator: q15.locator, text: q15.text, hot: false }] : []),
+              ]}
+            />
+          </div>
+        </div>
 
-          <div className="rcx-cards">
-            <p className="sub-title">Impact on the firm&rsquo;s controls</p>
+        {/* One comparison, one table: each finding on a row, the source and the
+            firm's control in the same two columns every time. */}
+        <div className="stack-s">
+          <p className="sub-title">Impact on the firm&rsquo;s controls</p>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Finding</th>
+                  <th scope="col">What the source says</th>
+                  <th scope="col">What the firm&rsquo;s control says</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span className="strong-ink">New duty found</span></td>
+                  <td className="meta">
+                    <span className="strong-ink">One week</span> for high-severity missing
+                    patches{q17a && <> ({q17a.locator})</>} and{" "}
+                    <span className="strong-ink">three months</span> for other observations
+                    {q15 && <> ({q15.locator})</>}.
+                  </td>
+                  <td className="meta">
+                    {control.id} closes every security-test (VAPT) finding in three months.
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <span className={`rcx-chip${approved ? " rcx-chip--ok" : ""}`}>
+                      {approved ? "Split into two rules" : "Action required"}
+                    </span>
+                  </td>
+                </tr>
 
-            <article className="rcx-card rcx-card--ok">
-              <h3 className="rcx-card-title">New duty found</h3>
-              <p className="meta">
-                Existing control {control.id} closes every VAPT finding in three months. The
-                source states <span className="strong-ink">one week</span> for high-severity
-                missing patches{q17a && <> ({q17a.locator})</>} and{" "}
-                <span className="strong-ink">three months</span> for other observations
-                {q15 && <> ({q15.locator})</>}.
-              </p>
-              <span className={`rcx-chip${approved ? " rcx-chip--ok" : ""}`}>
-                {approved ? "Split into two branches" : "Action required"}
-              </span>
-            </article>
+                {!approved && blockedDeadline && (
+                  <tr>
+                    <td><span className="strong-ink">Missing start date</span></td>
+                    <td className="meta">
+                      {blockedDeadline.duration_label}{" "}
+                      <Tag value={blockedDeadline.duration_provenance} />
+                      <br />
+                      Starts from:{" "}
+                      <span className="strong-ink">not stated in the reviewed source</span>.
+                    </td>
+                    <td className="meta">
+                      <span className="strong-ink">No due date.</span> Nothing is calculated
+                      until a compliance officer records the firm&rsquo;s clock-start policy.
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <span className="rcx-chip rcx-chip--review">Needs your decision</span>
+                    </td>
+                  </tr>
+                )}
 
-            {!approved && blockedDeadline && (
-              <article className="rcx-card rcx-card--review">
-                <h3 className="rcx-card-title">Missing start date</h3>
-                <p className="meta">
-                  SEBI states a one-week duration, but the reviewed source does not state when
-                  that week starts. No due date is calculated until a compliance officer records
-                  the firm&rsquo;s trigger policy.
-                </p>
-                <dl className="datalist">
-                  <DataRow label="Duration">
-                    {blockedDeadline.duration_label}{" "}
-                    <Tag value={blockedDeadline.duration_provenance} />
-                  </DataRow>
-                  <DataRow label="Starts from">
-                    <span className="strong-ink">Not stated in the reviewed source</span>
-                  </DataRow>
-                  <DataRow label="Due date">
-                    <span className="rcx-nodate">No date yet</span>
-                  </DataRow>
-                </dl>
-                <span className="rcx-chip rcx-chip--review">Needs your decision</span>
-              </article>
-            )}
-
-            <article className={`rcx-card ${approved ? "rcx-card--royal" : "rcx-card--fail"}`}>
-              {approved ? (
-                <>
-                  <h3 className="rcx-card-title">Already covered</h3>
-                  <p className="meta">
-                    The control was split into two branches after {build.reviewer} recorded the
-                    firm&rsquo;s trigger policy in writing.
-                  </p>
-                  <span className="rcx-chip rcx-chip--ok">Compliant</span>
-                </>
-              ) : (
-                <>
-                  <h3 className="rcx-card-title">One control cannot cover both</h3>
-                  <p className="meta">One broad three-month control cannot represent both requirements.</p>
-                  {(failedTests.length > 0 ? failedTests : reviewNeededTests.slice(0, 1)).map((test) => (
-                    <p key={test.id} className="meta">{test.name} — {test.message}</p>
-                  ))}
-                  <span className="rcx-chip rcx-chip--fail">Did not pass</span>
-                </>
-              )}
-            </article>
+                <tr>
+                  <td>
+                    <span className="strong-ink">
+                      {approved ? "Already covered" : "One control cannot cover both"}
+                    </span>
+                  </td>
+                  <td className="meta">Two deadlines, for two different kinds of finding.</td>
+                  <td className="meta">
+                    {approved ? (
+                      <>
+                        Split into two rules after {build.reviewer}{" "}
+                        recorded the firm&rsquo;s clock-start policy in writing.
+                      </>
+                    ) : (
+                      <>
+                        One broad three-month control cannot represent both requirements.
+                        {(failedTests.length > 0 ? failedTests : reviewNeededTests.slice(0, 1)).map(
+                          (test) => (
+                            <span key={test.id} style={{ display: "block", marginTop: "4px" }}>
+                              {checkLabel(test.id, test.name)} — {test.message}
+                            </span>
+                          ),
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <span className={`rcx-chip rcx-chip--${approved ? "ok" : "fail"}`}>
+                      {approved ? "Compliant" : "Did not pass"}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -806,7 +812,7 @@ function StepCompare({
                 <tbody>
                   {build.tests.map((test) => (
                     <tr key={test.id}>
-                      <td>{test.name}</td>
+                      <td>{checkLabel(test.id, test.name)}</td>
                       <td><StateLabel value={test.status} /></td>
                       <td className="meta">{test.message}</td>
                     </tr>
@@ -828,8 +834,8 @@ function StepCompare({
 /** Preset clock-start policies the firm can adopt. The last is the honest default. */
 const TRIGGER_POLICIES = [
   { id: "discovery", label: "Date of discovery", policy: "Date the finding is recorded in the entity vulnerability register" },
-  { id: "vapt", label: "VAPT report submission", policy: "Date the VAPT report is submitted to the entity" },
-  { id: "patch", label: "OEM patch availability", policy: "Date the missing OEM patch becomes available" },
+  { id: "vapt", label: "Date the vulnerability-test (VAPT) report is submitted", policy: "Date the VAPT report is submitted to the entity" },
+  { id: "patch", label: "Date the manufacturer's (OEM) patch became available", policy: "Date the missing OEM patch becomes available" },
   { id: "none", label: "No policy (default)", policy: "" },
 ] as const;
 
@@ -861,7 +867,6 @@ function StepHumanDecision({
   onResolveReferences,
   onCommitReading,
   onApprove,
-  onOpenAudit,
 }: GuidedReviewProps & {
   q17a?: WorkspaceState["source_spans"][number];
   document: WorkspaceState["documents"][number];
@@ -916,11 +921,31 @@ function StepHumanDecision({
       <div className="stack">
         {/* -- Cited dependencies --------------------------------------- */}
         {!referencesLoaded ? (
-          <Callout tone="review" title="Four cited sections must be read first">
+          <Callout
+            tone="review"
+            title={`${state.references.length || "Four"} cited sections must be read first`}
+          >
             <p>
-              Q15 points to Table 19 and PR.MA Guideline 6, Q16 to Annexure-A, and Q17(a) to
-              PR.MA.S3. RegOS will not accept a decision until those are loaded and fingerprinted.
+              RegOS will not accept a decision until every section these answers point to is
+              loaded and fingerprinted.
             </p>
+            {state.references.length > 0 ? (
+              <dl className="datalist">
+                {state.references.map((reference) => (
+                  <DataRow
+                    key={reference.id}
+                    label={`${questionLabelOf(reference.from_span_id)} points to`}
+                  >
+                    {reference.target_locator} <StateLabel value={reference.status} />
+                  </DataRow>
+                ))}
+              </dl>
+            ) : (
+              <p className="meta">
+                Q15 points to Table 19 and PR.MA Guideline 6, Q16 to Annexure-A, and Q17(a) to
+                PR.MA.S3.
+              </p>
+            )}
             <div className="btn-row">
               <button
                 type="button"
@@ -929,14 +954,14 @@ function StepHumanDecision({
                 onClick={() => void onResolveReferences()}
               >
                 {busy && <span className="spinner" aria-hidden="true" />}
-                Load the 4 cited sections
+                Load the {state.references.length || 4} cited sections
               </button>
             </div>
           </Callout>
         ) : (
           <details className="disclosure" open={!reading}>
             <summary>
-              4 cited CSCRF sections loaded and fingerprinted
+              {state.references.length} cited CSCRF sections loaded and fingerprinted
             </summary>
             <div className="disclosure-body stack">
               {state.references.map((reference) => {
@@ -1040,7 +1065,7 @@ function StepHumanDecision({
 
                 {/* The draft stays physically on the page but unreadable —
                     skeleton lines behind blur, never real (or fake) words. */}
-                <div className="decision-card decision-card--locked" aria-label="System suggestion, hidden until you commit your reading">
+                <div className="decision-card decision-card--locked" aria-label="System suggestion, hidden until you record your reading">
                   <div className="decision-skel" aria-hidden="true">
                     <span style={{ width: "34%" }} />
                     <span style={{ width: "96%" }} />
@@ -1056,7 +1081,7 @@ function StepHumanDecision({
                       </svg>
                     </span>
                     <p className="decision-lock-title">System suggestion</p>
-                    <p className="meta">(Blurred until you commit your reading)</p>
+                    <p className="meta">(Hidden until you record your reading)</p>
                   </div>
                 </div>
               </div>
@@ -1083,8 +1108,8 @@ function StepHumanDecision({
                       Live due date preview:{" "}
                       <strong>{previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "—"}</strong>
                       <span className="meta">
-                        {" "}· {blockedDeadline?.duration_label ?? "1 week"} from the date below; the
-                        engine records the real date on approval.
+                        {" "}· {blockedDeadline?.duration_label ?? "1 week"} from the date below;
+                        RegOS records the actual date when you approve.
                       </span>
                     </span>
                   )}
@@ -1137,7 +1162,7 @@ function StepHumanDecision({
                   </Field>
                 )}
                 {policyChoice !== "none" && (
-                  <Field label="Trigger event date" hint="The date your policy points at, for the demo finding F-001.">
+                  <Field label="Date the clock starts" hint="The date your policy points at, for the demo finding F-001.">
                     {(aria) => (
                       <input
                         {...aria}
@@ -1184,7 +1209,7 @@ function StepHumanDecision({
                 </button>
                 {policyChoice === "none" && (
                   <p className="decision-commit-hint">
-                    Pick a clock-start policy to continue — or the date stays uncomputed.
+                    Pick a clock-start policy to continue — or no due date will be worked out.
                   </p>
                 )}
                 <button
@@ -1225,7 +1250,7 @@ function StepHumanDecision({
               {/* -- Left column ------------------------------------------- */}
               <div className="decision-main">
                 <div className="decision-card">
-                  <p className="decision-card-title">Reviewer notes &amp; system alignment</p>
+                  <p className="decision-card-title">Your recorded reading, and why you chose this policy</p>
                   <blockquote className="decision-quote">
                     {reading.independent_interpretation}
                   </blockquote>
@@ -1256,8 +1281,8 @@ function StepHumanDecision({
                     <p className="strong-ink">{reading.revealed_system_suggestion}</p>
                     <p className="meta">
                       Revealed {formatTimestamp(reading.system_suggestion_revealed_at)} ·{" "}
-                      {labelOf("AI_SUGGESTED")} · register today: All VAPT findings → 3 months
-                      (derived from Q15 alone)
+                      {labelOf("AI_SUGGESTED")} · Your register today says: close all
+                      vulnerability-test (VAPT) findings within 3 months, taken from Q15 alone.
                     </p>
                   </div>
                   <div
@@ -1287,7 +1312,10 @@ function StepHumanDecision({
                   <p className="field-error"><span aria-hidden="true">✕</span>{agreementError}</p>
                 )}
 
-                <div className="decision-duo">
+                {/* Full width, not two-up: a definition list inside a half-width
+                    card splits again, and "Not stated in the reviewed source"
+                    ends up two words per line. */}
+                <div className="decision-col">
                   <div className="decision-card">
                     <p className="decision-card-title">What&rsquo;s under review</p>
                     {blockedDeadline ? (
@@ -1305,7 +1333,7 @@ function StepHumanDecision({
                         </DataRow>
                       </dl>
                     ) : (
-                      <p className="meta">No blocked deadline on this build.</p>
+                      <p className="meta">No deadline is waiting on your decision in this review run.</p>
                     )}
                   </div>
                   <div className="decision-card">
@@ -1332,17 +1360,17 @@ function StepHumanDecision({
               </div>
 
               {/* -- Right rail: actionable information -------------------- */}
-              <aside className="decision-rail" aria-label="Actionable information and policies">
+              <aside className="decision-rail" aria-label="Due date calculator and related sources">
                 <div className="decision-card">
                   <p className="decision-card-title">Due date calculator</p>
                   <Field
-                    label="Committed trigger policy"
+                    label="The clock-start policy you recorded"
                     hint="Recorded before the draft interpretation was shown; cannot be edited now."
                   >
                     {(aria) => <input {...aria} value={reading.trigger_policy} disabled />}
                   </Field>
                   <Field
-                    label="Trigger event date"
+                    label="Date the clock starts"
                     hint="The date your policy points at, for the demo finding F-001."
                   >
                     {(aria) => (
@@ -1361,13 +1389,43 @@ function StepHumanDecision({
                   </Field>
                   <div className="decision-preview decision-preview--calc">
                     <span className="micro">Due date preview</span>
-                    <span className="decision-preview-value decision-preview-value--xl">
-                      {previewDueDate(triggerDate, blockedDeadline?.duration_label) ?? "No date"}
-                    </span>
+                    {/* A real date reads as a figure in ink; the absence of one is a
+                        state, and says so in words, tone and a clock glyph. */}
+                    {previewDueDate(triggerDate, blockedDeadline?.duration_label) ? (
+                      <span className="decision-preview-value decision-preview-value--xl">
+                        {previewDueDate(triggerDate, blockedDeadline?.duration_label)}
+                      </span>
+                    ) : (
+                      <span
+                        className="decision-preview-value decision-preview-value--xl"
+                        style={{
+                          color: "var(--review)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "var(--s2)",
+                        }}
+                      >
+                        <svg
+                          aria-hidden="true"
+                          width="22"
+                          height="22"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M12 8v4l3 3" />
+                        </svg>
+                        No date
+                      </span>
+                    )}
                     <span className="meta">
                       Based on {q17a?.locator ?? "CSCRF FAQ Q17(a)"} —{" "}
                       {blockedDeadline?.duration_label ?? "1 week"} from the trigger date.
-                      Preview only; the engine records the real date on approval.
+                      Preview only; RegOS records the actual date when you approve.
                     </span>
                   </div>
                 </div>
@@ -1375,15 +1433,19 @@ function StepHumanDecision({
                 <div className="decision-card">
                   <p className="decision-card-title">Related sections &amp; sources</p>
                   <ul className="decision-links">
+                    {/* The title wraps and the link stays a short chip: a document
+                        title inside a `proof-link` cannot wrap, and a long one
+                        pushed the whole page sideways. */}
                     {state.documents.map((item) => (
                       <li key={item.id}>
+                        <span>{item.title}</span>
                         <a
                           className="proof-link"
                           href={item.source_url}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {item.title} ↗
+                          Open ↗
                         </a>
                       </li>
                     ))}
@@ -1408,16 +1470,6 @@ function StepHumanDecision({
                 </p>
               </div>
               <div className="btn-row decision-actionbar-actions">
-                {onOpenAudit && (
-                  <button
-                    type="button"
-                    className="btn btn--quiet decision-commit-quiet"
-                    disabled={busy}
-                    onClick={onOpenAudit}
-                  >
-                    View the full record
-                  </button>
-                )}
                 <button
                   type="button"
                   className="btn btn--primary decision-commit-btn"
@@ -1441,23 +1493,6 @@ function StepHumanDecision({
               </div>
             </div>
 
-            {/* -- What was left out, and why ------------------------------- */}
-            <p className="decision-omitted">
-              <span className="decision-omitted-glyph" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M8 12h8" />
-                </svg>
-              </span>
-              <span>
-                <strong className="strong-ink">Left out on purpose:</strong>{" "}
-                the reference
-                design&rsquo;s &ldquo;Submit to manager&rdquo; and &ldquo;Reject &amp;
-                re-evaluate&rdquo; buttons, and its case-priority header. None of them has
-                recorded state behind it. Every control on this screen writes to the audit
-                record — a button that writes no record is theatre.
-              </span>
-            </p>
           </div>
         )}
       </div>
@@ -1473,15 +1508,18 @@ function StepImpact({
   state,
   build,
   reducedMotion,
+  onRunCheck,
 }: {
   state: WorkspaceState;
   build: BuildRun;
   reducedMotion: boolean;
+  onRunCheck?: () => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const control = state.controls[0];
   const sla = state.vendor_slas[0];
   const revalidating = state.evidence.filter((item) => item.status === "NEEDS_REVALIDATION");
+  const computable = state.deadline_computations.filter((item) => item.computable);
   const review = state.reviews.at(-1);
 
   useEffect(() => {
@@ -1512,46 +1550,51 @@ function StepImpact({
     <Panel
       id="step-impact"
       title="4 · Review approved. Here is what changed."
-      description="Every line below is read from this build's actual state."
-      aside={<StateLabel value="APPROVED" />}
+      description="Every line below is read from this review run, not written by hand."
     >
       <div className="stack">
-        <Counts
-          items={[
-            { value: build.impact.controls_changed, label: "control changed" },
-            { value: build.impact.tasks_created, label: "mandatory tasks created" },
-            { value: build.impact.vendor_sla_advisories, label: "advisory item recorded" },
-            { value: build.impact.evidence_revalidation, label: "evidence items need review" },
-          ]}
-        />
+        <StatRow>
+          <Stat value={build.impact.controls_changed} label="Controls changed" />
+          <Stat value={build.impact.tasks_created} label="Mandatory tasks created" />
+          <Stat value={build.impact.vendor_sla_advisories} label="Advisory items recorded" />
+          <Stat
+            value={build.impact.evidence_revalidation}
+            label="Evidence items to review again"
+            tone={build.impact.evidence_revalidation > 0 ? "review" : undefined}
+          />
+        </StatRow>
 
         <Panel
           title="Regulation map"
-          description="Impact of the approved change — spans, controls, evidence, tasks."
+          description="What the approved change touches — passages, controls, evidence and tasks."
           tight
         >
-          <RegulationMap state={state} />
+          <RegulationMap state={state} onRunCheck={onRunCheck} />
         </Panel>
 
+        {/* Six outcomes, each one line. The evidence behind a line is one click
+            away, never stacked on top of the next line. */}
         <div className="outcome" ref={listRef}>
           <div className="outcome-item">
             <span className="outcome-marker" aria-hidden="true">1</span>
             <div className="outcome-body">
               <p className="outcome-title">Control updated</p>
               <p className="outcome-why">
-                The single three-month control was split into two branches.
+                {control.id} moved to version {control.version} — the one three-month rule
+                became two.
               </p>
-              <div className="compare" style={{ marginTop: "8px" }}>
-                <div className="compare-col">
-                  <p className="micro">Before · version 1</p>
-                  <p>{control.previous_rule_summary}</p>
-                </div>
-                <span className="compare-rel" aria-hidden="true">→</span>
-                <div className="compare-col compare-col--source">
-                  <p className="micro">After · version {control.version}</p>
-                  <p>{control.rule_summary}</p>
-                </div>
-              </div>
+              <Disclosure summary="See the wording, before and after">
+                <CompareCols
+                  before={{
+                    label: `Before · version ${control.version - 1}`,
+                    body: <p>{control.previous_rule_summary}</p>,
+                  }}
+                  after={{
+                    label: `After · version ${control.version}`,
+                    body: <p>{control.rule_summary}</p>,
+                  }}
+                />
+              </Disclosure>
             </div>
           </div>
 
@@ -1559,33 +1602,53 @@ function StepImpact({
             <span className="outcome-marker" aria-hidden="true">2</span>
             <div className="outcome-body">
               <p className="outcome-title">Dates recalculated</p>
-              {state.deadline_computations.map((computation) => {
-                const finding = state.findings.find((item) => item.id === computation.finding_id);
-                return (
-                  <div key={computation.id} className="stack-s" style={{ marginTop: "8px" }}>
-                    <p className="outcome-why">
-                      <span className="strong-ink">{computation.finding_id}</span> —{" "}
-                      {finding?.title}
-                    </p>
-                    <dl className="datalist">
-                      <DataRow label="Starts from">
-                        {computation.trigger_label}{" "}
-                        <Tag value={computation.trigger_provenance} />
-                      </DataRow>
-                      <DataRow label="Duration">
-                        {computation.duration_label}{" "}
-                        <Tag value={computation.duration_provenance} />
-                      </DataRow>
-                      <DataRow label="Due date">
-                        <span className="strong-ink">{formatDate(computation.due_date)}</span>
-                      </DataRow>
-                      <DataRow label="Get the official text">
-                        <span className="meta">{computation.citation.locator}</span>
-                      </DataRow>
-                    </dl>
-                  </div>
-                );
-              })}
+              <p className="outcome-why">
+                {computable.length} of {state.deadline_computations.length}{" "}
+                {state.deadline_computations.length === 1
+                  ? "finding now has a due date"
+                  : "findings now have a due date"}
+                {computable.length > 0 && <>, the first on {formatDate(computable[0].due_date)}</>}.
+              </p>
+              <Disclosure summary="See how each date was worked out">
+                <div className="stack">
+                  {state.deadline_computations.map((computation) => {
+                    const finding = state.findings.find((item) => item.id === computation.finding_id);
+                    return (
+                      <div key={computation.id} className="stack-s">
+                        <p className="outcome-why">
+                          <span className="strong-ink">{computation.finding_id}</span> —{" "}
+                          {finding?.title}
+                        </p>
+                        <dl className="datalist">
+                          <DataRow label="Starts from">
+                            {computation.trigger_label ?? "Not stated in the reviewed source"}{" "}
+                            {computation.trigger_provenance && (
+                              <Tag value={computation.trigger_provenance} />
+                            )}
+                          </DataRow>
+                          <DataRow label="Duration">
+                            {computation.duration_label}{" "}
+                            <Tag value={computation.duration_provenance} />
+                          </DataRow>
+                          <DataRow label="Due date">
+                            {computation.computable ? (
+                              <span className="strong-ink">{formatDate(computation.due_date)}</span>
+                            ) : (
+                              <>
+                                <span className="strong-ink">Not calculated</span>{" "}
+                                <span className="meta">— {computation.blocked_reason}</span>
+                              </>
+                            )}
+                          </DataRow>
+                          <DataRow label="Where this comes from">
+                            <span className="meta">{computation.citation.locator}</span>
+                          </DataRow>
+                        </dl>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Disclosure>
             </div>
           </div>
 
@@ -1594,31 +1657,33 @@ function StepImpact({
             <div className="outcome-body">
               <p className="outcome-title">Work assigned</p>
               <p className="outcome-why">
-                Created only from language that requires it. {state.tasks.length} mandatory{" "}
-                {state.tasks.length === 1 ? "task" : "tasks"}.
+                {state.tasks.length} mandatory {state.tasks.length === 1 ? "task" : "tasks"},
+                created only from language that requires it.
               </p>
-              <div className="table-scroll" style={{ marginTop: "8px" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">Task</th>
-                      <th scope="col">Owner</th>
-                      <th scope="col">Due in</th>
-                      <th scope="col">Why</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.tasks.map((task) => (
-                      <tr key={task.id}>
-                        <td>{task.title}</td>
-                        <td>{task.owner}</td>
-                        <td>{task.due_days} days</td>
-                        <td className="meta">{task.work_type.toLowerCase()}</td>
+              <Disclosure summary="See the tasks, owners and dates">
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Task</th>
+                        <th scope="col">Owner</th>
+                        <th scope="col" className="table-num">Due in</th>
+                        <th scope="col">Kind of work</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {state.tasks.map((task) => (
+                        <tr key={task.id}>
+                          <td>{task.title}</td>
+                          <td>{task.owner}</td>
+                          <td className="table-num">{task.due_days} days</td>
+                          <td className="meta">{workTypeOf(task.work_type)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Disclosure>
             </div>
           </div>
 
@@ -1627,16 +1692,18 @@ function StepImpact({
             <div className="outcome-body">
               <p className="outcome-title">Advisory recorded</p>
               <p className="outcome-why">
-                The {sla.vendor} SLA statement is guidance, not a mandatory SEBI task.{" "}
+                {sla.vendor}&rsquo;s {sla.committed_days}-day promise stays guidance.{" "}
                 <span className="strong-ink">No mandatory task was created from it.</span>
               </p>
-              <dl className="datalist">
-                <DataRow label="Committed">{sla.committed_days} calendar days</DataRow>
-                <DataRow label="Advisory comparison">
-                  {sla.advisory_reference_days} days
-                </DataRow>
-                <DataRow label="Recorded as"><StateLabel value={sla.status} /></DataRow>
-              </dl>
+              <Disclosure summary="See what the vendor promised">
+                <dl className="datalist">
+                  <DataRow label="What the vendor promised">{sla.committed_days} calendar days</DataRow>
+                  <DataRow label="What SEBI&rsquo;s guidance suggests">
+                    {sla.advisory_reference_days} days
+                  </DataRow>
+                  <DataRow label="Recorded as"><StateLabel value={sla.status} /></DataRow>
+                </dl>
+              </Disclosure>
             </div>
           </div>
 
@@ -1646,28 +1713,31 @@ function StepImpact({
               <p className="outcome-title">Evidence needs review</p>
               <p className="outcome-why">
                 {revalidating.length} evidence{" "}
-                {revalidating.length === 1 ? "item" : "items"} were marked for revalidation.
+                {revalidating.length === 1 ? "item" : "items"} must be reviewed again before they
+                can be relied on.
               </p>
-              <div className="table-scroll" style={{ marginTop: "8px" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">Artifact</th>
-                      <th scope="col">State</th>
-                      <th scope="col">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.evidence.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name} <span className="meta">· synthetic</span></td>
-                        <td><StateLabel value={item.status} /></td>
-                        <td className="meta">{item.reason}</td>
+              <Disclosure summary="See every evidence item and why">
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Evidence item</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Reason</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {state.evidence.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.name} <span className="meta">· synthetic</span></td>
+                          <td><StateLabel value={item.status} /></td>
+                          <td className="meta">{item.reason ? plainPhrase(item.reason) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Disclosure>
             </div>
           </div>
 
@@ -1675,92 +1745,29 @@ function StepImpact({
             <span className="outcome-marker" aria-hidden="true">6</span>
             <div className="outcome-body">
               <p className="outcome-title">Audit record sealed</p>
-              <dl className="datalist">
-                <DataRow label="Approved by">
-                  {review?.reviewer_name} · {review?.reviewer_role}
-                </DataRow>
-                <DataRow label="Approved at">{formatTimestamp(review?.decided_at)}</DataRow>
-                <DataRow label="Written reason">{review?.reason}</DataRow>
-                <DataRow label="Build">{build.id}</DataRow>
-                {state.latest_manifest && (
-                  <DataRow label="Record fingerprint">
-                    <Hash value={state.latest_manifest.manifest_sha256} />
+              <p className="outcome-why">
+                Approved by {review?.reviewer_name} ({review?.reviewer_role}) ·{" "}
+                {formatTimestamp(review?.decided_at)}
+              </p>
+              <Disclosure summary="See the sealed record">
+                <dl className="datalist">
+                  <DataRow label="Approved by">
+                    {review?.reviewer_name} · {review?.reviewer_role}
                   </DataRow>
-                )}
-              </dl>
+                  <DataRow label="Approved at">{formatTimestamp(review?.decided_at)}</DataRow>
+                  <DataRow label="Written reason">{review?.reason}</DataRow>
+                  <DataRow label="Review run">{build.id}</DataRow>
+                  {state.latest_manifest && (
+                    <DataRow label="Record fingerprint">
+                      <Hash value={state.latest_manifest.manifest_sha256} />
+                    </DataRow>
+                  )}
+                </dl>
+              </Disclosure>
             </div>
           </div>
         </div>
       </div>
-    </Panel>
-  );
-}
-
-/* ---------------------------------------------------------------------------
- * Step 5 — Export
- * ------------------------------------------------------------------------- */
-
-function StepExport({
-  build,
-  busy,
-  onDownloadReport,
-  onDownloadBeforeAfter,
-  onOpenAudit,
-}: {
-  build: BuildRun;
-  busy: boolean;
-  onDownloadReport: () => Promise<void>;
-  onDownloadBeforeAfter: () => Promise<void>;
-  onOpenAudit?: () => void;
-}) {
-  return (
-    <Panel
-      id="step-export"
-      title="5 · Export the approved record"
-      description="Generated from this build's actual state."
-      aside={<StateLabel value="APPROVED" />}
-    >
-      <AnimatePresence initial={false}>
-        <motion.div
-          className="btn-row"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={busy}
-            onClick={() => void onDownloadReport()}
-          >
-            {busy && <span className="spinner" aria-hidden="true" />}
-            Download Compliance Build Report
-          </button>
-          <button
-            type="button"
-            className="btn btn--secondary"
-            disabled={busy}
-            onClick={() => void onDownloadBeforeAfter()}
-          >
-            Download before-and-after comparison
-          </button>
-        </motion.div>
-      </AnimatePresence>
-      <p className="meta" style={{ marginTop: "12px" }}>
-        Both documents are rendered from build {build.id}. Re-generating the same approved build
-        produces a byte-identical file.
-      </p>
-      {onOpenAudit && (
-        <div className="btn-row" style={{ marginTop: "12px" }}>
-          <button
-            type="button"
-            className="btn btn--quiet btn--small"
-            onClick={onOpenAudit}
-          >
-            Continue to the Full record — every event, hash-chained →
-          </button>
-        </div>
-      )}
     </Panel>
   );
 }

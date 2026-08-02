@@ -164,12 +164,13 @@ export function RegulationMap3D({
     };
   }, [graph, reducedMotion]);
 
+  /* The key to these colours is rendered once, above the map, for both views. */
   return (
     <div
       ref={hostRef}
       className="reg-map-3d"
-      role="application"
-      aria-label="Interactive regulation impact map"
+      role="img"
+      aria-label="Regulation impact map. Not usable by keyboard — switch to the 2D map to select points."
     />
   );
 }
