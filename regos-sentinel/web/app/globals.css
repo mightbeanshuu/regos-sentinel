@@ -4397,6 +4397,10 @@ body {
 .skel-group { display: flex; flex-direction: column; gap: var(--s3); }
 .skel-group--dial { align-items: center; }
 .skel-group--row { gap: var(--s2); }
+/* Lines and stat keep the stacked base. Stated rather than inherited, so the two
+   remaining kinds cannot be restyled by accident when the base changes. */
+.skel-group--lines { gap: var(--s2); }
+.skel-group--stat { gap: var(--s2); }
 
 .skel {
   display: block;

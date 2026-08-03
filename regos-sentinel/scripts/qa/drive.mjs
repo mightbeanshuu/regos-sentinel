@@ -133,9 +133,11 @@ for (const vp of VIEWPORTS) {
         }
       }
 
-      // Clipped / overflowing panels. `.visually-hidden` is 1px by design.
+      // Clipped / overflowing panels. `.visually-hidden` is 1px by design, and a
+      // skeleton's sheen is a pseudo-element translated outside a clipped box on
+      // purpose — it reports ~2x scrollWidth and is not a layout defect.
       for (const el of document.querySelectorAll("body *")) {
-        if (!visible(el) || el.closest(".visually-hidden")) continue;
+        if (!visible(el) || el.closest(".visually-hidden") || el.closest(".skel")) continue;
         const s = getComputedStyle(el);
         if (s.overflow === "visible" && s.overflowX === "visible") continue;
         if (el.scrollWidth > el.clientWidth + 2 && s.overflowX !== "auto" && s.overflowX !== "scroll") {
