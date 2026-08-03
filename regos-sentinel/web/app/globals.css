@@ -555,7 +555,13 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 /* ---------- Tables -------------------------------------------------------- */
 
 .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 520px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+
+/* A table earns a floor width only when something can scroll it. Applied to every
+   table, the same 520px pushed the unwrapped tables in the full record past a
+   phone's viewport — and `body { overflow-x: hidden }` then clipped that overflow
+   out of reach rather than letting it scroll. Cramped but readable beats absent. */
+.table-scroll table { min-width: 520px; }
 thead th {
   text-align: left; font-weight: 640; color: var(--ink-2);
   background: var(--bg-2);
@@ -2799,6 +2805,8 @@ body {
 
 .timeline-node--review { border-color: var(--review); }
 .timeline-node--ok { border-color: var(--ok); }
+/* An event carrying no state reads as a plain rule, never as an accent one. */
+.timeline-node--neutral { border-color: var(--line-2); }
 
 .audit-replay {
   background: oklch(0.20 0.025 255);
@@ -4157,6 +4165,9 @@ body {
 .jr-progress-item--current .jr-progress-index { border-color: var(--accent); background: var(--accent); color: #fff; }
 .jr-progress-item--blocked { color: var(--review); }
 .jr-progress-item--blocked .jr-progress-index { border-color: var(--review); background: var(--review-wash); color: var(--review); }
+/* A step not yet reached keeps the muted base. Stated rather than inherited, so
+   that changing the base cannot silently restyle the fourth state. */
+.jr-progress-item--upcoming { color: var(--ink-3); }
 @media (max-width: 640px) {
   .jr-progress { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .jr-progress-item { min-width: 0; }
@@ -4356,6 +4367,10 @@ body {
 .legend-dot--fail    { background: var(--fail); }
 .legend-dot--accent  { background: var(--accent); }
 .legend-dot--neutral { background: var(--line-2); }
+/* The chip is `nowrap` so the dot, word and figure never split across lines. A
+   long label must therefore be allowed to shrink instead of widening the chip
+   past its container. */
+.legend-label { min-width: 0; }
 
 /* ---------- Count pill — generalised from `.cmd-nav-count` ----------------- */
 

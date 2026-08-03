@@ -1,0 +1,41 @@
+/* Owned by the assistants workstream. Rules here load AFTER globals.css, so they may
+   override it without editing it. Never edit globals.css from this workstream. */
+
+/* ---------- Read-only checks, not an AI control room -----------------------
+   A compliance officer should meet the finding first. Planner mode, the live
+   log, the model identity and the replay mechanics are all still here — they sit
+   in one Technical details disclosure at the end instead of leading the page. */
+
+.axc-page { max-width: 1080px; margin: 0 auto; }
+
+/* The pipeline states the product's whole claim in three words: agents read,
+   deterministic rules decide, a person approves. It is a caption, not a control. */
+.ag-node-word {
+  font-size: 0.8125rem;
+  font-weight: 640;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* The lead slot: the latest real result if one exists, otherwise the four
+   available checks and one action. Never a wall of zeroes. */
+.axc-lead { border-color: var(--accent-line); }
+.axc-lead .section-title { margin: 0; }
+
+.axc-card-actions {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+/* Everything an auditor needs, one level down and out of the reading path. */
+.axc-tech { gap: var(--s5); }
+.axc-tech .console-body { max-height: 260px; overflow-y: auto; }
+
+@media (max-width: 640px) {
+  .axc-card-actions > .btn { width: 100%; justify-content: center; }
+}

@@ -1,0 +1,104 @@
+/* Owned by the upload workstream. Rules here load AFTER globals.css, so they may
+   override it without editing it. Never edit globals.css from this workstream. */
+
+/* ---------- Choose a file before reading implementation detail -------------
+   One calm column, one control. Handling, authority, OCR state and the section
+   rail only exist once a document does — before that they describe nothing, and
+   a rail pointing at empty sections is what made this screen feel heavy. */
+
+.upload-solo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--s6) 0 var(--s8);
+}
+
+.upload-lede { max-width: 56ch; }
+
+.upload-choice { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* One target. It is the drop zone and the file picker at the same time, so the
+   screen never shows two controls that look like two different upload paths. */
+.upload-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s8) var(--s5);
+  border: 1px dashed var(--accent-line);
+  border-radius: var(--radius-lg);
+  background: var(--accent-wash);
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--t-micro, 120ms) var(--ease, ease),
+    background var(--t-micro, 120ms) var(--ease, ease);
+}
+.upload-gate:hover { border-color: var(--accent); background: var(--surface); }
+.upload-gate:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.upload-gate[aria-busy="true"] { cursor: progress; }
+
+/* Dragging a file over the page is the same act as clicking; it reads the same. */
+.upload-gate--over { border-color: var(--accent); border-style: solid; background: var(--surface); }
+
+.upload-gate-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+
+.upload-gate-action {
+  font-size: 1.0625rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.upload-gate-hint {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.upload-alt { margin: 0; text-align: center; font-size: 0.875rem; color: var(--ink-3); }
+
+/* A text link, not a second button — it must not compete with the one control. */
+.upload-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.upload-link:hover { color: var(--accent-deep); }
+.upload-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* The safety boundary stays on the first screen. It is short here and stated in
+   full once a document exists — shortened, never removed. */
+.upload-promise {
+  margin: 0;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .upload-solo { padding: var(--s4) 0 var(--s7); gap: var(--s5); }
+  .upload-gate { padding: var(--s6) var(--s4); }
+}

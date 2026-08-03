@@ -1,0 +1,7 @@
+{
+  "name": "regos-qa",
+  "private": true,
+  "type": "module",
+  "description": "Phase 6 validation harness for the RegOS Sentinel web app.",
+  "dependencies": { "playwright-core": "^1.49.0" }
+}

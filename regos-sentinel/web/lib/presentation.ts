@@ -452,6 +452,78 @@ const PHRASES: Record<string, string> = {
     "None. No passage of this circular has been read or sorted.",
   "Measured on the committed extraction cache for the reviewed FAQ scope, on one model at temperature 0. It is a prototype measurement over a small pinned input, not a statement about model accuracy in general.":
     "Measured on the saved reading of the reviewed FAQ, using one model with its settings fixed. It is a prototype measurement over a small, pinned input — not a claim about how accurate the model is in general.",
+
+  // ---- Source packs and coverage -----------------------------------------
+  // These reached the Full record tab in the engine's own vocabulary: span,
+  // corpus, gate, schema, seeded, metadata. The backend keeps its wording; only
+  // the reading changes.
+  "Nine pinned spans support the Q14–Q25 demo scenarios; the pack does not represent the entire FAQ.":
+    "Nine passages, each checked by a person, support the worked examples. This pack is not the whole FAQ.",
+  "Nine human-verified spans used for the Q14–Q25 prototype scenarios":
+    "Nine passages, each checked by a person, used for the worked examples",
+  "Q14–Q25 and Preface ¶4. Obligation extraction is limited to Q15, Q17(a) and Q17(b); the remaining spans supply applicability and calendar facts.":
+    "Q14–Q25 and Preface ¶4. Duties are drawn only from Q15, Q17(a) and Q17(b); the other passages supply who a rule applies to and the calendar facts.",
+  "Version-pinned expansion target. Source identity is registered, while zero spans or obligations are presented as processed in this prototype.":
+    "Held for a later version. The source is registered, but no passage and no duty from it has been processed in this prototype.",
+  "Read and segmented from the 5 May 2026 advisory. Not compiled into this entity's control register — the advisory is registered as a second reviewed source and Case D compares the reviewed corpus against it.":
+    "Read and split into passages from the 5 May 2026 advisory. Not written into this firm's control register — the advisory is registered as a second reviewed source, and Case D compares the reviewed material against it.",
+  "Duration is explicit; clock-start remains unresolved in this FAQ span.":
+    "The document states how long, but this passage never states what starts the clock.",
+  "The reporting-format dependency is tracked for evidence-schema mapping; the prototype performs no regulatory filing.":
+    "The reporting format is tracked so evidence fields can be mapped to it. The prototype files nothing with a regulator.",
+
+  // ---- The fixed checks ("gates") and the shape they enforce ---------------
+  "Q15 and Q17 obligation candidates; deterministic gates remain authoritative":
+    "Draft duties from Q15 and Q17. The fixed rules remain the deciding check.",
+  "No requirement has cleared the gates yet":
+    "No requirement has cleared the fixed checks yet",
+  "Not compiled. No requirement from this passage has cleared the gates.":
+    "Not compiled. No requirement from this passage has cleared the fixed checks.",
+  "Passages that create duties are turned into structured, schema-validated candidates.":
+    "Passages that create duties become draft requirements, each checked against the shape a requirement must have.",
+  "Reject any proposal that does not fit the obligation schema exactly.":
+    "Reject any proposal that does not have exactly the fields a requirement must have.",
+  "Schema validation": "Required-fields check",
+  "Regulatory gates": "Regulatory checks",
+  "The model returned no trigger and the gates published no date from the source. Any trigger now present came from a person and is labelled as such.":
+    "The model named nothing that starts the clock, and the fixed checks published no date from the source. Any clock-start shown now came from a person, and is labelled that way.",
+  "A verified chain proves the trace was not edited after the fact. It does not prove the agent was right — that is what the gates are for.":
+    "A verified seal proves the record was not edited afterwards. It does not prove the assistant was right — that is what the fixed checks are for.",
+
+  // ---- What the model proposed --------------------------------------------
+  // The engine writes the programming literal `null` here. A reader is owed a
+  // sentence, not a value from a data structure.
+  "null — model declined to state one": "No value — the model declined to state one",
+
+  // ---- Measurement notes on the prototype ---------------------------------
+  "Agent steps recorded, and how many verified against their hash chain":
+    "Assistant steps recorded, and how many were verified against their tamper-evident seal",
+  "One find on one corpus. It says the check works, not that the corpus is clean.":
+    "One find, in one set of sources. It says the check works — not that the sources are clean.",
+  "Observed on one seeded case; the build stopped and waited for a person (12 checks ran, none of them produced a date).":
+    "Observed on one prepared case; the run stopped and waited for a person (12 checks ran, none of them produced a date).",
+  "Task creation is deterministic; the count follows the seeded findings.":
+    "Follow-up work is created by fixed rules; the count follows the findings already loaded.",
+  "Metadata only. No evidence file is read, stored or validated.":
+    "File details only. No evidence file is read, stored or checked.",
+  "Synthetic evidence metadata attached to the changed control.":
+    "Stand-in evidence details attached to the changed control.",
+  "Both sides are real SEBI documents; the newer one's English extraction is partial and its gaps are declared on the corpus pack.":
+    "Both sides are real SEBI documents. The newer one's English text was only partly readable, and its gaps are declared on the source pack.",
+  "Every figure below was measured on this prototype, against synthetic entity and evidence data and a small reviewed source scope. None of it is a production accuracy claim, a statement about any firm's compliance, or a statistical sample of the SEBI corpus.":
+    "Every figure below was measured on this prototype, against stand-in firm and evidence data and a small set of reviewed sources. None of it is a production accuracy claim, a statement about any firm's compliance, or a representative sample of everything SEBI publishes.",
+
+  // ---- How the parts divide the work --------------------------------------
+  "RegOS uses AI to propose structure, deterministic rules to enforce safety, and a human to approve material interpretation.":
+    "RegOS uses AI to propose structure, fixed rules to enforce safety, and a person to approve any interpretation that carries weight.",
+  "A second opinion alongside the deterministic timing rule. Where the two disagree, the disagreement is shown to a person; the model never overrules the rule.":
+    "A second opinion alongside the fixed timing rule. Where the two disagree, the disagreement is shown to a person; the model never overrules the rule.",
+
+  // ---- Restarting the demonstration ---------------------------------------
+  "Restart demo returns the workspace to the unreviewed seeded state.":
+    "Restart demo returns the workspace to its starting state, with nothing reviewed.",
+  "Restart demo returns the entity facts to the seeded profile.":
+    "Restart demo returns the firm's details to the starting profile.",
 };
 
 export function plainPhrase(text: string): string {

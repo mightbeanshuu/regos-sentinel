@@ -1,0 +1,300 @@
+/* Owned by the review workstream. Rules here load AFTER globals.css, so they may
+   override it without editing it. Never edit globals.css from this workstream. */
+
+/* ==========================================================================
+   The worked-example bar
+   The demonstration catalogue used to be four large cards and a prediction
+   table standing between the officer and the source. It is now one line: which
+   example is loaded, how it last ran, and a quiet way to load another. The
+   catalogue and the methodology open from their own triggers.
+   ========================================================================== */
+
+.xcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.xcase-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* The badge earns less room here than on a card: it is an index, not a title. */
+.xcase-badge {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 0.9375rem;
+}
+
+.xcase-headings {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.xcase-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+  margin: 0;
+}
+/* This sentence is the question the whole example exists to answer, so it wraps
+   rather than ellipsising. It was truncating at 1024px and 768px, where the bar
+   is still wide enough to read but too narrow for one line. */
+.xcase-q {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* `.cp-chip` carries `margin-top: auto` for card footers; in a row that would
+   drop it to the baseline. */
+.xcase-chip {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.xcase-switch {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.xcase-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-2);
+}
+.xcase-sheet .cp-card { background: var(--surface); }
+
+@media (max-width: 640px) {
+  .xcase-switch { margin-left: 0; width: 100%; }
+  .xcase-chip { order: 4; }
+}
+
+/* ==========================================================================
+   Stage 0 — the case
+   Context for the five stages, so it carries no action and no number.
+   ========================================================================== */
+
+.jr-case-strip {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: var(--s2) var(--s4);
+}
+
+/* ==========================================================================
+   Stage 1 — the source sheet
+   One object: the document it came from, the passage under review, and the two
+   supporting proofs (official link, document check code). Exactly one primary
+   action lives at its foot.
+   ========================================================================== */
+
+.src {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.src-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.src-head-text {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.src-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink);
+  margin: 0;
+  text-wrap: pretty;
+}
+.src-open { flex: 0 0 auto; }
+
+/* Proofs sit on one hairline strip beneath the quotation: present, inspectable,
+   and clearly subordinate to the passage above them. */
+.src-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+  flex-wrap: wrap;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.src-check {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.src-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 1 1 240px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.src-verify { flex: 0 0 auto; margin-left: auto; }
+
+@media (max-width: 640px) {
+  .src-verify { margin-left: 0; width: 100%; }
+}
+
+/* The stage's one forward action, and the sentence that says what it does. */
+.jr-next {
+  display: flex;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+  flex-wrap: wrap;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.jr-next .meta { flex: 1 1 240px; min-width: 0; margin: 0; }
+
+/* ==========================================================================
+   Stage 2 — source beside firm practice
+   Two columns from 860px, stacked below it, with the relationship between them
+   named in words between the two.
+   ========================================================================== */
+
+.vs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--s4);
+}
+
+.vs-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.vs-col--source { background: var(--bg-2); }
+
+.vs-body { min-width: 0; }
+.vs-body--quote {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.vs-col p { margin: 0; }
+.vs-col .strong-ink { font-size: 0.9375rem; line-height: 1.55; }
+
+/* The relationship: a hairline that connects the two columns, and the verdict
+   the run reached, in words. Never colour alone. */
+.vs-rel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+  width: 132px;
+  color: var(--ink-3);
+}
+.vs-line {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+  transform-origin: left center;
+}
+.vs-verdict {
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: center;
+  color: currentColor;
+}
+
+.vs--ok .vs-rel { color: var(--ok); }
+.vs--review .vs-rel { color: var(--review); }
+.vs--fail .vs-rel { color: var(--fail); }
+.vs--review .vs-col--firm { border-color: var(--review-line); }
+.vs--fail .vs-col--firm { border-color: var(--fail-line); }
+.vs--ok .vs-col--firm { border-color: var(--ok-line); }
+
+/* The absent source fact, in the normal reading path. */
+.vs-note {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  border-left: 2px solid var(--review-line);
+  padding-left: var(--s3);
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .vs { grid-template-columns: minmax(0, 1fr); }
+  .vs-rel { width: 100%; flex-direction: row; }
+  .vs-line { width: 24px; flex: 0 0 24px; }
+}
+
+/* --------------------------------------------------------------------------
+   Motion: 240ms, once, on the comparison's first appearance. It draws the
+   relationship the run just established — source to firm practice — and settles
+   on the verdict word. It never loops and it never gates reading: the resting
+   state is the visible state.
+   -------------------------------------------------------------------------- */
+
+@keyframes vs-line-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes vs-verdict-settle {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.vs .vs-line {
+  animation: vs-line-draw 240ms var(--ease) both;
+}
+.vs .vs-verdict {
+  animation: vs-verdict-settle 220ms var(--ease) 140ms both;
+}
+
+/* Two independent switches, because either one alone can be wrong: the hook
+   reflects the OS setting at render time, the media query reflects it live. */
+.vs--still .vs-line,
+.vs--still .vs-verdict {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs .vs-line,
+  .vs .vs-verdict { animation: none; }
+}

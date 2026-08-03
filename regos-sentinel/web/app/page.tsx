@@ -317,16 +317,10 @@ export default function Home() {
                     {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
                     {" · synthetic demo profile"}
                   </p>
-                  <div className="profile-menu-actions">
-                    <button
-                      type="button"
-                      className="btn btn--secondary btn--small"
-                      disabled={busy || sourceBusy}
-                      onClick={() => void restart()}
-                    >
-                      Reset this profile and clear the demo
-                    </button>
-                  </div>
+                  {/* No reset here. It is the same `restart()` as the header's
+                      "Restart demo", and one destructive operation wearing two
+                      labels in two places is how a demo gets wiped by accident.
+                      This menu states who the firm is; the header acts. */}
                   <p className="meta">
                     This demo has one synthetic broker profile. In a live deployment each
                     broker would have their own.

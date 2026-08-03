@@ -1,0 +1,221 @@
+/* Owned by the record workstream. Rules here load AFTER globals.css, so they may
+   override it without editing it. Never edit globals.css from this workstream.
+
+   The Full record tab no longer renders `.jr-shell` / `.jr-sidenav`. Those classes
+   are shared with the guided review and the own-document review, and a rework of
+   either one has already broken this tab once. Everything below is prefixed `rec-`
+   and is used by exactly one component: components/AuditTrail.tsx. */
+
+/* ---------- Page shell ------------------------------------------------------
+   One calm reading column. The record is prose and tables, not a dashboard, so
+   it takes the same measure as the guided review's solo column rather than the
+   full 1280px page. Wide tables still scroll inside their own `.table-scroll`. */
+
+.rec-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  max-width: 1080px;
+  margin-inline: auto;
+  /* No entrance animation. The old `.jr-body` slid this page up on every mount;
+     an audit record must be still when it is read. */
+  animation: none;
+}
+
+/* ---------- On this page ----------------------------------------------------
+   The only navigation on this tab, and the only section navigation in the
+   product. Three destinations, one hairline strip — it names the reading levels
+   rather than repeating every heading below it. */
+
+.rec-toc {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3) var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s3) 0;
+  border-block: 1px solid var(--line);
+}
+
+.rec-toc-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+.rec-toc-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rec-toc-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s2);
+  min-height: 32px;
+  padding: var(--s1) var(--s3);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.rec-toc-item:hover {
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.rec-toc-index {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-toc-item:hover .rec-toc-index { color: var(--accent); }
+
+/* ---------- Levels ---------------------------------------------------------- */
+
+.rec-level {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  /* Anchored scrolling has to clear the sticky header and tab strip. */
+  scroll-margin-top: calc(var(--header-h, 64px) + 64px);
+}
+
+.rec-level-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-width: 68ch;
+}
+
+.rec-level-index {
+  /* The level number is an index, not a status. It never takes a semantic colour. */
+  color: var(--ink-3);
+}
+
+.rec-level-head .section-title { margin: 0; }
+
+/* ---------- Folds -----------------------------------------------------------
+   Single-open accordions. They reuse the shared `details.disclosure` shell, so
+   only the summary line's second column is defined here. */
+
+.rec-folds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+details.disclosure.rec-fold > summary {
+  flex-wrap: wrap;
+  align-items: baseline;
+  padding: var(--s4);
+}
+
+.rec-fold-title {
+  flex: 1 1 22ch;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+.rec-fold-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 450;
+  color: var(--ink-3);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .rec-fold-meta { flex-basis: 100%; text-align: left; }
+}
+
+/* ---------- Source rows -----------------------------------------------------
+   Each source keeps every field it had in the old table; the machine identity
+   (publisher, legal state, extraction scope, fingerprint) expands from its own
+   trigger on the row it belongs to. */
+
+.rec-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rec-source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+
+.rec-source-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.rec-source .disclosure { background: var(--surface); }
+
+/* ---------- Small lists ------------------------------------------------------ */
+
+.rec-plain-list,
+.rec-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rec-plain-list > li + li {
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
+.rec-check-list > li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+}
+
+.rec-plain-list p,
+.rec-check-list p { margin: 0; }
+
+/* ---------- Motion ----------------------------------------------------------
+   None by default on this tab. Reading and audit data stay still; the only
+   movement is the disclosure marker on a control the reader pressed. */
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-page,
+  .rec-toc-item,
+  details.disclosure.rec-fold > summary::after {
+    animation: none;
+    transition: none;
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { regosApi } from "../lib/api";
@@ -160,6 +161,50 @@ interface DocumentReviewProps {
   onRunAssistants?: (documentId: string) => void;
 }
 
+/** The file a person has just chosen, before the server has read it. */
+interface PendingFile {
+  name: string;
+  size: number;
+}
+
+/**
+ * The chosen filename as a sheet of paper. This is the same geometry the uploaded
+ * document lands in, so the file the reader picked becomes the document they read
+ * rather than being replaced by it.
+ *
+ * The final state is the resting state: the name and size are painted immediately
+ * and never depend on a transition finishing. Under reduced motion the entrance and
+ * the scanning rule are dropped, and the sentence "Preparing passages for review"
+ * carries the state on its own.
+ */
+function SourceSheet({
+  file,
+  preparing,
+  stillness,
+}: {
+  file: PendingFile;
+  preparing: boolean;
+  stillness: boolean;
+}) {
+  return (
+    <div
+      className={`panel upload-sheet${stillness ? " upload-sheet--still" : ""}`}
+      role="status"
+    >
+      <p className="upload-sheet-name">{file.name}</p>
+      <p className="upload-sheet-meta">PDF · {formatBytes(file.size)}</p>
+      {preparing && (
+        <p className="upload-sheet-state">
+          {!stillness && (
+            <span className="upload-sheet-bar" aria-hidden="true"><span /></span>
+          )}
+          Preparing passages for review
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function DocumentReview({
   documents,
   limits,
@@ -174,14 +219,15 @@ export function DocumentReview({
   const [dragging, setDragging] = useState(false);
   const [authority, setAuthority] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingFile | null>(null);
+  const [rejected, setRejected] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const stillness = useReducedMotion() ?? false;
 
   const active = useMemo(
     () => documents.find((item) => item.id === selectedId) ?? documents.at(-1) ?? null,
     [documents, selectedId],
   );
-
-  const maxMb = limits ? Math.round(limits.max_bytes / (1024 * 1024)) : 5;
 
   const upload = useCallback(
     async (file: File) => {
@@ -198,10 +244,37 @@ export function DocumentReview({
       } catch (caught) {
         onError(plainError(caught, "That upload could not be processed."));
       } finally {
+        setPending(null);
         onBusy(false);
       }
     },
     [authority, onBusy, onChanged, onError],
+  );
+
+  /**
+   * One entry point for both halves of the single control — the picker and the drop.
+   * The two limits the server publishes are checked here first, so a file that cannot
+   * be read is named as an expected correction rather than returning as a server error.
+   */
+  const accept = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) return;
+      setRejected(null);
+      const looksLikePdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      if (!looksLikePdf) {
+        setRejected(`“${file.name}” is not a PDF. RegOS reads PDF files only.`);
+        return;
+      }
+      if (limits && file.size > limits.max_bytes) {
+        setRejected(
+          `“${file.name}” is ${formatBytes(file.size)}. The most this prototype accepts is ${formatBytes(limits.max_bytes)}.`,
+        );
+        return;
+      }
+      setPending({ name: file.name, size: file.size });
+      void upload(file);
+    },
+    [limits, upload],
   );
 
   const mutate = useCallback(
@@ -243,15 +316,128 @@ export function DocumentReview({
   const jumpTo = (selector: string) =>
     window.document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  /**
+   * The one upload control. The whole surface is the button, and the same surface
+   * takes the drop, so there is a single visible path to a file — never a bare
+   * browser picker sitting beside a styled one.
+   */
+  const chooser = (
+    <>
+      <button
+        type="button"
+        className={`upload-gate${dragging ? " upload-gate--over" : ""}`}
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+          accept(event.dataTransfer.files?.[0]);
+        }}
+      >
+        <span className="upload-gate-mark" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 3v5h5" />
+            <path d="M12 17v-5" />
+            <path d="M9.5 14.5 12 12l2.5 2.5" />
+          </svg>
+        </span>
+        <span className="upload-gate-action">Choose a PDF</span>
+        <span className="upload-gate-hint">
+          or drag it here
+          {limits && (
+            <> · PDF only · up to {formatBytes(limits.max_bytes)} · up to {limits.max_pages} pages</>
+          )}
+        </span>
+      </button>
+      {/* The surface above is the control. This input is out of the tab order and
+          hidden from assistive technology, so nobody is offered a second picker. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="visually-hidden"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          accept(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+    </>
+  );
+
+  const feedback = (
+    <>
+      {error && <p className="banner" role="alert"><span aria-hidden="true">✕</span>{error}</p>}
+      {rejected && (
+        <Callout tone="review" title="Choose a different file">
+          <p>{rejected}</p>
+        </Callout>
+      )}
+    </>
+  );
+
+  /* ---- Before a document exists: one sentence, one control, one link -------
+     No rail, no fingerprint, no OCR state, no authority field. Everything the
+     product owes the reader about handling this file is reachable the moment
+     the file exists, under "How this document is handled". */
+  if (documents.length === 0) {
+    return (
+      <div className="upload-solo">
+        <section className="stack-s">
+          <h1 className="page-title">Review a document</h1>
+          <p className="lede upload-lede">
+            Choose a PDF you are allowed to share. RegOS will show the passages that need a
+            person&rsquo;s reading.
+          </p>
+        </section>
+
+        {feedback}
+
+        {pending ? (
+          <SourceSheet file={pending} preparing stillness={stillness} />
+        ) : (
+          <div className="upload-choice">
+            {chooser}
+            <p className="upload-alt">
+              <button type="button" className="upload-link" onClick={onUseGuidedExample}>
+                Use the guided example
+              </button>
+            </p>
+          </div>
+        )}
+
+        {/* Shorter than it was, and still the whole promise: session-scoped, and
+            never mandatory work without a named person. */}
+        <p className="upload-promise">
+          Your file stays in this browser session only — nothing is saved after you close this
+          tab, and nothing in it becomes mandatory work until a named person approves it.
+        </p>
+      </div>
+    );
+  }
+
+  /* ---- A document exists: now the rail, the handling, and the review ------ */
+  const sections: Array<[string, string]> = [
+    ["#doc-sheet", "This document"],
+    ["#doc-score", "Deadline clarity"],
+    ["#doc-passages", "Passages"],
+    ["#doc-handling", "How it is handled"],
+    ["#doc-limits", "Limitations"],
+  ];
+  if (documents.length > 1) sections.splice(1, 0, ["#doc-list", "All documents"]);
+
   return (
     <div className="jr-shell">
       <aside className="jr-sidenav" aria-label="Document sections">
-        {([
-          ["#doc-add", "Add a document"],
-          ["#doc-list", "Documents"],
-          ["#doc-score", "Deadline clarity"],
-          ["#doc-limits", "Limitations"],
-        ] as const).map(([target, label]) => (
+        {sections.map(([target, label]) => (
           <button key={target} type="button" className="side-item" onClick={() => jumpTo(target)}>
             <span className="side-item-label">{label}</span>
           </button>
@@ -259,14 +445,18 @@ export function DocumentReview({
       </aside>
       <div className="stack-l jr-body">
       <section className="stack-s">
-        <h1 className="page-title">Review your regulatory document</h1>
+        <h1 className="page-title">Review a document</h1>
         <p className="lede">
-          Upload a PDF you are allowed to share. RegOS records its fingerprint, reads each
-          passage, and sends anything uncertain to you to decide.
+          These are the passages RegOS read in your file. Anything it could not settle is
+          waiting for your reading.
         </p>
       </section>
 
-      {documents.length > 0 && (
+      {feedback}
+
+      {pending && <SourceSheet file={pending} preparing stillness={stillness} />}
+
+      {documents.length > 1 && (
         <StatRow glass>
           <Stat value={documents.length} label="Documents in session" />
           <Stat
@@ -297,91 +487,6 @@ export function DocumentReview({
           />
         </StatRow>
       )}
-
-      <Callout tone="review">
-        <p>
-          Nothing is saved after you close this tab. Passages are sorted by fixed rules, not by
-          AI, and none of it is legal advice. Nothing becomes mandatory work until a named
-          person approves it.
-        </p>
-        {limits && (
-          <p className="meta">
-            {limits.ocr_available
-              ? "Scanned pages are machine-read (OCR); recovered text is always labelled machine-read."
-              : "Machine reading (OCR) is switched off here — scanned pages stay unread."}
-          </p>
-        )}
-      </Callout>
-
-      {error && <p className="banner" role="alert"><span aria-hidden="true">✕</span>{error}</p>}
-
-      {/* ---- Upload -------------------------------------------------- */}
-      <Panel id="doc-add" title="Add a document">
-        <div className="stack">
-          <div
-            className={`dropzone${dragging ? " dropzone--active" : ""}${busy ? " dropzone--scanning" : ""}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              const file = event.dataTransfer.files?.[0];
-              if (file) void upload(file);
-            }}
-          >
-            <p className="sub-title">Drag a PDF here</p>
-            <p className="meta">
-              PDF only · up to {maxMb} MB · up to {limits?.max_pages ?? 40} pages
-            </p>
-            {/* The visible "Choose PDF" button is the real control. This input is out
-                of the tab order and unnamed, so assistive technology does not announce
-                a control nobody can reach. */}
-            <input
-              ref={inputRef}
-              type="file"
-              accept="application/pdf,.pdf"
-              className="visually-hidden"
-              tabIndex={-1}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void upload(file);
-                event.target.value = "";
-              }}
-            />
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy}
-                onClick={() => inputRef.current?.click()}
-              >
-                {busy && <span className="spinner" aria-hidden="true" />}
-                Choose PDF
-              </button>
-              <button type="button" className="btn btn--quiet" onClick={onUseGuidedExample}>
-                Use the guided SEBI example instead
-              </button>
-            </div>
-          </div>
-
-          <Field
-            label="Authority, if you know it"
-            hint="Recorded as information you typed in. RegOS never treats it as proof that the document is official."
-          >
-            {(aria) => (
-              <input
-                {...aria}
-                value={authority}
-                onChange={(event) => setAuthority(event.target.value)}
-                placeholder="For example: SEBI, RBI, internal policy"
-              />
-            )}
-          </Field>
-        </div>
-      </Panel>
 
       {documents.length > 1 && (
         <Panel id="doc-list" title="Documents in this session" tight>
@@ -461,6 +566,72 @@ export function DocumentReview({
           onBusy={onBusy}
         />
       )}
+
+      {/* ---- Everything the pre-upload screen used to say, kept in full ---- */}
+      {active && (
+        <Panel
+          id="doc-handling"
+          title="How this document is handled"
+          description="The same limits that applied before you chose the file, now against the file you chose."
+        >
+          <dl className="datalist">
+            <DataRow label="Where your file is kept">
+              {limits?.retention
+                ?? "This browser session only. Nothing is saved after you close this tab."}
+            </DataRow>
+            <DataRow label="How the passages were sorted">
+              By fixed rules, not by AI. Anything the rules cannot settle is marked as needing
+              your reading rather than being decided for you.
+            </DataRow>
+            {limits && (
+              <DataRow label="Scanned pages">
+                {limits.ocr_available
+                  ? "Machine-read (OCR). Recovered text is always labelled machine-read, and never treated as if the authority had typed it."
+                  : "Machine reading (OCR) is switched off here, so scanned pages stay unread. No content is invented for them."}
+              </DataRow>
+            )}
+            <DataRow label="Authority">
+              {active.authority_label}{" "}
+              <span className="meta">
+                · stated by the uploader, not verified by RegOS
+              </span>
+            </DataRow>
+            <DataRow label="Legal limits">
+              None of this is legal advice, and nothing in this document becomes mandatory work
+              until a named person approves it.
+            </DataRow>
+          </dl>
+        </Panel>
+      )}
+
+      <Panel
+        id="doc-add"
+        title="Add another document"
+        description="Each document keeps its own passages, review record and limitations."
+      >
+        <div className="stack">
+          {pending ? (
+            <SourceSheet file={pending} preparing stillness={stillness} />
+          ) : (
+            <div className="upload-choice upload-choice--compact">{chooser}</div>
+          )}
+          {/* Authority is an upload-time input the API records once, so it lives with
+              the control that sends it — never as a field the first screen explains. */}
+          <Field
+            label="Authority for the document you add next, if you know it"
+            hint="Recorded as information you typed in. RegOS never treats it as proof that the document is official."
+          >
+            {(aria) => (
+              <input
+                {...aria}
+                value={authority}
+                onChange={(event) => setAuthority(event.target.value)}
+                placeholder="For example: SEBI, RBI, internal policy"
+              />
+            )}
+          </Field>
+        </div>
+      </Panel>
     </div>
     </div>
   );
@@ -552,6 +723,7 @@ function DocumentDetail({
       <div id="doc-score"><ModelScorecard document={document} /></div>
 
       <Panel
+        id="doc-sheet"
         title={document.filename}
         aside={<StateLabel value={document.state} showHint />}
       >

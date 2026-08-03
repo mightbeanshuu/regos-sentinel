@@ -3,6 +3,16 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 
+/* One file per surface, loaded after the design system so a surface can override
+   it without editing it. `globals.css` holds classes shared by several tabs —
+   `.jr-shell`/`.jr-sidenav` are used by three — so editing it from one surface's
+   workstream silently breaks the others. These files keep that from happening. */
+import "./parts/dashboard.css";
+import "./parts/review.css";
+import "./parts/upload.css";
+import "./parts/assistants.css";
+import "./parts/record.css";
+
 export const metadata: Metadata = {
   title: "RegOS Sentinel — Compliance Review",
   description:

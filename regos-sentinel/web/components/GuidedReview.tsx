@@ -35,13 +35,30 @@ import {
 import { IncidentReportingClock } from "./IncidentReportingClock";
 import { RegulationMap } from "./impact/RegulationMap";
 
+/**
+ * The five stages, in the officer's words. This array is the single source of
+ * truth: the progress line and the section headings both read from it, so a
+ * rename can never leave the two disagreeing.
+ *
+ * "Read the source" replaced "Get the official text" — the text is already
+ * here; the job is to read the passage that was cited.
+ */
 const STEPS = [
-  "Get the official text",
+  "Read the source",
   "Compare",
-  "Your decision",
+  "Make a decision",
   "What changes",
-  "Download proof",
+  "Download record",
 ] as const;
+
+/** One heading grammar for every stage, numbered from the same array. */
+function StageHead({ index }: { index: number }) {
+  return (
+    <h2 className="jr-h">
+      <span>{index + 1}.</span> {STEPS[index]}
+    </h2>
+  );
+}
 
 type StepState = "upcoming" | "current" | "done" | "blocked";
 
@@ -131,8 +148,24 @@ export function GuidedReview(props: GuidedReviewProps) {
     (status) => status === "current" || status === "blocked",
   );
 
-  const jumpTo = (selector: string) =>
-    window.document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  /* How the source and the firm's practice relate, read from the run's own
+     status — never inferred from a count. Amber is the expected human-input
+     state; red is only ever a build that actually failed its checks. */
+  const relation: { word: string; tone: "ok" | "review" | "fail" | "neutral" } = approved
+    ? { word: "Matches", tone: "ok" }
+    : blocked
+      ? { word: "Needs your decision", tone: "review" }
+      : build?.status === "FAILED"
+        ? { word: "Check failed", tone: "fail" }
+        : { word: "Compared", tone: "neutral" };
+
+  /* The firm's rule as it stands right now: before approval that is the wording
+     the control carried into this review; after approval it is the new version. */
+  const firmRule = control
+    ? approved
+      ? control.rule_summary
+      : control.previous_rule_summary ?? control.rule_summary
+    : null;
 
   return (
     <div className="jr-shell jr-shell--solo">
@@ -172,135 +205,217 @@ export function GuidedReview(props: GuidedReviewProps) {
           the officer focused on the next accountable action rather than a wall
           of locked cards. */}
       <div className="stack-l">
+          {/* Context, not a stage: it carries no action and no number, so the five
+              numbered headings below match the five items in the progress line. */}
           <section className="jr-sect" id="jr-s0">
-            <h2 className="jr-h"><span>0.</span> The case</h2>
-            <div className="jr-doccard jr-doccard--left">
-              {/* The card is a flex column that packs to content; the facts list
-                  keeps the card's full width so its rows never go ragged. */}
-              <dl className="datalist" style={{ alignSelf: "stretch" }}>
-                <DataRow label="Firm">
-                  <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
-                  <span className="meta">
-                    · {state.entity_profile.cscrf_category} · Synthetic demo data
-                  </span>
-                </DataRow>
-                <DataRow label="Rule in force today">
-                  {control ? (
-                    <>
-                      <span className="strong-ink">{control.id}</span>{" "}
-                      <span className="meta">
-                        — {control.previous_rule_summary ?? control.rule_summary}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="meta">No control recorded for this firm yet.</span>
-                  )}
-                </DataRow>
-                <DataRow label="What changed">
-                  <span className="strong-ink">
-                    {state.findings.length} high-severity finding
-                    {state.findings.length === 1 ? "" : "s"}
-                  </span>
-                  {state.findings.length > 0 && (
-                    <ul className="stack-s" style={{ marginTop: "4px" }}>
-                      {state.findings.map((finding) => (
-                        <li key={finding.id} className="meta">
-                          {finding.id} — {finding.title}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </DataRow>
-              </dl>
-              <div className="btn-row">
-                {build ? (
-                  <StateLabel value={build.status} />
+            <h2 className="jr-h">The case</h2>
+            <dl className="datalist jr-case-strip">
+              <DataRow label="Firm">
+                <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
+                <span className="meta">
+                  · {state.entity_profile.cscrf_category} · Synthetic demo data
+                </span>
+              </DataRow>
+              <DataRow label="Rule in force today">
+                {control ? (
+                  <>
+                    <span className="strong-ink">{control.id}</span>{" "}
+                    <span className="meta">— {firmRule}</span>
+                  </>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    disabled={busy || sourceBusy}
-                    onClick={() => void props.onRunBuild()}
-                  >
-                    {busy && <span className="spinner" aria-hidden="true" />}
-                    Start the review
-                  </button>
+                  <span className="meta">No control recorded for this firm yet.</span>
                 )}
-              </div>
-            </div>
+              </DataRow>
+              <DataRow label="What changed">
+                <span className="strong-ink">
+                  {state.findings.length} high-severity finding
+                  {state.findings.length === 1 ? "" : "s"}
+                </span>
+                {state.findings.length > 0 && (
+                  <ul className="stack-s" style={{ marginTop: "4px" }}>
+                    {state.findings.map((finding) => (
+                      <li key={finding.id} className="meta">
+                        {finding.id} — {finding.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </DataRow>
+            </dl>
           </section>
 
+          {/* Stage 1 — one source sheet. The passage is the object being read;
+              the official link and the document check code support it, and the
+              stage carries exactly one primary action: start the review. */}
           <section className="jr-sect" id="jr-s1">
-            <h2 className="jr-h"><span>1.</span> Get the official text</h2>
-            <div className="jr-duo">
-              <div className="jr-doccard">
-                <span className="jr-docglyph" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z" />
-                  </svg>
-                </span>
-                <p className="jr-doctitle">{document?.title ?? "No SEBI document added yet — add one to start."}</p>
-                {document && <p className="meta">Published {formatDate(document.published_at)}</p>}
-                {document && (
-                  <a className="proof-link" href={document.source_url} target="_blank" rel="noreferrer">
+            <StageHead index={0} />
+            {document ? (
+              <div className="src">
+                <div className="src-head">
+                  <span className="jr-docglyph" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z" />
+                    </svg>
+                  </span>
+                  <div className="src-head-text">
+                    <p className="src-title">{document.title}</p>
+                    <p className="meta">
+                      {document.authority} · published {formatDate(document.published_at)}
+                    </p>
+                  </div>
+                  <a
+                    className="proof-link src-open"
+                    href={document.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Open official source ↗
                   </a>
+                </div>
+
+                {q17a && (
+                  <Quote
+                    locator={q17a.locator}
+                    text={q17a.text}
+                    sourceUrl={q17a.source_url}
+                    sourceLabel="Open the SEBI FAQ at this page"
+                  />
                 )}
+
+                <div className="src-foot">
+                  <span className="src-check">
+                    <span className="micro">Document check code</span>
+                    <Hash value={document.content_hash} label="source document" />
+                  </span>
+                  <span className="src-state">
+                    {receipt ? (
+                      <>
+                        <StateLabel value={receipt.status} />
+                        <span className="meta">
+                          {receipt.matched_span_ids.length} of {receipt.checked_span_count}{" "}
+                          reviewed passages found again in the file SEBI serves today ·{" "}
+                          {formatTimestamp(receipt.checked_at)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="meta">
+                        A saved copy of this exact text. It has not been checked against the
+                        page SEBI serves today.
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--small src-verify"
+                    disabled={busy || sourceBusy}
+                    onClick={() => void props.onVerifySource()}
+                  >
+                    {sourceBusy && <span className="spinner" aria-hidden="true" />}
+                    {sourceBusy
+                      ? "Reading the SEBI PDF…"
+                      : receipt
+                        ? "Check the official page again"
+                        : "Check it against the official page"}
+                  </button>
+                </div>
+
+                {props.sourceError && (
+                  <Callout tone="review" title="The official page could not be read just now">
+                    <p>
+                      The saved reviewed copy is still available, and this run will record that
+                      the live check was unavailable.
+                    </p>
+                    <p className="meta">{props.sourceError}</p>
+                  </Callout>
+                )}
+
+                <Disclosure summary="All details about this source">
+                  <StepSource {...props} />
+                </Disclosure>
+
+                <div className="jr-next">
+                  {build ? (
+                    <StateLabel value={build.status} />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled={busy || sourceBusy}
+                        onClick={() => void props.onRunBuild()}
+                      >
+                        {busy && <span className="spinner" aria-hidden="true" />}
+                        Start the review
+                      </button>
+                      <p className="meta">
+                        RegOS reads this passage against the firm&rsquo;s control and stops
+                        wherever the source does not state something.
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="jr-doccard">
-                <span className="jr-docglyph jr-docglyph--seal" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 11c0 3.5-1 6.8-2.75 9.57M5.8 18.53A13.9 13.9 0 0 0 8 11a4 4 0 1 1 8 0c0 1-.07 2-.2 3m-2.12 6.84A21.9 21.9 0 0 0 15.17 17m3.84 1.13c.65-2.27 1-4.66 1-7.13A8 8 0 0 0 8 4.07M3 15.36C3.64 14.05 4 12.57 4 11c0-1.46.39-2.82 1.07-4" />
-                  </svg>
-                </span>
-                {document && <Hash value={document.content_hash} label="source document" />}
-                <p className="meta">
-                  {receipt
-                    ? "A saved copy of this exact text, checked against the official page."
-                    : "A saved copy of this exact text. Verify it against the official page."}
-                </p>
-                <button
-                  type="button"
-                  className={`btn btn--small ${receipt ? "btn--secondary" : "btn--primary"}`}
-                  disabled={busy || sourceBusy}
-                  onClick={() => void props.onVerifySource()}
-                >
-                  {receipt ? "✓ Verified — check again" : "Verify official source"}
-                </button>
-              </div>
-            </div>
-            <Disclosure summary="All details about this source">
-              <StepSource {...props} />
-            </Disclosure>
+            ) : (
+              <p className="jr-locked">No SEBI document added yet — add one to start.</p>
+            )}
           </section>
 
           {build && <section className="jr-sect" id="jr-s2">
-            <h2 className="jr-h"><span>2.</span> Compare</h2>
+            <StageHead index={1} />
             {build ? (
               <>
-                <div className="jr-compare">
-                  <div className="jr-compare-text">
-                    <NumberedExcerpt
-                      sections={q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []}
-                    />
+                {/* Source on the left, the firm's practice on the right, and the
+                    relationship between them named in words between the two. Two
+                    columns from 860px, stacked below it. */}
+                <div className={`vs vs--${relation.tone}${reducedMotion ? " vs--still" : ""}`}>
+                  <div className="vs-col vs-col--source">
+                    <p className="micro">What the source says</p>
+                    <div className="vs-body vs-body--quote">
+                      <NumberedExcerpt
+                        sections={q17a ? [{ locator: `${q17a.locator} · the rule under review`, text: q17a.text, hot: true }] : []}
+                      />
+                    </div>
+                    {q17a && (
+                      <a className="proof-link" href={q17a.source_url} target="_blank" rel="noreferrer">
+                        Open official source ↗
+                      </a>
+                    )}
                   </div>
-                  <div className="jr-minis">
-                    <div className="jr-mini jr-mini--ok">
-                      <p className="jr-mini-title">New duty found</p>
-                      <p>High-severity gaps: one week</p>
-                    </div>
-                    <div className="jr-mini jr-mini--review">
-                      <p className="jr-mini-title">Missing start date</p>
-                      <p>One week — from what?</p>
-                    </div>
-                    <div className="jr-mini jr-mini--royal">
-                      <p className="jr-mini-title">{approved ? "Already covered" : "Cannot cover both"}</p>
-                      <p>{approved ? "Split into two rules" : "One broad rule, two duties"}</p>
+
+                  <div className="vs-rel" role="presentation">
+                    <span className="vs-line" aria-hidden="true" />
+                    <span className="vs-verdict">{relation.word}</span>
+                  </div>
+
+                  <div className="vs-col vs-col--firm">
+                    <p className="micro">What the firm does today</p>
+                    <div className="vs-body">
+                      {control ? (
+                        <>
+                          <p className="strong-ink">{firmRule}</p>
+                          <p className="meta">
+                            {control.id} · {control.name} · version {control.version}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="meta">No control recorded for this firm yet.</p>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* The absent source fact stays in the normal reading path, with
+                    its citation, wherever a decision depends on it. */}
+                {blockedDeadline && !approved && (
+                  <p className="vs-note">
+                    The source states <span className="strong-ink">{blockedDeadline.duration_label}</span>.
+                    It does not state the event that period runs from —{" "}
+                    <span className="strong-ink">not stated in the reviewed source</span> (
+                    {blockedDeadline.citation.locator}). No due date is worked out until a
+                    person records the firm&rsquo;s clock-start policy.
+                  </p>
+                )}
                 <Disclosure summary="The full comparison">
                   <StepCompare
                     state={state}
@@ -321,22 +436,30 @@ export function GuidedReview(props: GuidedReviewProps) {
           </section>}
 
           {(blocked || approved) && <section className="jr-sect" id="jr-s3">
-            <h2 className="jr-h"><span>3.</span> Your decision</h2>
+            <StageHead index={2} />
             {blocked ? (
-              <div className="jr-doccard jr-doccard--left jr-doccard--attn">
-                <span className="micro">Needs you</span>
-                <p className="meta">
-                  The source states the duration, not the start. A person must choose the
-                  clock-start policy — the full decision desk is directly below this board.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn--primary btn--small"
-                  onClick={() => jumpTo("#step-human")}
-                >
-                  Open the decision form below ↓
-                </button>
-              </div>
+              <>
+                <div className="jr-doccard jr-doccard--left jr-doccard--attn">
+                  <span className="micro">Needs a person</span>
+                  <p className="meta">
+                    {blockedDeadline?.duration_label ?? "The period"} is stated in{" "}
+                    {q17a?.locator ?? "the cited source"}. The event it runs from is{" "}
+                    <span className="strong-ink">not stated in the reviewed source</span>, so
+                    RegOS does not work out a date. Record the firm&rsquo;s clock-start policy
+                    below — it is filed as your decision, never as wording from SEBI.
+                  </p>
+                </div>
+                {/* The form is the outcome's next step, so it sits immediately
+                    beneath it rather than in a panel further down the page. */}
+                <StepHumanDecision
+                  {...props}
+                  q17a={q17a}
+                  document={document}
+                  referencesLoaded={referencesLoaded}
+                  reading={reading}
+                  blockedDeadline={blockedDeadline}
+                />
+              </>
             ) : approved && reading ? (
               <div className="jr-doccard jr-doccard--left">
                 <span className="micro">Recorded</span>
@@ -353,7 +476,7 @@ export function GuidedReview(props: GuidedReviewProps) {
           </section>}
 
           {build && <section className="jr-sect" id="jr-s4">
-            <h2 className="jr-h"><span>4.</span> What changes</h2>
+            <StageHead index={3} />
             {build ? (
               <>
                 <CompareCols
@@ -419,7 +542,7 @@ export function GuidedReview(props: GuidedReviewProps) {
           </section>}
 
           {approved && <section className="jr-sect" id="jr-s5">
-            <h2 className="jr-h"><span>5.</span> Download proof</h2>
+            <StageHead index={4} />
             {approved && build && reading ? (
               <>
                 <div className="jr-proof">
@@ -473,17 +596,6 @@ export function GuidedReview(props: GuidedReviewProps) {
             )}
           </section>}
       </div>
-
-      {blocked && (
-        <StepHumanDecision
-          {...props}
-          q17a={q17a}
-          document={document}
-          referencesLoaded={referencesLoaded}
-          reading={reading}
-          blockedDeadline={blockedDeadline}
-        />
-      )}
 
       <p className="meta jr-foot">
         {approved

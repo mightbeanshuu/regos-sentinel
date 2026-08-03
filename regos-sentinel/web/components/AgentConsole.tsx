@@ -55,12 +55,22 @@ export function AgentConsole({
   busy,
   onFinished,
   controlRef,
+  controls = "per-agent",
 }: {
   agents: AgentId[];
   planner: PlannerKind;
   busy: boolean;
   onFinished: () => void;
   controlRef?: MutableRefObject<AgentConsoleHandle | null>;
+  /**
+   * `per-agent` gives one button per assistant — the original footer, still used
+   * where this console is the only place a run can be started.
+   *
+   * `run-all` gives a single control. The assistants page uses it because each
+   * assistant already has its own run button on its own card, and four more
+   * "watch the …" buttons down here were the same choice asked twice.
+   */
+  controls?: "per-agent" | "run-all";
 }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [running, setRunning] = useState<AgentId | null>(null);
@@ -191,21 +201,29 @@ export function AgentConsole({
 
   // Run-all drives this console: each assistant streams in turn, every tool
   // call visible as it happens, and the terminal scrolls itself into view.
+  const runSequence = useCallback(
+    (sequence: AgentId[]) => {
+      if (running !== null || sequence.length === 0) return;
+      rootRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "center",
+      });
+      push("meta", `── running all ${sequence.length} assistants, one after another ──`);
+      queueRef.current = sequence.slice(1);
+      run(sequence[0]);
+    },
+    [running, push, run],
+  );
+
   useEffect(() => {
     if (!controlRef) return;
-    controlRef.current = {
-      runSequence: (sequence: AgentId[]) => {
-        if (running !== null || sequence.length === 0) return;
-        rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        push("meta", `── running all ${sequence.length} assistants, one after another ──`);
-        queueRef.current = sequence.slice(1);
-        run(sequence[0]);
-      },
-    };
+    controlRef.current = { runSequence };
     return () => {
       controlRef.current = null;
     };
-  }, [controlRef, run, running, push]);
+  }, [controlRef, runSequence]);
 
   return (
     <div className="console" ref={rootRef}>
@@ -224,8 +242,8 @@ export function AgentConsole({
       <div className="console-body" ref={bodyRef} role="log" aria-live="off">
         {lines.length === 0 ? (
           <p className="console-empty">
-            Nothing has run yet. Start an assistant below and every step it takes
-            appears here as it happens.
+            Nothing has run yet. Start a run and every step it takes appears here as
+            it happens.
           </p>
         ) : (
           lines.map((line) => (
@@ -245,17 +263,28 @@ export function AgentConsole({
 
       <div className="console-bar console-bar--foot">
         <div className="btn-row">
-          {agents.map((agent) => (
+          {controls === "per-agent" &&
+            agents.map((agent) => (
+              <button
+                key={agent}
+                type="button"
+                className="btn btn--quiet btn--small"
+                disabled={busy || running !== null}
+                onClick={() => run(agent)}
+              >
+                Watch the {agentNameOf(agent).toLowerCase()}
+              </button>
+            ))}
+          {controls === "run-all" && (
             <button
-              key={agent}
               type="button"
               className="btn btn--quiet btn--small"
-              disabled={busy || running !== null}
-              onClick={() => run(agent)}
+              disabled={busy || running !== null || agents.length === 0}
+              onClick={() => runSequence(agents)}
             >
-              Watch the {agentNameOf(agent).toLowerCase()}
+              Run all four here and watch every step
             </button>
-          ))}
+          )}
           <button
             type="button"
             className="btn btn--quiet btn--small"

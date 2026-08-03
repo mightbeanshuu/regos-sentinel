@@ -1,0 +1,221 @@
+/* Owned by the dashboard workstream. Rules here load AFTER globals.css, so they may
+   override it without editing it. Never edit globals.css from this workstream. */
+
+/* ---------- The decision inbox ---------------------------------------------
+   One decision leads; everything under it is the trail that explains it. The
+   hierarchy is carried by size and space, not by colour — colour stays reserved
+   for state, so the amber below always means "a person is required". */
+
+.dash { display: flex; flex-direction: column; gap: var(--s5); }
+
+.dash-head { margin-bottom: 0; }
+
+/* ---------- The one thing waiting on a person ----------------------------- */
+
+.dash-decision {
+  gap: var(--s3);
+  padding: var(--s6) var(--s5);
+  border-color: var(--line-2);
+}
+/* Tone follows the item's own state. Amber is an expected hand-off; red is only
+   ever a check that actually failed. Neither is decoration. */
+.dash-decision--review { border-color: var(--review-line); background: var(--review-wash); }
+.dash-decision--fail   { border-color: var(--fail-line);   background: var(--fail-wash); }
+.dash-decision--ok     { border-color: var(--ok-line);     background: var(--ok-wash); }
+
+.dash-decision-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  align-self: flex-start;
+  margin: 0;
+  padding: 3px var(--s3) 3px var(--s2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  font-weight: 640;
+  letter-spacing: 0.01em;
+}
+/* The glyph is a badge, not a character glued to the first word. */
+.dash-decision-status > span:first-child {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--surface);
+  font-size: 0.625rem;
+  line-height: 1;
+}
+.dash-decision-status--review { border-color: var(--review-line); color: var(--review); }
+.dash-decision-status--review > span:first-child { background: var(--review); }
+.dash-decision-status--fail { border-color: var(--fail-line); color: var(--fail); }
+.dash-decision-status--fail > span:first-child { background: var(--fail); }
+.dash-decision-status--ok { border-color: var(--ok-line); color: var(--ok); }
+.dash-decision-status--ok > span:first-child { background: var(--ok); }
+
+.dash-decision-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+  line-height: 1.22;
+  color: var(--ink);
+}
+
+/* The reason carries the meaning the task title cannot: the source states a
+   period and never says what starts it. It reads at body size, not as a caption. */
+.dash-decision-reason {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.dash-decision-support {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.dash-decision .btn-row { margin-top: var(--s2); }
+.dash-decision-action { padding: var(--s3) var(--s5); font-size: 0.9375rem; }
+
+/* The decision card takes focus after an action returns, so it needs a ring. */
+.dash-decision:focus { outline: none; }
+.dash-decision:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* One quiet line of real counts. Never a metric wall. */
+.dash-status {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin: 0;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+/* Motion, once and only for cause: the status line settles after an action
+   returns. It does not loop and it does not gate reading. */
+@media (prefers-reduced-motion: no-preference) {
+  .dash-status { animation: dash-settle var(--t-base, 200ms) var(--ease, ease) 1; }
+}
+@keyframes dash-settle {
+  from { opacity: 0.45; }
+  to   { opacity: 1; }
+}
+
+/* ---------- Supporting context, subordinate by construction --------------- */
+
+.dash-clocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+/* The clocks explain the decision above them, so they read one step quieter. */
+.irc-table--compact { font-size: 0.8125rem; }
+.irc-table--compact .irc-row-title { font-size: 0.875rem; }
+.irc-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-weight: 640;
+  white-space: nowrap;
+}
+
+/* ---------- Source and evidence, folded into one row ---------------------- */
+
+.dash-source { gap: var(--s3); }
+.dash-source-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.dash-source-row .b-label { margin: 0; }
+.dash-source-state { font-size: 0.8125rem; font-weight: 640; color: var(--ink-2); }
+.dash-source-meta { margin-left: auto; }
+.dash-source-check { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .dash-source-meta { margin-left: 0; width: 100%; }
+  .dash-source-check { width: 100%; justify-content: center; }
+}
+
+.dash-filters { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+
+/* A single quiet pointer to another tab, never a second navigation system. */
+.dash-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.dash-stands,
+.dash-score,
+.dash-record,
+.dash-ask { gap: var(--s4); }
+
+/* ---------- Footer: how the page knows what it knows ----------------------
+   Model identity, workspace fingerprint and connection activity live here, at
+   the end, because they explain provenance — they are not the case that needs
+   attention and must never precede it. */
+
+.dash-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+}
+.dash-foot-row { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; }
+.dash-foot-note { margin: 0; font-size: 0.75rem; line-height: 1.5; color: var(--ink-3); }
+
+/* ---------- Shared tag tone used by this surface and the assistants -------- */
+
+.tag--neutral {
+  border-color: var(--line-2);
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+
+/* ---------- Phone widths: nothing may be squeezed to one word per line -----
+   Two rows on this surface put a long name and a short status on the same line.
+   That works down to about 560px; below it the name loses so much width that it
+   breaks a word at a time, which is unreadable and looks broken. Both rules
+   below give the name the full width and drop its companion to its own line. */
+
+/* The finding name in a reporting-clock row. Measured at 390px: 114px wide,
+   holding "API gateway OEM security patch not implemented". */
+@media (max-width: 520px) {
+  .irc-row-summary {
+    grid-template-columns: minmax(0, 1fr) 20px;
+    row-gap: var(--s2);
+  }
+  .irc-row-name { grid-column: 1; grid-row: 1; }
+  .irc-row-chev { grid-column: 2; grid-row: 1; align-self: start; }
+  .irc-row-status { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+}
+
+/* Document titles in the source card. Measured at 390px: 67px wide, holding
+   "FAQs on CSCRF for SEBI REs and Framework for Adoption of Cloud Services". */
+@media (max-width: 560px) {
+  .b-doclist li { flex-wrap: wrap; row-gap: var(--s1); }
+  .b-doclist li > span:first-child { flex: 1 1 100%; min-width: 0; }
+}

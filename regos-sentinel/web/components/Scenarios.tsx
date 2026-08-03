@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   changeKindOf,
@@ -32,11 +32,22 @@ import {
 } from "./ui";
 
 /* ---------------------------------------------------------------------------
- * The selector. Small on purpose — Case A is the presentation path, and the
- * other three are there to prove the same workflow holds elsewhere.
+ * The example bar. The review below is the page's subject, so the catalogue of
+ * demonstration cases collapses to one line: which example is loaded, how it
+ * last ran, and one quiet way to load a different one. The methodology — the
+ * outcome written before the run, beside what the run actually did — sits one
+ * disclosure away instead of in front of the source.
  * ------------------------------------------------------------------------- */
 
 const CASE_TONE: Record<string, string> = { A: "royal", B: "ok", C: "royal", D: "review" };
+
+/** The run's own status in words. Never computed here, never guessed. */
+function runWord(run: ScenarioOutcome | null): string {
+  if (!run) return "Not run yet";
+  return run.status === "SCENARIO_DEMONSTRATED"
+    ? "Ran · matched what we predicted"
+    : "Ran · differed from what we predicted";
+}
 
 export function ScenarioSelector({
   catalogue,
@@ -47,57 +58,112 @@ export function ScenarioSelector({
   active: ScenarioId;
   onSelect: (id: ScenarioId) => void;
 }) {
+  const [choosing, setChoosing] = useState(false);
   const selected = catalogue.scenarios.find((item) => item.id === active) ?? catalogue.scenarios[0];
   const outcomeFor = (id: ScenarioId) =>
     catalogue.outcomes?.find((item) => item.scenario_id === id) ?? null;
   const outcome = outcomeFor(active);
   const matched = outcome?.status === "SCENARIO_DEMONSTRATED";
+  const tone = CASE_TONE[selected.label] ?? "royal";
 
   return (
-    <section className="cp" aria-label="Demonstration cases">
-      <p className="micro">Four questions a regulator would ask — each one runs live, here and now.</p>
-      <div className="cp-grid" role="tablist" aria-label="Choose a case">
-        {catalogue.scenarios.map((scenario) => {
-          const on = scenario.id === active;
-          const run = outcomeFor(scenario.id);
-          const tone = CASE_TONE[scenario.label] ?? "royal";
-          return (
-            <button
-              key={scenario.id}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              className={`cp-card cp-card--${tone}${on ? " cp-card--on" : ""}`}
-              onClick={() => onSelect(scenario.id)}
-            >
-              <span className={`cp-badge cp-badge--${tone}`} aria-hidden="true">{scenario.label}</span>
-              <span className="cp-title">{scenario.title}</span>
-              <span className="cp-q">{scenario.question}</span>
-              {/* A corner ribbon rotated this label into nine unreadable lines.
-                  It is an ordinary chip in the card's meta area instead. */}
-              {scenario.label === "D" && (
-                <span className="cp-chip" style={{ marginTop: 0 }}>
-                  Real SEBI advisory · May 2026
-                </span>
-              )}
-              <span className={`cp-chip${run ? (run.status === "SCENARIO_DEMONSTRATED" ? " cp-chip--ok" : " cp-chip--diff") : ""}`}>
-                {run
-                  ? run.status === "SCENARIO_DEMONSTRATED"
-                    ? "Ran · matched what we predicted"
-                    : "Ran · differed from what we predicted"
-                  : "Not run yet"}
-              </span>
-              {on && <span className="cp-underline" aria-hidden="true" />}
-            </button>
-          );
-        })}
+    <section className="xcase" aria-label="Worked example">
+      <div className="xcase-bar">
+        <span className={`cp-badge cp-badge--${tone} xcase-badge`} aria-hidden="true">
+          {selected.label}
+        </span>
+        <div className="xcase-headings">
+          <p className="xcase-title">
+            <span className="visually-hidden">Worked example {selected.label}: </span>
+            {selected.title}
+          </p>
+          <p className="meta xcase-q">{selected.question}</p>
+        </div>
+        <span
+          className={`cp-chip xcase-chip${outcome ? (matched ? " cp-chip--ok" : " cp-chip--diff") : ""}`}
+        >
+          {runWord(outcome)}
+        </span>
+        <button
+          type="button"
+          className="btn btn--quiet btn--small xcase-switch"
+          aria-expanded={choosing}
+          aria-controls="xcase-sheet"
+          onClick={() => setChoosing((open) => !open)}
+        >
+          {choosing ? "Close the list" : "Choose another example"}
+        </button>
       </div>
 
-      {/* Written-before beside what-happened, on matched rows: the citation the
-          case names, then the outcome it predicted. The verdict is the run's
-          own, never computed here. */}
-      <div className="cp-band">
-        <div className="cp-band-col">
+      {/* The catalogue, on request. Choosing a card loads that example below and
+          puts the list away again — the review, not the list, is the destination. */}
+      {choosing && (
+        <div className="xcase-sheet" id="xcase-sheet">
+          <p className="meta">
+            {catalogue.scenarios.length} demonstration examples, one workflow. Each carries a
+            cited passage, an outcome written before it ran, and synthetic firm data.
+          </p>
+          <div className="cp-grid" role="tablist" aria-label="Choose an example">
+            {catalogue.scenarios.map((scenario) => {
+              const on = scenario.id === active;
+              const run = outcomeFor(scenario.id);
+              const cardTone = CASE_TONE[scenario.label] ?? "royal";
+              return (
+                <button
+                  key={scenario.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  className={`cp-card cp-card--${cardTone}${on ? " cp-card--on" : ""}`}
+                  onClick={() => {
+                    onSelect(scenario.id);
+                    setChoosing(false);
+                  }}
+                >
+                  <span className={`cp-badge cp-badge--${cardTone}`} aria-hidden="true">
+                    {scenario.label}
+                  </span>
+                  <span className="cp-title">{scenario.title}</span>
+                  <span className="cp-q">{scenario.question}</span>
+                  {/* A corner ribbon rotated this label into nine unreadable lines.
+                      It is an ordinary chip in the card's meta area instead. */}
+                  {scenario.label === "D" && (
+                    <span className="cp-chip" style={{ marginTop: 0 }}>
+                      Real SEBI advisory · May 2026
+                    </span>
+                  )}
+                  <span
+                    className={`cp-chip${run ? (run.status === "SCENARIO_DEMONSTRATED" ? " cp-chip--ok" : " cp-chip--diff") : ""}`}
+                  >
+                    {runWord(run)}
+                  </span>
+                  {on && <span className="cp-underline" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Written-before beside what-happened: the citation the example names, then
+          the outcome it predicted. The verdict is the run's own, never computed
+          here. Proof, not the first task — so it opens only when asked for. */}
+      <Disclosure summary="About this example">
+        <div className="stack">
+          <dl className="datalist">
+            <DataRow label="The question it asks">{selected.question}</DataRow>
+            <DataRow label="Source cited">
+              <p style={{ fontFamily: "var(--serif)" }}>
+                &ldquo;{selected.citation_quote}&rdquo;
+              </p>
+              <p className="meta">{selected.citation_locator}</p>
+            </DataRow>
+            <DataRow label="Facts used in this example">
+              <span className="meta">{plainPhrase(selected.seeded_data)}</span>
+            </DataRow>
+          </dl>
+
+          <p className="sub-title">What we wrote down before running it</p>
           <div className="table-scroll">
             <table>
               <thead>
@@ -157,29 +223,20 @@ export function ScenarioSelector({
                         <span>{outcome.headline}</span>
                       </span>
                     ) : (
-                      <>Not run yet. Press &ldquo;Open this case&rdquo; to run it and compare.</>
+                      <>Not run yet. The run controls are below.</>
                     )}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p className="cp-receipt">
-            <span className="mono">{selected.automated_test}</span> · re-run automatically
-            every time RegOS is rebuilt
+
+          <p className="meta">
+            A committed automated test re-runs this example every time RegOS is rebuilt, so the
+            result on this page cannot quietly drift. {plainPhrase(selected.reset_note)}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn--primary cp-open"
-          onClick={() => {
-            onSelect(active);
-            document.querySelector("#scenario-case, .jr-sidenav")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        >
-          Open this case
-        </button>
-      </div>
+      </Disclosure>
     </section>
   );
 }
