@@ -896,10 +896,22 @@ export function Dashboard({
 
       {/* ---- 6 · The score, and what it is made of --------------------------- */}
       <section className="b-card dash-score">
-        <p className="b-label"><IconGauge /> Cyber Capability Index — your compliance health score</p>
+        <p className="b-label"><IconGauge /> Cyber Capability Index — what this workspace can evidence</p>
         {cci ? (
           <>
             <CciDial report={cci} />
+            {/* The scope of this figure belongs on the default screen, not behind a
+                disclosure. SEBI asks for this index from market infrastructure
+                institutions and qualified regulated entities; the demo firm is neither,
+                and only some parameters are evidenced. Saying so here is the difference
+                between a coverage figure and an invented compliance verdict. */}
+            <p className="meta">
+              This measures how much evidence this workspace holds — it is not a
+              compliance verdict.{" "}
+              {/QUALIFIED|MII/i.test(state.entity_profile.cscrf_category)
+                ? "SEBI asks for this index from this category of firm."
+                : "SEBI asks for this index from market infrastructure institutions and qualified regulated entities, and this firm is in neither group."}
+            </p>
             <div className="b-score-rows">
               {cci.parameters.filter((item) => item.assessed).slice(0, 5).map((item) => (
                 <div className="cci-row" key={item.id}>

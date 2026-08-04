@@ -9,7 +9,13 @@
   /* Ink ------------------------------------------------------------------ */
   --ink:      #1c2024;   /* slate12 — never pure black */
   --ink-2:    #60646c;   /* slate11 */
-  --ink-3:    #80838d;   /* slate10 — metadata only */
+  --ink-3:    #6a6d75;   /* supporting text. Measured: 5.18:1 on #fff, 4.92:1 on --bg,
+                            4.55:1 on --bg-2 — clears AA for normal text on every surface
+                            this app paints on. It was #80838d (3.33:1 on --bg-2), which
+                            failed AA at the 13px sizes it is actually used at. Any
+                            replacement must clear 4.5:1 against --bg-2, the darkest
+                            surface, and stay lighter than --ink-2 so the ink ramp keeps
+                            three distinguishable steps. */
 
   /* Surfaces — pure-white cards on a faintly tinted canvas. --------------- */
   --surface:  #ffffff;

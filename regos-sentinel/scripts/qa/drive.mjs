@@ -10,14 +10,21 @@
  *   api  REGOS_OFFLINE=1 .venv/bin/python -m uvicorn app.main:app --port 8000
  *   web  npm run build && npx next start -p 3000
  *
- * Usage: node drive.mjs [baseUrl]
+ * Usage: node drive.mjs [--capture-boot] [baseUrl]
+ *
+ * `--capture-boot` opens all four target viewports together and records the
+ * state before waiting for the API. It is deliberately a separate gate from
+ * the full warm-state run: a hosted API may take time to wake and the loading
+ * view is a first-visit experience, not a test artefact.
  */
 import { chromium } from "playwright-core";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const BASE = process.argv[2] ?? "http://127.0.0.1:3000";
+const args = process.argv.slice(2);
+const CAPTURE_BOOT = args.includes("--capture-boot");
+const BASE = args.find((arg) => !arg.startsWith("--")) ?? "http://127.0.0.1:3000";
 // fileURLToPath, not .pathname — the repo path contains a space.
 const OUT = fileURLToPath(new URL("./out/", import.meta.url));
 mkdirSync(OUT, { recursive: true });
@@ -62,6 +69,86 @@ const browser = await chromium.launch({
   executablePath: chromePath() || undefined,
 });
 
+// The full Phase 6 pass waits for network idle, which is correct for operating
+// screens but cannot see a sleeping hosted API's loading state. Start all four
+// viewports together so a single first visit cannot warm the service before
+// the narrow-screen view has been captured.
+const boot = [];
+if (CAPTURE_BOOT) {
+  const probes = await Promise.all(VIEWPORTS.map(async (vp) => {
+    const context = await browser.newContext({
+      viewport: { width: vp.width, height: vp.height },
+      deviceScaleFactor: 1,
+      reducedMotion: "no-preference",
+    });
+    const page = await context.newPage();
+    const response = await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const observed = await page.waitForFunction(
+      () => document.querySelector(".boot") || document.querySelector("main"),
+      { timeout: 4000 },
+    ).then(() => true).catch(() => false);
+    // A short settle allows React to paint its first asynchronous state, but
+    // intentionally does not wait for a backend response.
+    await page.waitForTimeout(250);
+    const snapshot = await page.evaluate(() => {
+      const visible = (el) => {
+        const s = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return s.display !== "none" && s.visibility !== "hidden" && r.width > 0 && r.height > 0;
+      };
+      const selectorSet = new Set();
+      for (const sheet of document.styleSheets) {
+        let rules; try { rules = sheet.cssRules; } catch { continue; }
+        const walk = (items) => {
+          for (const rule of items) {
+            if (rule.selectorText) selectorSet.add(rule.selectorText);
+            if (rule.cssRules) walk(rule.cssRules);
+          }
+        };
+        walk(rules);
+      }
+      const skeletons = [...document.querySelectorAll(".skel-group")].map((el) => ({
+        classes: [...el.classList],
+        visible: visible(el),
+        display: getComputedStyle(el).display,
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      }));
+      const boot = document.querySelector(".boot");
+      const requiredRules = [".skel-group--dial", ".skel-group--row", ".skel-group--lines", ".skel-group--stat"];
+      return {
+        viewport: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        boot: boot ? {
+          visible: visible(boot),
+          text: (boot.textContent ?? "").replace(/\s+/g, " ").trim(),
+        } : null,
+        skeletons,
+        requiredRules: Object.fromEntries(requiredRules.map((selector) => [
+          selector,
+          [...selectorSet].some((rule) => rule.includes(selector)),
+        ])),
+      };
+    });
+    await page.screenshot({ path: `${OUT}boot-${vp.name}.png`, fullPage: true });
+    await context.close();
+    return { name: vp.name, responseStatus: response?.status() ?? null, observed, ...snapshot };
+  }));
+
+  for (const probe of probes) {
+    boot.push(probe);
+    if (!probe.observed || !probe.boot?.visible) {
+      add(probe.name, "boot", "boot-state-not-observed", "loading shell was not visible before the normal run");
+    }
+    if (probe.scrollWidth > probe.viewport + 1) {
+      add(probe.name, "boot", "horizontal-scroll", `page scrollWidth ${probe.scrollWidth} > viewport ${probe.viewport}`);
+    }
+    for (const [selector, present] of Object.entries(probe.requiredRules)) {
+      if (!present) add(probe.name, "boot", "unstyled-class", `missing stylesheet rule ${selector}`);
+    }
+  }
+}
+
 for (const vp of VIEWPORTS) {
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
@@ -96,7 +183,59 @@ for (const vp of VIEWPORTS) {
     await page.waitForTimeout(900);
 
     const result = await page.evaluate(({ enumSrc, jargon, monoSel }) => {
-      const out = { scrollW: 0, viewport: 0, overflow: [], enums: [], jargon: [], cramped: [], truncated: [], unstyled: [] };
+      const out = { scrollW: 0, viewport: 0, overflow: [], enums: [], jargon: [], cramped: [], truncated: [], unstyled: [], contrast: [] };
+
+      /* Colour contrast. The palette is defined once in :root, but what reaches the
+         eye is the composited result — a translucent card over a tinted canvas is not
+         the token value. So resolve the real background by compositing every ancestor
+         until something opaque is found, and judge the pair that actually renders. */
+      /* Parse via canvas, not a regex. This palette is authored in `oklch()` and
+         Chrome reports those computed values verbatim, so a `rgb()`-only regex
+         silently skips every accent, ok, review and fail surface — which then reads
+         as white-on-white. Painting one pixel makes the browser resolve any colour
+         space for us, alpha included. */
+      const _cvs = document.createElement("canvas");
+      _cvs.width = 1; _cvs.height = 1;
+      const _ctx = _cvs.getContext("2d", { willReadFrequently: true });
+      const parseRgb = (v) => {
+        const s = String(v || "").trim();
+        if (!s || s === "transparent" || s === "none") return null;
+        _ctx.clearRect(0, 0, 1, 1);
+        // A value the browser rejects leaves fillStyle unchanged; detect that.
+        _ctx.fillStyle = "#010203";
+        _ctx.fillStyle = s;
+        if (_ctx.fillStyle === "#010203" && !/^#010203$/i.test(s)) return null;
+        _ctx.fillRect(0, 0, 1, 1);
+        const d = _ctx.getImageData(0, 0, 1, 1).data;
+        return { r: d[0], g: d[1], b: d[2], a: d[3] / 255 };
+      };
+      const over = (top, bottom) => top.a >= 0.999 ? top : {
+        r: top.r * top.a + bottom.r * (1 - top.a),
+        g: top.g * top.a + bottom.g * (1 - top.a),
+        b: top.b * top.a + bottom.b * (1 - top.a),
+        a: 1,
+      };
+      const relLum = ({ r, g, b }) => {
+        const f = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const PAPER = { r: 255, g: 255, b: 255, a: 1 };
+      /* Returns null when the backdrop is a gradient or image — its colour under the
+         text is genuinely unknowable from computed style, and guessing there would
+         produce confident nonsense. An unchecked element is better than a false
+         failure: a harness that cries wolf stops being read. */
+      const effectiveBg = (el) => {
+        let acc = null;
+        for (let n = el; n; n = n.parentElement) {
+          const st = getComputedStyle(n);
+          if (st.backgroundImage && st.backgroundImage !== "none") return null;
+          const c = parseRgb(st.backgroundColor);
+          if (!c || c.a === 0) continue;
+          acc = acc ? over(acc, c) : { ...c };
+          if (acc.a >= 0.999) return acc;
+        }
+        return acc ? over(acc, PAPER) : PAPER;
+      };
       out.scrollW = document.documentElement.scrollWidth;
       out.viewport = window.innerWidth;
 
@@ -130,6 +269,29 @@ for (const vp of VIEWPORTS) {
         const s = getComputedStyle(el);
         if (s.textOverflow === "ellipsis" && el.scrollWidth > el.clientWidth + 1) {
           out.truncated.push({ text: own.slice(0, 80), scroll: el.scrollWidth, client: el.clientWidth });
+        }
+
+        // WCAG 1.4.3: 4.5:1 for normal text, 3:1 once it is large (>=24px, or
+        // >=18.66px when bold). Judged on composited colours, not token values.
+        const fgRaw = parseRgb(s.color);
+        const bg = fgRaw && fgRaw.a > 0.05 ? effectiveBg(el) : null;
+        if (fgRaw && bg) {
+          const fg = over(fgRaw, bg);
+          const lf = relLum(fg), lb = relLum(bg);
+          const ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
+          const px = parseFloat(s.fontSize) || 16;
+          const weight = parseInt(s.fontWeight, 10) || 400;
+          const need = (px >= 24 || (px >= 18.66 && weight >= 700)) ? 3 : 4.5;
+          if (ratio + 0.005 < need) {
+            out.contrast.push({
+              text: own.slice(0, 80),
+              ratio: Math.round(ratio * 100) / 100,
+              need,
+              px: Math.round(px),
+              fg: s.color,
+              bg: `rgb(${Math.round(bg.r)}, ${Math.round(bg.g)}, ${Math.round(bg.b)})`,
+            });
+          }
         }
       }
 
@@ -174,6 +336,9 @@ for (const vp of VIEWPORTS) {
     for (const c of result.cramped) add(vp.name, tab, "cramped-box", `${c.width}px holds "${c.text}"`);
     for (const t of result.truncated) add(vp.name, tab, "truncated", `"${t.text}"`);
     for (const u of result.unstyled) add(vp.name, tab, "unstyled-class", u);
+    for (const c of result.contrast) {
+      add(vp.name, tab, "low-contrast", `${c.ratio}:1 needs ${c.need}:1 — ${c.px}px ${c.fg} on ${c.bg} — "${c.text}"`);
+    }
 
     await page.screenshot({ path: `${OUT}${vp.name}-${tab}.png`, fullPage: true });
   }
@@ -230,7 +395,13 @@ await browser.close();
 
 const byKind = {};
 for (const f of findings) byKind[f.kind] = (byKind[f.kind] ?? 0) + 1;
-writeFileSync(`${OUT}report.json`, JSON.stringify({ base: BASE, total: findings.length, byKind, findings }, null, 2));
+writeFileSync(`${OUT}report.json`, JSON.stringify({
+  base: BASE,
+  bootCapture: CAPTURE_BOOT ? boot : null,
+  total: findings.length,
+  byKind,
+  findings,
+}, null, 2));
 
 console.log(`\n=== Phase 6 validation — ${findings.length} findings ===`);
 for (const [k, n] of Object.entries(byKind).sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(4)}  ${k}`);
