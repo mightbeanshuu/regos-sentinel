@@ -262,17 +262,13 @@ function InlineBar({
   );
 }
 
-/**
- * page.tsx owns tab state and passes no navigation callback into this tab, so the
- * record reaches the guided review through that tab's own button. The cleaner fix
- * is an `onOpenGuidedReview` prop on `<AuditTrail />`; it is listed in the report.
- */
-function openGuidedReview(): void {
-  const trigger = document.getElementById("tab-guided");
-  if (trigger instanceof HTMLElement) trigger.click();
-}
-
-export function AuditTrail({ state }: { state: WorkspaceState }) {
+export function AuditTrail({
+  state,
+  onOpenGuidedReview,
+}: {
+  state: WorkspaceState;
+  onOpenGuidedReview: () => void;
+}) {
   const build = state.builds.at(-1);
   const manifest = state.latest_manifest;
   const benchmark = state.latest_benchmark;
@@ -437,6 +433,8 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
   const recordAvailable = manifest !== null;
   /** OSCAL needs the sealed record and the build behind it (services/api/app/oscal.py:40). */
   const oscalAvailable = recordAvailable && state.builds.length > 0;
+  const assistantRecordVerified =
+    state.agent_runs.length > 0 && state.agent_runs.every((run) => run.chain_verified);
 
   return (
     <div className="rec-page">
@@ -447,16 +445,51 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
             What was read, how it was decided, which checks ran, and how to reproduce the result.
           </p>
         </div>
-        {state.agent_runs.length > 0 && state.agent_runs.every((run) => run.chain_verified) ? (
-          <span className="audit-chain-badge">
-            ✓ Record verified — each step is locked to the one before it, so nothing can be
-            edited or removed
+        <div className="audit-integrity">
+          <span
+            className={`audit-chain-badge${assistantRecordVerified ? "" : " audit-chain-badge--idle"}`}
+          >
+            {assistantRecordVerified ? "✓ Tamper check passed" : "· Tamper check ready"}
           </span>
-        ) : (
-          <span className="audit-chain-badge audit-chain-badge--idle">
-            ⛓ Tamper-evident record — each assistant run is checked when it completes
+          <p className="audit-integrity-note">
+            {assistantRecordVerified
+              ? "Every assistant step is still locked to the step before it."
+              : "Each assistant run is checked as soon as it finishes."}
+          </p>
+        </div>
+      </section>
+
+      <section className="rec-proof-room" aria-label="Record at a glance">
+        <div className="rec-proof-fact">
+          <span className="rec-proof-mark" aria-hidden="true">§</span>
+          <div>
+            <p className="rec-proof-value">{state.corpus_packs.length}</p>
+            <p className="rec-proof-label">
+              {state.corpus_packs.length === 1
+                ? "source entry in this workspace"
+                : "source entries in this workspace"}
+            </p>
+          </div>
+          <StateLabel value={reviewedSource?.status} />
+        </div>
+        <div className="rec-proof-fact">
+          <span className="rec-proof-mark" aria-hidden="true">↳</span>
+          <div>
+            <p className="rec-proof-value">{state.audit_events.length}</p>
+            <p className="rec-proof-label">recorded events</p>
+          </div>
+          <span className="rec-proof-note">Nothing is estimated</span>
+        </div>
+        <div className="rec-proof-fact">
+          <span className="rec-proof-mark" aria-hidden="true">✓</span>
+          <div>
+            <p className="rec-proof-value">{latestTests.length}</p>
+            <p className="rec-proof-label">checks in the latest run</p>
+          </div>
+          <span className="rec-proof-note">
+            {latestTests.length === 0 ? "Not run yet" : spoken(testSegments, "checks")}
           </span>
-        )}
+        </div>
       </section>
 
       {/* ---- The page's only navigation: three levels, one compact row ---- */}
@@ -518,7 +551,8 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
                 <>
                   <span className="strong-ink">{control.rule_summary}</span>
                   <p className="meta">
-                    {control.name} · owned by {control.owner} · {plainValue(control.status)}
+                    {control.name} · owned by {control.owner} ·{" "}
+                    <StateLabel value={control.status} />
                   </p>
                   {control.previous_rule_summary && (
                     <p className="meta">Previously: {control.previous_rule_summary}</p>
@@ -533,7 +567,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
               {build ? (
                 <>
                   <StateLabel value={build.status} showHint />
-                  <p className="meta">{build.headline}</p>
+                  <p className="meta">{plainPhrase(build.headline)}</p>
                   {blockedComputation?.blocked_reason && (
                     <p className="meta">
                       Open point: {blockedComputation.blocked_reason} ·{" "}
@@ -619,7 +653,7 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
           <div className="stack">
             {!recordAvailable && (
               <Callout tone={remaining.tone} title={remaining.title}>
-                <p>{remaining.note}</p>
+                <p>{plainPhrase(remaining.note)}</p>
                 {failedChecks.length > 0 && (
                   <ul className="rec-check-list">
                     {failedChecks.map((test) => (
@@ -646,7 +680,11 @@ export function AuditTrail({ state }: { state: WorkspaceState }) {
                   when they do.
                 </p>
                 <div className="btn-row">
-                  <button type="button" className="btn btn--secondary" onClick={openGuidedReview}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={onOpenGuidedReview}
+                  >
                     Go to Review a requirement
                   </button>
                 </div>

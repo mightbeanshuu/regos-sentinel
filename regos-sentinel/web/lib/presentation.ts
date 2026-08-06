@@ -48,6 +48,16 @@ const STATES: Record<string, StateMeta> = {
   ),
   FAILED: meta("Check failed", "fail", "A fixed automated check did not pass."),
   APPROVED: meta("Approved", "ok"),
+  "ACTIVE — REVIEW REQUIRED": meta(
+    "Active — review still required",
+    "review",
+    "The control remains in force, but this source change still needs a person to decide.",
+  ),
+  "ACTIVE — REMEDIATION ACTIONS OPEN": meta(
+    "Active — follow-up work is open",
+    "review",
+    "The approved control is in force and its assigned follow-up work is still open.",
+  ),
 
   // ---- Individual checks ----------------------------------------------
   PASS: meta("Passed", "ok"),
@@ -524,10 +534,48 @@ const PHRASES: Record<string, string> = {
     "Restart demo returns the workspace to its starting state, with nothing reviewed.",
   "Restart demo returns the entity facts to the seeded profile.":
     "Restart demo returns the firm's details to the starting profile.",
+  "Human-approved regulatory split compiled":
+    "The approved rule split was recorded.",
+
+  // ---- Read-only assistant findings --------------------------------------
+  "Recorded as a blocked duty. The gate refuses to invent the missing period, exactly as it does for FAQ Q17(a).":
+    "Recorded as unresolved. A fixed safety rule refuses to invent the missing period, just as it does for FAQ Q17(a).",
+  "Vacuously clean; recorded so the absence is visible.":
+    "Nothing existed to challenge. That absence is recorded instead of treated as proof.",
+  "Vacuously complete; recorded so the absence is visible.":
+    "Nothing needed a timing check. That absence is recorded instead of treated as proof.",
+};
+
+/** Machine topic keys that can occur inside longer recorded sentences. */
+const INLINE_PHRASES: Record<string, string> = {
+  "Added topics:": "Newly covered:",
+  "Changed:": "Changed wording:",
+  "Topics this source does not address, which therefore continue to be governed by the reviewed corpus:":
+    "Topics not addressed here, which remain governed by the reviewed source set:",
+  "advisory.read.with.cscrf": "advisory read with the main cyber framework",
+  "ai.agentic.plan": "AI action-plan guidance",
+  "api.whitelist": "approved API access list",
+  "applicability.dormant.licence": "rules for inactive licences",
+  "applicability.highest.category": "the firm's highest registration category",
+  "asset.inventory.periodicity": "asset-inventory review frequency",
+  "msoc.onboarding": "managed security-operations onboarding",
+  "patch.high.severity.timeline": "high-severity patch timeline",
+  "periodicity.calendar.basis": "reporting calendar basis",
+  "vapt.closure.timeline": "VAPT closure timeline",
+  "vapt.other.observation.timeline": "timeline for other VAPT findings",
+  "vapt.periodicity": "VAPT frequency",
+  "vapt.qsb.periodicity": "VAPT frequency for qualified stockbrokers",
+  "vapt.reporting.format": "VAPT reporting format",
+  "vapt.vendor.sla.timeline": "vendor VAPT turnaround time",
+  "vapt.virtual.patching": "virtual patching guidance",
 };
 
 export function plainPhrase(text: string): string {
-  return PHRASES[text] ?? text;
+  let plain = PHRASES[text] ?? text;
+  for (const [machine, readable] of Object.entries(INLINE_PHRASES)) {
+    plain = plain.replaceAll(machine, readable);
+  }
+  return plain;
 }
 
 /**

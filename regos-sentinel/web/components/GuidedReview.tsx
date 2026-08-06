@@ -119,6 +119,7 @@ export function GuidedReview(props: GuidedReviewProps) {
   const referencesLoaded = state.references.length > 0
     && state.references.every((item) => item.status === "RESOLVED_HASHED");
   const reading = state.reviewer_readings.find((item) => item.span_id === "FAQ-Q17-A");
+  const approval = state.reviews.at(-1);
   const blockedDeadline = state.deadline_computations.find(
     (item) => item.finding_id === "F-001" && !item.computable,
   );
@@ -545,23 +546,29 @@ export function GuidedReview(props: GuidedReviewProps) {
             <StageHead index={4} />
             {approved && build && reading ? (
               <>
-                <div className="jr-proof">
-                  <span className="jr-proof-lock" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                      strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <p className="jr-proof-title">
-                      Approved by {reading.reviewer_name}, {reading.reviewer_role}
-                    </p>
-                    {state.latest_manifest?.build_id === build.id && (
-                      <p className="meta mono" title={state.latest_manifest.manifest_sha256}>
-                        SHA-256 · {state.latest_manifest.manifest_sha256.slice(0, 12)}…
-                      </p>
-                    )}
+                <div className="decision-sealed" role="status" aria-live="polite">
+                  <span className="decision-sealed-badge">Record sealed</span>
+                  <span className="decision-sealed-check" aria-hidden="true">✓</span>
+                  <div className="decision-sealed-body">
+                    <p className="decision-sealed-title">Decision approved</p>
+                    <p className="meta">The approval and its evidence are now locked together.</p>
                   </div>
+                  <span className="decision-sealed-divider" aria-hidden="true" />
+                  <p className="decision-sealed-by">
+                    Recorded by{" "}
+                    <strong>
+                      {approval?.reviewer_name ?? reading.reviewer_name},{" "}
+                      {approval?.reviewer_role ?? reading.reviewer_role}
+                    </strong>
+                  </p>
+                  {state.latest_manifest?.build_id === build.id && (
+                    <span
+                      className="decision-sealed-sha mono"
+                      title={`Record fingerprint: ${state.latest_manifest.manifest_sha256}`}
+                    >
+                      Record check code · {state.latest_manifest.manifest_sha256.slice(0, 12)}…
+                    </span>
+                  )}
                 </div>
                 <div className="jr-tiles">
                   <button type="button" className="jr-tile" disabled={busy}
@@ -1039,7 +1046,7 @@ function StepHumanDecision({
           >
             <p>
               RegOS will not accept a decision until every section these answers point to is
-              loaded and fingerprinted.
+              read and tied to an exact-copy fingerprint.
             </p>
             {state.references.length > 0 ? (
               <dl className="datalist">
@@ -1073,7 +1080,7 @@ function StepHumanDecision({
         ) : (
           <details className="disclosure" open={!reading}>
             <summary>
-              {state.references.length} cited CSCRF sections loaded and fingerprinted
+              {state.references.length} cited CSCRF sections read and saved as exact copies
             </summary>
             <div className="disclosure-body stack">
               {state.references.map((reference) => {
@@ -1099,7 +1106,7 @@ function StepHumanDecision({
                     <p className="meta">{reference.resolution_note}</p>
                     {reference.target_hash && (
                       <p className="meta">
-                        Excerpt fingerprint <Hash value={reference.target_hash} />
+                        Excerpt check code (fingerprint) <Hash value={reference.target_hash} />
                       </p>
                     )}
                   </div>
