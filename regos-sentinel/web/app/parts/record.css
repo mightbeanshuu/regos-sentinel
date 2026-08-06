@@ -22,6 +22,74 @@
   animation: none;
 }
 
+/* Stitch proof-room summary: three live facts, separated by rules rather than
+   three floating metric cards. Each figure is counted from rows shown below. */
+.rec-proof-room {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--line);
+}
+
+.rec-proof-fact {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding: var(--s4);
+}
+
+.rec-proof-fact + .rec-proof-fact { border-left: 1px solid var(--line); }
+
+.rec-proof-mark {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.rec-proof-value {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-proof-label,
+.rec-proof-note,
+.audit-integrity-note {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.rec-proof-fact > .state,
+.rec-proof-note { grid-column: 2; }
+
+.audit-integrity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s1);
+  max-width: 30ch;
+}
+
+.audit-integrity-note { text-align: right; }
+
+@media (max-width: 760px) {
+  .rec-proof-room { grid-template-columns: 1fr; }
+  .rec-proof-fact + .rec-proof-fact { border-left: 0; border-top: 1px solid var(--line); }
+  .audit-integrity { align-items: flex-start; max-width: 100%; }
+  .audit-integrity-note { text-align: left; }
+}
+
 /* ---------- On this page ----------------------------------------------------
    The only navigation on this tab, and the only section navigation in the
    product. Three destinations, one hairline strip — it names the reading levels

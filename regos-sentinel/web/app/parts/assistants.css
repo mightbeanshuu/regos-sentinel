@@ -22,6 +22,17 @@
 .axc-lead { border-color: var(--accent-line); }
 .axc-lead .section-title { margin: 0; }
 
+.axc-finding-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+}
+
 .axc-card-actions {
   display: flex;
   gap: var(--s2);
@@ -37,5 +48,13 @@
 .axc-tech .console-body { max-height: 260px; overflow-y: auto; }
 
 @media (max-width: 640px) {
+  .ag-pipeline {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--s2);
+    padding-inline: var(--s3);
+  }
+  .ag-node { width: 100%; }
+  .ag-node-arrow { margin-left: auto; transform: rotate(90deg); }
   .axc-card-actions > .btn { width: 100%; justify-content: center; }
 }

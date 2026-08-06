@@ -70,6 +70,22 @@ export default function Home() {
   const [showFlow, setShowFlow] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // The Stitch tab shell scrolls horizontally on a phone. Keep the selected
+  // destination in view when a workflow button changes tabs programmatically;
+  // otherwise the active Dashboard or Full record tab can sit off-screen.
+  useEffect(() => {
+    const index = TABS.findIndex((item) => item.id === tab);
+    const target = tabRefs.current[index];
+    if (!target) return;
+    target.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [tab]);
+
   const load = useCallback(async () => {
     try {
       const [workspace, documentList, documentLimits, scenarioCatalogue] = await Promise.all([
@@ -482,7 +498,9 @@ export default function Home() {
           aria-labelledby="tab-audit"
           hidden={tab !== "audit"}
         >
-          {tab === "audit" && <AuditTrail state={state} />}
+          {tab === "audit" && (
+            <AuditTrail state={state} onOpenGuidedReview={() => setTab("guided")} />
+          )}
         </div>
       </main>
 

@@ -598,6 +598,9 @@ function FindingRow({
   traced: boolean;
   register: (node: HTMLDivElement | null) => void;
 }) {
+  const plainSummary = glossFor(finding.summary) ?? plainPhrase(finding.summary);
+  const hasTechnicalCode = plainSummary !== finding.summary;
+
   return (
     <div
       className={`outcome axc-finding${traced ? " axc-finding--traced" : ""}`}
@@ -607,13 +610,10 @@ function FindingRow({
         <StateLabel value={finding.kind} showHint />
       </p>
       <div className="outcome-body">
-        <p><strong className="strong-ink">{finding.summary}</strong></p>
-        {glossFor(finding.summary) && (
-          <p className="meta">→ {glossFor(finding.summary)}</p>
-        )}
-        <p>{finding.detail}</p>
+        <p><strong className="strong-ink">{plainSummary}</strong></p>
+        <p>{plainPhrase(finding.detail)}</p>
         <p className="outcome-why">
-          <strong>Fixed rule applied:</strong> {finding.gate_reason}
+          <strong>Fixed safety rule:</strong> {plainPhrase(finding.gate_reason)}
         </p>
         {finding.citations.map((citation) => (
           <p className="meta" key={citation.span_id}>
@@ -628,6 +628,11 @@ function FindingRow({
             </a>
           </p>
         ))}
+        {hasTechnicalCode && (
+          <Disclosure summary="Technical finding code">
+            <p className="mono">{finding.summary}</p>
+          </Disclosure>
+        )}
         <p className="axc-finding-foot">
           <span className="micro">
             Raised by the {agentNameOf(run.agent_id).toLowerCase()}

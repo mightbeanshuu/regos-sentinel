@@ -45,8 +45,8 @@ const CASE_TONE: Record<string, string> = { A: "royal", B: "ok", C: "royal", D: 
 function runWord(run: ScenarioOutcome | null): string {
   if (!run) return "Not run yet";
   return run.status === "SCENARIO_DEMONSTRATED"
-    ? "Ran · matched what we predicted"
-    : "Ran · differed from what we predicted";
+    ? "Ran · matched the expected outcome"
+    : "Ran · differed from the expected outcome";
 }
 
 export function ScenarioSelector({
@@ -101,7 +101,8 @@ export function ScenarioSelector({
         <div className="xcase-sheet" id="xcase-sheet">
           <p className="meta">
             {catalogue.scenarios.length} demonstration examples, one workflow. Each carries a
-            cited passage, an outcome written before it ran, and synthetic firm data.
+            cited passage, an outcome written before it ran, and made-up firm facts clearly
+            marked as synthetic.
           </p>
           <div className="cp-grid" role="tablist" aria-label="Choose an example">
             {catalogue.scenarios.map((scenario) => {
@@ -268,17 +269,21 @@ export function ScenarioBrief({ scenario }: { scenario: ScenarioDefinition }) {
         <DataRow label="Facts used in this case">
           <span className="meta">{plainPhrase(scenario.seeded_data)}</span>
         </DataRow>
-        <DataRow label="The test that re-runs this case">
-          <span className="meta mono">{scenario.automated_test}</span>
-          <p className="meta">
-            It runs every time RegOS is rebuilt, so the result on this page cannot quietly
-            drift.
-          </p>
-        </DataRow>
-        <DataRow label="Reset">
-          <span className="meta">{plainPhrase(scenario.reset_note)}</span>
-        </DataRow>
       </dl>
+      <Disclosure summary="Technical detail — automated re-check and restart">
+        <dl className="datalist">
+          <DataRow label="Automated test path">
+            <span className="meta mono">{scenario.automated_test}</span>
+            <p className="meta">
+              This is the precise engineering check. It runs whenever RegOS is rebuilt, so
+              the visible result cannot change quietly.
+            </p>
+          </DataRow>
+          <DataRow label="How to restart this example">
+            <span className="meta">{plainPhrase(scenario.reset_note)}</span>
+          </DataRow>
+        </dl>
+      </Disclosure>
     </Panel>
   );
 }
@@ -631,7 +636,7 @@ export function ScenarioCase({
                   disabled={busy}
                   onClick={() => void onReset()}
                 >
-                  Reset to the original demo facts
+                  Restore the original demo facts
                 </button>
               </div>
             </>

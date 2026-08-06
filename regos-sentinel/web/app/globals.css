@@ -3255,8 +3255,7 @@ body {
   gap: 4px;
   font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-3);
 }
 .decision-sealed-divider { width: 1px; align-self: stretch; background: var(--line-2); }
@@ -3270,6 +3269,13 @@ body {
   background: var(--bg-2);
   color: var(--ink-3);
   white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .decision-sealed { align-items: flex-start; padding-top: var(--s6); }
+  .decision-sealed-divider { display: none; }
+  .decision-sealed-by { flex-basis: calc(100% - 56px); }
+  .decision-sealed-sha { width: 100%; white-space: normal; overflow-wrap: anywhere; }
 }
 
 /* Stepper: active dot as the larger white ring. */
@@ -3402,6 +3408,12 @@ body {
    scrolls away — there is no room for two stacked sticky bars on a phone. */
 @media (max-width: 640px) {
   .tabs { position: static; top: auto; z-index: auto; }
+  .tablist {
+    justify-content: flex-start;
+    width: calc(100% - var(--s4));
+    margin-inline: var(--s2);
+    scroll-padding-inline: 5px;
+  }
 }
 
 /* ---------- Executive overview grid --------------------------------------- */
