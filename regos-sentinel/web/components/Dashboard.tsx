@@ -158,6 +158,8 @@ export function Dashboard({
   onOpenDocuments,
   onOpenAssistants,
   onRunAssistants,
+  awaitingUpload = false,
+  onShowWorkspace,
 }: {
   state: WorkspaceState;
   documents?: UploadedDocument[];
@@ -172,6 +174,9 @@ export function Dashboard({
   /** Switches the global tab strip to "AI assistants". See the note on `openAssistants`. */
   onOpenAssistants?: () => void;
   onRunAssistants?: (documentId: string) => void;
+  /** True from "Restart demo" until a document is added. See `DashboardStart`. */
+  awaitingUpload?: boolean;
+  onShowWorkspace?: () => void;
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   // Loading and absence are different things. Until the first read comes back the
@@ -387,15 +392,86 @@ export function Dashboard({
   const statusTone: DeskTone = failed.length > 0 ? "fail" : queue.length > 0 ? "review" : "ok";
   const settleClass = settleKey > 0 && !reducedMotion ? " dash-settle" : "";
 
+  const profileLine = (
+    <p className="cmd-sub">
+      {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
+      {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+    </p>
+  );
+
+  /* ---- 0 · The blank start, after "Restart demo" -------------------------
+     A restarted demo used to land on a full review — a decision card, a score,
+     a deadline table — before anyone had brought a document to it, which reads
+     as work that already happened. Nothing here is deleted or hidden: the panel
+     names exactly what the workspace holds and offers the way past it. It ends
+     the moment a document is added. */
+  if (awaitingUpload) {
+    return (
+      <div className="cmd dash">
+        <header className="cmd-head dash-head">
+          <div>
+            <h1 className="cmd-title">Your compliance review</h1>
+            {profileLine}
+          </div>
+        </header>
+
+        <section className="b-card dash-start" aria-labelledby="dash-start-title">
+          <p className="dash-decision-status">
+            {/* "+" rather than a tone glyph: this is not a state the workspace is
+                in, it is the one thing to do next, and it matches the action below. */}
+            <span aria-hidden="true">+</span>
+            Start here
+          </p>
+          <h2 className="dash-decision-title" id="dash-start-title">
+            Nothing has been reviewed in this session
+          </h2>
+          <p className="dash-decision-reason">
+            Add the SEBI document you want checked. The review, the deadlines and the
+            record are all built from it, so until one is here this page has nothing of
+            yours to show.
+          </p>
+
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn--primary dash-decision-action"
+              disabled={busy}
+              onClick={() => onOpenDocuments?.()}
+            >
+              Add a document
+            </button>
+            <button
+              type="button"
+              className="btn btn--quiet"
+              disabled={busy}
+              onClick={() => onShowWorkspace?.()}
+            >
+              Continue with the built-in SEBI sources
+            </button>
+          </div>
+
+          <p className="dash-status">
+            <span className="legend-dot legend-dot--neutral" aria-hidden="true" />
+            {/* `documents`, not `corpus_packs`: of the four packs one is an empty
+                slot for the reader's own upload and one is reference-only, so
+                calling all four "official sources" would overstate what is here. */}
+            <span>
+              This prototype ships with {state.documents.length} official SEBI source
+              {state.documents.length === 1 ? "" : "s"}, still on file · no check has been
+              run · nothing has been read from them yet
+            </span>
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="cmd dash">
       <header className="cmd-head dash-head">
         <div>
           <h1 className="cmd-title">Your compliance review</h1>
-          <p className="cmd-sub">
-            {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
-            {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
-          </p>
+          {profileLine}
         </div>
       </header>
 
@@ -899,19 +975,22 @@ export function Dashboard({
         <p className="b-label"><IconGauge /> Cyber Capability Index — what this workspace can evidence</p>
         {cci ? (
           <>
-            <CciDial report={cci} />
             {/* The scope of this figure belongs on the default screen, not behind a
-                disclosure. SEBI asks for this index from market infrastructure
-                institutions and qualified regulated entities; the demo firm is neither,
-                and only some parameters are evidenced. Saying so here is the difference
-                between a coverage figure and an invented compliance verdict. */}
-            <p className="meta">
-              This measures how much evidence this workspace holds — it is not a
-              compliance verdict.{" "}
-              {/QUALIFIED|MII/i.test(state.entity_profile.cscrf_category)
-                ? "SEBI asks for this index from this category of firm."
-                : "SEBI asks for this index from market infrastructure institutions and qualified regulated entities, and this firm is in neither group."}
-            </p>
+                disclosure, and beside the number rather than under it. SEBI asks for
+                this index from market infrastructure institutions and qualified
+                regulated entities; the demo firm is neither, and only some parameters
+                are evidenced. Saying so here is the difference between a coverage
+                figure and an invented compliance verdict. */}
+            <div className="dash-score-head">
+              <CciDial report={cci} />
+              <p className="meta dash-score-scope">
+                This measures how much evidence this workspace holds — it is not a
+                compliance verdict.{" "}
+                {/QUALIFIED|MII/i.test(state.entity_profile.cscrf_category)
+                  ? "SEBI asks for this index from this category of firm."
+                  : "SEBI asks for this index from market infrastructure institutions and qualified regulated entities, and this firm is in neither group."}
+              </p>
+            </div>
             <div className="b-score-rows">
               {cci.parameters.filter((item) => item.assessed).slice(0, 5).map((item) => (
                 <div className="cci-row" key={item.id}>

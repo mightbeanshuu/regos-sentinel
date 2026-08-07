@@ -25,6 +25,21 @@ const SUGGESTIONS: Array<{ label: string; question: string }> = [
   { label: "Next deadline", question: "When is my next deadline?" },
 ];
 
+/**
+ * Placeholder examples, cycled so the empty field keeps showing what this box is
+ * for. Every one is a question the answers engine actually takes — a placeholder
+ * that suggests a question nobody can ask would be a worse lie than a static one.
+ */
+const PLACEHOLDER_EXAMPLES: string[] = [
+  "how long do I have to close VAPT findings?",
+  "what does SEBI say about patching?",
+  "what needs my decision right now?",
+  "when is my next deadline?",
+  "is the SEBI source still the copy we reviewed?",
+];
+const PLACEHOLDER_HOLD_MS = 4200;
+const PLACEHOLDER_FADE_MS = 240;
+
 interface ChatTurn {
   id: number;
   question: string;
@@ -44,7 +59,7 @@ function AnswerKind({ answer }: { answer: AssistantAnswer }) {
       ? { tone: "accent", glyph: "❝", label: "Quoted from SEBI" }
       : answer.kind === "COMPUTED"
         ? { tone: "accent", glyph: "=", label: "Computed from your workspace" }
-        : { tone: "neutral", glyph: "·", label: "No answer in the source" };
+        : { tone: "neutral", glyph: "○", label: "No answer in the source" };
   return (
     <p>
       <span className={meta.tone === "neutral" ? "tag" : `tag tag--${meta.tone}`}>
@@ -118,8 +133,35 @@ export function AskPanel() {
   const [draft, setDraft] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [asking, setAsking] = useState(false);
+  const [example, setExample] = useState(0);
+  const [exampleFading, setExampleFading] = useState(false);
+  const [composerActive, setComposerActive] = useState(false);
   const nextIdRef = useRef(1);
   const threadRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Cycle the placeholder while the field is genuinely idle. It stops the moment
+   * the box is focused or holds a draft: text moving under a cursor that is being
+   * typed into is the one place this would be an irritation rather than a hint.
+   * Under `prefers-reduced-motion` it never starts and the first example stands.
+   */
+  useEffect(() => {
+    if (composerActive || draft) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let fade = 0;
+    const cycle = window.setInterval(() => {
+      setExampleFading(true);
+      fade = window.setTimeout(() => {
+        setExample((index) => (index + 1) % PLACEHOLDER_EXAMPLES.length);
+        setExampleFading(false);
+      }, PLACEHOLDER_FADE_MS);
+    }, PLACEHOLDER_HOLD_MS);
+    return () => {
+      window.clearInterval(cycle);
+      window.clearTimeout(fade);
+      setExampleFading(false);
+    };
+  }, [composerActive, draft]);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -220,11 +262,13 @@ export function AskPanel() {
         onSubmit={(event) => { event.preventDefault(); void submit(draft); }}
       >
         <input
-          className="ask-input"
+          className={`ask-input${exampleFading ? " ask-input--swapping" : ""}`}
           type="text"
           value={draft}
-          placeholder="e.g., how long do I have to close VAPT findings?"
+          placeholder={`e.g., ${PLACEHOLDER_EXAMPLES[example]}`}
           onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => setComposerActive(true)}
+          onBlur={() => setComposerActive(false)}
           aria-label="Your question"
         />
         <button type="submit" className="chat-ask-btn" disabled={asking || !draft.trim()}>

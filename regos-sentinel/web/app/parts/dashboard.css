@@ -171,6 +171,59 @@
 .dash-record,
 .dash-ask { gap: var(--s4); }
 
+/* ---------- The score, and the caveat that travels with it ----------------
+   The dial is 148px and its read column caps at a measure, so on a 1280px card
+   the right half was empty while the sentence that says this is NOT a compliance
+   verdict sat underneath, where a reader meets the number first and the caveat
+   second. It belongs beside the number, in the space the dial was not using. */
+
+.dash-score-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+}
+.dash-score-head > .cci { flex: 1 1 420px; }
+.dash-score-scope {
+  flex: 1 1 300px;
+  margin: 0;
+  padding-left: var(--s5);
+  border-left: 1px solid var(--line);
+}
+@media (max-width: 900px) {
+  .dash-score-scope { padding-left: 0; border-left: 0; }
+}
+
+/* ---------- Recent record ---------------------------------------------------
+   This summary is icon · title · count. The shared disclosure uses
+   `space-between`, which spreads all three plus the marker across the whole
+   card and leaves the title floating in the middle of an empty row. Left-pack
+   the label; the marker keeps the right edge to itself. */
+
+.dash-record > details.disclosure > summary { justify-content: flex-start; }
+.dash-record > details.disclosure > summary > .meta { margin-right: auto; }
+
+/* On a phone the title, the count and the marker no longer fit one line, and the
+   title broke to "Recent / record". The count takes a line of its own instead. */
+@media (max-width: 560px) {
+  .dash-record > details.disclosure > summary { flex-wrap: wrap; }
+  .dash-record > details.disclosure > summary > .meta {
+    order: 3;
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+}
+
+/* ---------- The blank start, after "Restart demo" -------------------------
+   Same construction as the decision card so the page keeps one shape, but with
+   no tone: nothing is wrong here and nothing is waiting, there is simply no
+   document yet. Colour stays reserved for state. */
+.dash-start {
+  gap: var(--s3);
+  padding: var(--s6) var(--s5);
+  border-color: var(--line-2);
+}
+
 /* ---------- Footer: how the page knows what it knows ----------------------
    Model identity, workspace fingerprint and connection activity live here, at
    the end, because they explain provenance — they are not the case that needs
@@ -216,6 +269,6 @@
 /* Document titles in the source card. Measured at 390px: 67px wide, holding
    "FAQs on CSCRF for SEBI REs and Framework for Adoption of Cloud Services". */
 @media (max-width: 560px) {
-  .b-doclist li { flex-wrap: wrap; row-gap: var(--s1); }
-  .b-doclist li > span:first-child { flex: 1 1 100%; min-width: 0; }
+  .b-doclist li { grid-template-columns: minmax(0, 1fr) auto; }
+  .b-doclist li > span:first-child { grid-column: 1 / -1; min-width: 0; }
 }

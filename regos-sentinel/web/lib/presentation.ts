@@ -25,11 +25,14 @@ export interface StateMeta {
   hint?: string;
 }
 
+/* The non-colour signal for each tone. `neutral` is an open ring, not a middle dot:
+   a "·" in front of a label reads as a typo or a stray bullet, while an empty ring
+   reads as what the tone actually means — nothing has happened here yet. */
 const GLYPH: Record<Tone, string> = {
   ok: "✓",
   review: "!",
   fail: "✕",
-  neutral: "·",
+  neutral: "○",
   accent: "→",
 };
 
@@ -582,6 +585,25 @@ export function plainPhrase(text: string): string {
  * One wording for a dropped connection everywhere. The browser's raw "Failed to fetch"
  * usually means the free-tier server is waking, not a dead end.
  */
+/**
+ * The firm's CSCRF size band, said the way SEBI writes it rather than the way the
+ * seed stores it. The words are unchanged — "SMALL-SIZE RE" only stops shouting —
+ * because this band is load-bearing: it is the reason the Cyber Capability Index
+ * is out of scope for this firm, and renaming it would break that argument.
+ */
+export function cscrfCategoryLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.replace(
+    /\b[A-Z][A-Z-]+\b/g,
+    (word) =>
+      // "RE", "MII" and other acronyms stay upper-case; size words do not.
+      word.length <= 3 && !word.includes("-")
+        ? word
+        : word.charAt(0) + word.slice(1).toLowerCase(),
+  );
+}
+
 export function plainError(caught: unknown, fallback: string): string {
   if (
     caught instanceof TypeError ||

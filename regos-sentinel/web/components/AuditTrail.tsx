@@ -101,11 +101,31 @@ function distribution(values: string[], universe?: readonly string[]): Segment[]
   }));
 }
 
+/**
+ * A state label may carry its plain-English hint after an em dash — "Recommended
+ * — no mandatory task". That clause earns its place on a row of its own and is
+ * unreadable inside a comma list, where three of them ran the summary past what
+ * anyone parses. The summary keeps the name and drops the clause.
+ */
+function summaryName(label: string): string {
+  const name = label.split(" — ")[0];
+  const [first = ""] = name.split(" ");
+  // Acronyms stay as written: "VAPT report" must not become "vAPT report".
+  if (first.length > 1 && first === first.toUpperCase()) return name;
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/**
+ * The total first, then the breakdown. The old order ("5 Required, 1 Optional of
+ * 8 statements") buried the total behind a comma list and read as though the
+ * last count owned it.
+ */
 function spoken(segments: Segment[], noun: string): string {
   const parts = segments.filter((segment) => segment.count > 0);
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
   if (parts.length === 0) return `No ${noun} recorded`;
-  return `${parts.map((s) => `${s.count} ${s.label}`).join(", ")} of ${total} ${noun}`;
+  const named = parts.map((s) => `${s.count} ${summaryName(s.label)}`).join(", ");
+  return `${total} ${noun} · ${named}`;
 }
 
 const GATE_STATES = ["GATE_PASSED", "GATE_NOT_RUN", "GATE_NOT_APPLICABLE"] as const;
@@ -449,12 +469,14 @@ export function AuditTrail({
           <span
             className={`audit-chain-badge${assistantRecordVerified ? "" : " audit-chain-badge--idle"}`}
           >
-            {assistantRecordVerified ? "✓ Tamper check passed" : "· Tamper check ready"}
+            {assistantRecordVerified
+              ? "✓ Tamper check passed"
+              : "○ Nothing to tamper-check yet"}
           </span>
           <p className="audit-integrity-note">
             {assistantRecordVerified
               ? "Every assistant step is still locked to the step before it."
-              : "Each assistant run is checked as soon as it finishes."}
+              : "No assistant has run in this session. Each run is checked the moment it finishes."}
           </p>
         </div>
       </section>
@@ -464,10 +486,13 @@ export function AuditTrail({
           <span className="rec-proof-mark" aria-hidden="true">§</span>
           <div>
             <p className="rec-proof-value">{state.corpus_packs.length}</p>
+            {/* "documents", not "source entries" — the fold below counts the same
+                things and calls them documents, and two names for one number is
+                how a reader starts doubting both. */}
             <p className="rec-proof-label">
               {state.corpus_packs.length === 1
-                ? "source entry in this workspace"
-                : "source entries in this workspace"}
+                ? "document in this workspace"
+                : "documents in this workspace"}
             </p>
           </div>
           <StateLabel value={reviewedSource?.status} />
@@ -476,15 +501,19 @@ export function AuditTrail({
           <span className="rec-proof-mark" aria-hidden="true">↳</span>
           <div>
             <p className="rec-proof-value">{state.audit_events.length}</p>
-            <p className="rec-proof-label">recorded events</p>
+            <p className="rec-proof-label">
+              recorded event{state.audit_events.length === 1 ? "" : "s"}
+            </p>
           </div>
-          <span className="rec-proof-note">Nothing is estimated</span>
+          <span className="rec-proof-note">Each one actually happened here</span>
         </div>
         <div className="rec-proof-fact">
           <span className="rec-proof-mark" aria-hidden="true">✓</span>
           <div>
             <p className="rec-proof-value">{latestTests.length}</p>
-            <p className="rec-proof-label">checks in the latest run</p>
+            <p className="rec-proof-label">
+              check{latestTests.length === 1 ? "" : "s"} in the latest run
+            </p>
           </div>
           <span className="rec-proof-note">
             {latestTests.length === 0 ? "Not run yet" : spoken(testSegments, "checks")}

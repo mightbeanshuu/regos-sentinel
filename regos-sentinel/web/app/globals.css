@@ -207,6 +207,26 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 
 .meta { font-size: 0.8125rem; line-height: 1.5; color: var(--ink-3); }
 .micro { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em; color: var(--ink-3); }
+
+/* Reading measure. A note paragraph in a full-width card ran to ~200 characters
+   a line on a 1440px screen. Nothing overflowed, so no clipping check saw it,
+   but that is roughly three times a readable measure and it is the first thing
+   that looks wrong in a screenshot of the card. Block-level notes are capped;
+   inline `.meta` spans are untouched, because max-width does nothing to an
+   inline box. `text-wrap: pretty` stops the last line falling to one word. */
+p.meta,
+p.micro,
+.dash-decision-support,
+.dash-status,
+.chat-empty,
+.upload-promise,
+.app-footer-inner p {
+  max-width: 74ch;
+  text-wrap: pretty;
+}
+/* Contexts that centre their prose keep it centred inside that cap. */
+.empty p.meta,
+.boot p.meta { margin-inline: auto; }
 .mono { font-family: var(--mono); font-size: 0.8125rem; }
 .strong-ink { color: var(--ink); font-weight: 600; }
 
@@ -1188,8 +1208,13 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .cci-read { text-align: center; }
 .cci-band { font-size: 1.125rem; font-weight: 650; color: var(--ink); }
 .cci-meaning { font-size: 0.875rem; color: var(--ink-2); margin-top: var(--s1); }
+/* 34ch was measured when this column really was ~34ch wide. On the dashboard the
+   read column is now most of a 1280px card, and a 34ch cap broke one sentence
+   into a four-line ribbon with the rest of the card empty beside it. The cap is
+   a measure, not a column width: wide enough to read, short enough not to run. */
 .cci-coverage {
-  font-size: 0.8125rem; color: var(--ink-3); margin-top: var(--s2); max-width: 34ch;
+  font-size: 0.8125rem; color: var(--ink-3); margin-top: var(--s2); max-width: 62ch;
+  text-wrap: pretty;
 }
 
 /* Title · track · figure. It wraps rather than crushing the title: in a narrow
@@ -1231,6 +1256,20 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
   font-family: var(--sans); font-size: 0.9375rem;
 }
 .ask-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The idle placeholder cycles through real example questions. It crossfades
+   rather than cutting, and only while the field is empty and unfocused — the
+   component stops the cycle on focus, so nothing moves under a live cursor. */
+.ask-input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+  transition: opacity var(--t-base, 200ms) var(--ease, ease);
+}
+.ask-input--swapping::placeholder { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ask-input::placeholder { transition: none; }
+  .ask-input--swapping::placeholder { opacity: 1; }
+}
 
 .ask-chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
 .ask-chip {
@@ -1824,9 +1863,12 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .cmd .cci--glass { background: none; border: 0; box-shadow: none; padding: 0; }
 .cmd .cci { flex-direction: row; text-align: left; align-items: center; gap: var(--s4); }
 .cmd .cci-dial { flex: 0 0 148px; width: 148px; }
-.cmd .cci-read { align-items: flex-start; text-align: left; }
+.cmd .cci-read { flex: 1 1 auto; min-width: 0; align-items: flex-start; text-align: left; }
 .cmd .cci-track { stroke: oklch(1 0 0 / 0.10); }
-.cmd .cci-coverage { font-size: 0.71875rem; }
+/* 0.71875rem was 11.5px. This screen is filmed at 1080p and read by regulators;
+   the coverage sentence is the one that says which 15 parameters are unscored,
+   so it takes the ordinary small size rather than a shrunk one. */
+.cmd .cci-coverage { font-size: 0.8125rem; }
 
 /* Score rows spread across the card's height — distributed, not stranded. */
 .cmd .cci-bar { background: oklch(1 0 0 / 0.10); }
@@ -1868,14 +1910,21 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
 .cmd .table-scroll { border-color: var(--line); }
 
 .b-doclist { display: flex; flex-direction: column; gap: var(--s1); }
+/* Grid, not `justify-content: space-between`. With space-between the status pill
+   floats to wherever its own document title happens to end, so two rows put two
+   identical pills at two different x positions and the column reads as broken.
+   A shared grid column is sized once, from the widest status in the list, so
+   every pill starts on the same edge no matter how long the title beside it is. */
 .b-doclist li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s2) var(--s3);
   font-size: 0.8125rem;
   color: var(--ink-2);
 }
+.b-doclist li > .tag,
+.b-doclist li > .state { justify-self: start; }
 .b-receipt { font-size: 0.8125rem; }
 .b-receipt--ok { color: var(--ok); }
 .b-receipt--review { color: var(--review); }

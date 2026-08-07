@@ -5,6 +5,7 @@
 node_modules/
 .next/
 .vercel/
+.firecrawl/
 services/api/.venv/
 services/api/.pytest_cache/
 services/api/.ruff_cache/

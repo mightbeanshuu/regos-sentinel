@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   checkLabel,
+  cscrfCategoryLabel,
   formatDate,
   formatTimestamp,
   labelOf,
@@ -214,7 +215,8 @@ export function GuidedReview(props: GuidedReviewProps) {
               <DataRow label="Firm">
                 <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
                 <span className="meta">
-                  · {state.entity_profile.cscrf_category} · Synthetic demo data
+                  · {cscrfCategoryLabel(state.entity_profile.cscrf_category)} · Synthetic
+                  demo data
                 </span>
               </DataRow>
               <DataRow label="Rule in force today">

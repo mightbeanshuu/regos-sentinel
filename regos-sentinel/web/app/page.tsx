@@ -168,13 +168,28 @@ export default function Home() {
     }
   }, []);
 
+  /**
+   * "Restart demo" returns the dashboard to a blank start: no decision card, no
+   * score, no deadline table until a document is here. A restarted demo that
+   * immediately shows a full review presents work nobody in this session did.
+   * Nothing is deleted — the seeded SEBI sources are still on file, the panel
+   * says so, and "Continue with the built-in SEBI sources" is one click away.
+   */
+  const [awaitingUpload, setAwaitingUpload] = useState(false);
+
   const restart = useCallback(async () => {
     setReceipt(null);
     setSourceError(null);
     setDocumentError(null);
     setDocuments([]);
+    setAwaitingUpload(true);
     await act(regosApi.reset, "top");
   }, [act]);
+
+  /* An added document is what ends the blank start. */
+  useEffect(() => {
+    if (documents.length > 0) setAwaitingUpload(false);
+  }, [documents.length]);
 
   const activeScenario = catalogue?.scenarios.find((item) => item.id === scenario) ?? null;
   const activeOutcome =
@@ -405,6 +420,8 @@ export default function Home() {
                 void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
               onRefresh={() => void load()}
               onOpenDocuments={() => setTab("document")}
+              awaitingUpload={awaitingUpload}
+              onShowWorkspace={() => setAwaitingUpload(false)}
               onRunAssistants={(documentId) => {
                 void act(() => regosApi.runAllAgents("DETERMINISTIC_PLAN", documentId) as Promise<WorkspaceState>);
               }}

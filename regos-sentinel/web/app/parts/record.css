@@ -73,21 +73,23 @@
 .rec-proof-fact > .state,
 .rec-proof-note { grid-column: 2; }
 
+/* The integrity read-out is a small block that sits at the right of the hero —
+   it is not right-aligned prose. Ragging a two-line sentence off a right edge
+   put every line start in a different place and read as a rendering fault; the
+   block goes right, its words stay left, and the badge sits on the same edge. */
 .audit-integrity {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--s1);
-  max-width: 30ch;
+  max-width: 34ch;
+  text-align: left;
 }
-
-.audit-integrity-note { text-align: right; }
 
 @media (max-width: 760px) {
   .rec-proof-room { grid-template-columns: 1fr; }
   .rec-proof-fact + .rec-proof-fact { border-left: 0; border-top: 1px solid var(--line); }
-  .audit-integrity { align-items: flex-start; max-width: 100%; }
-  .audit-integrity-note { text-align: left; }
+  .audit-integrity { max-width: 100%; }
 }
 
 /* ---------- On this page ----------------------------------------------------
@@ -95,13 +97,17 @@
    product. Three destinations, one hairline strip — it names the reading levels
    rather than repeating every heading below it. */
 
+/* One rule, not two. `.rec-proof-room` closes with a hairline and this strip
+   used to open with another, and `.rec-page`'s gap left ~30px of empty page
+   between them — a band bounded by two rules and holding nothing, which reads
+   as a section that failed to render. The strip keeps only its closing rule. */
 .rec-toc {
   display: flex;
   align-items: baseline;
   gap: var(--s3) var(--s4);
   flex-wrap: wrap;
-  padding: var(--s3) 0;
-  border-block: 1px solid var(--line);
+  padding-block: 0 var(--s3);
+  border-block-end: 1px solid var(--line);
 }
 
 .rec-toc-label {
