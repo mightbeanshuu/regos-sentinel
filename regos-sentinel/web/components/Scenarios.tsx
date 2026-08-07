@@ -557,37 +557,36 @@ export function ScenarioCase({
     <div className="stack-l" id="scenario-case">
       <ScenarioBrief scenario={scenario} />
 
+      {/* The header holds the verdict and nothing else. The score used to sit here
+          as a four-row stack beside a one-line title, so the head grew to ~150px
+          and left most of it empty — the panel read as a section that had failed
+          to load. The figures moved into the body, where the bar gets full width. */}
       <Panel
         title={outcome ? "What happened" : "Run this case"}
-        aside={
-          outcome ? (
-            <div className="stack-s" style={{ minWidth: "230px" }}>
-              <StateLabel value={outcome.status} />
-              <Stat
-                size="s"
-                value={`${passed}/${outcome.checks.length}`}
-                label="checks matched"
-                tone={passed === outcome.checks.length ? "ok" : "fail"}
-              />
-              <SegBar
-                segments={[
-                  { label: "Matched", count: passed, tone: "ok" },
-                  { label: "Did not match", count: outcome.checks.length - passed, tone: "fail" },
-                ]}
-                ariaLabel={`${passed} of ${outcome.checks.length} checks matched the expected outcome`}
-              />
-            </div>
-          ) : (
-            <StateLabel value="SCENARIO_NOT_RUN" />
-          )
-        }
+        aside={<StateLabel value={outcome ? outcome.status : "SCENARIO_NOT_RUN"} />}
       >
         <div className="stack">
           {outcome ? (
             <>
+              <div className="sc-score">
+                <Stat
+                  size="s"
+                  value={`${passed}/${outcome.checks.length}`}
+                  label="checks matched"
+                  tone={passed === outcome.checks.length ? "ok" : "fail"}
+                />
+                <SegBar
+                  segments={[
+                    { label: "Matched", count: passed, tone: "ok" },
+                    { label: "Did not match", count: outcome.checks.length - passed, tone: "fail" },
+                  ]}
+                  ariaLabel={`${passed} of ${outcome.checks.length} checks matched the expected outcome`}
+                />
+              </div>
+
               <Callout
                 tone={outcome.status === "SCENARIO_DEMONSTRATED" ? "ok" : "fail"}
-                title={outcome.headline}
+                title={plainPhrase(outcome.headline)}
               >
                 <p className="meta">Run {formatTimestamp(outcome.ran_at)}</p>
               </Callout>

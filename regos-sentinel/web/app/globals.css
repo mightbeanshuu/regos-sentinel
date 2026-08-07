@@ -825,6 +825,21 @@ details.disclosure[open] > summary { border-bottom: 1px solid var(--line); }
    default; the other three are there to show the same path holds elsewhere.
    ========================================================================== */
 
+/* The case outcome, read across rather than stacked into a panel header. As a
+   four-row aside beside a one-line title it forced the header to ~150px and
+   left most of that empty, which reads as a section that failed to load. Here
+   the count sits at the left and the bar takes the width it needs to be read. */
+.sc-score {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.sc-score > .stat { flex: 0 0 auto; padding: 0; border: 0; }
+.sc-score > .segbar-wrap { flex: 1 1 260px; min-width: 0; }
+
 .scenario-bar {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);

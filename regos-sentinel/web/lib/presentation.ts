@@ -573,12 +573,29 @@ const INLINE_PHRASES: Record<string, string> = {
   "vapt.virtual.patching": "virtual patching guidance",
 };
 
+/**
+ * "1 control(s) and 3 evidence item(s)" → "1 control and 3 evidence items".
+ *
+ * The API hedges its plurals because it writes one string for any count. The
+ * count is right there on screen, so the hedge buys nothing and costs the
+ * sentence its polish. Only the suffix changes; no number and no noun moves.
+ */
+function settlePlurals(text: string): string {
+  return text.replace(
+    /\b(\d+)((?:\s+[A-Za-z]+)*?\s+[A-Za-z]*?)([a-z])\(s\)/g,
+    (_match, count, lead, last) => {
+      if (Number(count) === 1) return `${count}${lead}${last}`;
+      return last === "y" ? `${count}${lead}ies` : `${count}${lead}${last}s`;
+    },
+  );
+}
+
 export function plainPhrase(text: string): string {
   let plain = PHRASES[text] ?? text;
   for (const [machine, readable] of Object.entries(INLINE_PHRASES)) {
     plain = plain.replaceAll(machine, readable);
   }
-  return plain;
+  return settlePlurals(plain);
 }
 
 /**
