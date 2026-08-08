@@ -73,6 +73,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
     throw new Error(errorMessage(payload, response.status));
   }
+  // 204 is how the API says "asked and answered, nothing here" — a document
+  // with no case generated yet. There is no body to parse, and calling .json()
+  // on one throws.
+  if (response.status === 204) return null as T;
   return (await response.json()) as T;
 }
 
@@ -183,7 +187,7 @@ export const regosApi = {
   documentScore: (documentId: string) =>
     requestJson<DocumentScore>(`/documents/${documentId}/score`, { cache: "no-store" }),
   documentCase: (documentId: string) =>
-    requestJson<DocumentCaseRecord>(`/documents/${documentId}/case`, { cache: "no-store" }),
+    requestJson<DocumentCaseRecord | null>(`/documents/${documentId}/case`, { cache: "no-store" }),
   generateDocumentCase: (documentId: string) =>
     requestJson<DocumentCaseRecord>(`/documents/${documentId}/case`, { method: "POST" }),
   commitDocumentCaseReading: (

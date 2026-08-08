@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from .agents.crew import CATALOGUE as AGENT_CATALOGUE
 from .agents.orchestrator import (
@@ -693,18 +693,24 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
 
     @application.get(
-        "/api/v1/documents/{document_id}/case", response_model=DocumentCase
+        "/api/v1/documents/{document_id}/case",
+        response_model=Optional[DocumentCase],
+        responses={204: {"description": "The document exists; no case has been generated yet."}},
     )
-    def read_document_case(request: Request, document_id: str) -> DocumentCase:
+    def read_document_case(request: Request, document_id: str) -> Response:
         try:
             payload = documents_for(request).get_case_payload(document_id)
         except DocumentRejected as error:
+            # A document that is not in this session genuinely is not found.
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
         if payload is None:
-            raise HTTPException(
-                status_code=404, detail="No case has been generated for this document yet."
-            )
-        return DocumentCase.model_validate(payload)
+            # A document with no case yet is the ordinary state of every fresh
+            # upload, not a missing resource. Answering 404 made the browser log
+            # a failed request on every render before a case exists — console
+            # noise that reads as a real fault and buries genuine 4xx in any
+            # network monitoring. 204 says "asked and answered, nothing here".
+            return Response(status_code=204)
+        return JSONResponse(DocumentCase.model_validate(payload).model_dump(mode="json"))
 
     @application.post(
         "/api/v1/documents/{document_id}/case/reading", response_model=DocumentCase

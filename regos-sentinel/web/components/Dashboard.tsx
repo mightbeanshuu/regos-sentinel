@@ -326,6 +326,14 @@ export function Dashboard({
   const passed = build?.tests.filter((item) => item.status === "PASS") ?? [];
 
   const blockedDates = state.deadline_computations.filter((item) => !item.computable);
+  /* Passages waiting across every uploaded document. The Open decisions figure
+     counts these, so its note has to name them too — otherwise a queue of 8 sits
+     above a note accounting for 1. */
+  const docPassagesWaiting = documents.reduce(
+    (total, doc) =>
+      total + doc.passages.filter((item) => item.classification === "NEEDS_REVIEW").length,
+    0,
+  );
   const evidenceCurrent = state.evidence.filter((item) => item.status === "CURRENT");
   const runsById = new Map(state.agent_runs.map((item) => [item.agent_id, item]));
 
@@ -378,20 +386,26 @@ export function Dashboard({
       actionLabel: "Make the decision",
       onAction: track(onOpenDecision),
     })),
-    ...(activeDoc
-      ? activeDoc.passages
-          .filter((item) => item.classification === "NEEDS_REVIEW")
-          .map((item) => ({
-            id: item.id,
-            tone: "review" as const,
-            status: "Needs your reading",
-            title: item.locator,
-            reason: item.text,
-            support: activeDoc.filename,
-            actionLabel: "Open the document",
-            onAction: track(() => onOpenDocuments?.()),
-          }))
-      : []),
+    /* Every document in the session, not just the most recent one. This desk
+       answers "what is waiting on me", and reading only `documents.at(-1)` meant
+       uploading a second file silently retired the first one's pending passages:
+       the document tab counted 8 waiting while the dashboard showed 1, and the
+       seven that vanished were the ones nobody would go looking for. Passage ids
+       are only unique within a document, so the key carries the document id. */
+    ...documents.flatMap((doc) =>
+      doc.passages
+        .filter((item) => item.classification === "NEEDS_REVIEW")
+        .map((item) => ({
+          id: `${doc.id}:${item.id}`,
+          tone: "review" as const,
+          status: "Needs your reading",
+          title: item.locator,
+          reason: item.text,
+          support: doc.filename,
+          actionLabel: "Open the document",
+          onAction: track(() => onOpenDocuments?.()),
+        })),
+    ),
   ];
 
   /** The report exists only once nothing is failing and nothing is held open. */
@@ -558,6 +572,9 @@ export function Dashboard({
                     : null,
                   waiting.length > 0
                     ? `${waiting.length} check${waiting.length === 1 ? "" : "s"} held for a person`
+                    : null,
+                  docPassagesWaiting > 0
+                    ? `${docPassagesWaiting} passage${docPassagesWaiting === 1 ? "" : "s"} in your documents`
                     : null,
                 ]
                   .filter(Boolean)
