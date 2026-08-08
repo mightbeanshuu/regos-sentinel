@@ -165,13 +165,30 @@ body {
    stops scrolling away.
    ========================================================================== */
 
+/* The two side columns are sticky and one viewport tall, so on a long page
+   their fill and their hairline stopped at the fold and the sidebar looked like
+   it ended mid-scroll. The stripes are painted on the grid itself, which is as
+   tall as the content, so the columns read as columns all the way down. The
+   fill stays transparent otherwise, so the body's ambient field shows through
+   and the glass above it has something to refract. */
 .romer {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--rail-w);
   min-height: 100vh;
-  /* Transparent, so the body's ambient field shows through and the glass
-     surfaces above have something to refract. */
-  background: transparent;
+  background-color: transparent;
+  background-image:
+    linear-gradient(
+      to right,
+      oklch(0.16 0.006 258 / 0.55) 0 var(--sidebar-w),
+      var(--line) var(--sidebar-w) calc(var(--sidebar-w) + 1px),
+      transparent calc(var(--sidebar-w) + 1px)
+    ),
+    linear-gradient(
+      to left,
+      oklch(0.16 0.006 258 / 0.55) 0 var(--rail-w),
+      var(--line) var(--rail-w) calc(var(--rail-w) + 1px),
+      transparent calc(var(--rail-w) + 1px)
+    );
 }
 
 /* ---- Where glass is applied ------------------------------------------------
@@ -214,7 +231,6 @@ body {
   flex-direction: column;
   gap: var(--s5);
   padding: var(--s4) var(--s3);
-  border-right: 1px solid var(--line);
   position: sticky;
   top: 0;
   height: 100vh;
@@ -489,7 +505,6 @@ body {
   flex-direction: column;
   gap: var(--s4);
   padding: var(--s4);
-  border-left: 1px solid var(--line);
   position: sticky;
   top: 0;
   height: 100vh;
@@ -1016,6 +1031,116 @@ body {
 .rx-trace-mark--ok     { background: var(--ok-wash);     color: var(--ok); }
 .rx-trace-mark--review { background: var(--review-wash); color: var(--review); }
 
+/* ==========================================================================
+   Upload · assistants · record — the Romer grammar on the remaining tabs
+   ========================================================================== */
+
+/* ---- The drop zone --------------------------------------------------------
+   Dashed while empty, solid lime while a file is over it. The dashed edge is
+   the affordance: it says "put something here" without a label doing the work. */
+
+.dropzone {
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.dropzone--active {
+  border-style: solid;
+  border-color: var(--brand);
+  background: var(--brand-wash);
+}
+.upload-lede { max-width: 68ch; }
+
+/* ---- Passage cards --------------------------------------------------------
+   A quoted passage and the one chip saying what was decided about it. The
+   quotation keeps the serif, because it is still somebody's regulation. */
+
+.passage-text {
+  font-family: var(--serif);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.passage-head { align-items: center; gap: var(--s3); }
+
+/* ---- Assistant checks, two across ------------------------------------------
+   Four cards read as a set of four when they sit in a grid; stacked, the
+   fourth is a scroll away from the first and they read as a queue. */
+
+.ag-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  gap: var(--s4);
+}
+
+/* The three-node flow strip, centred, in micro ALL-CAPS. */
+.ag-pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s4);
+  border-block: 1px solid var(--line);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ag-pipeline-caption { text-transform: none; letter-spacing: 0; }
+
+/* ---- Full record: the three levels as tabs --------------------------------
+   An underline marks the level being read. The old strip was a row of anchor
+   links, which said where you could go but never where you were. */
+
+.rec-toc {
+  gap: 0 var(--s5);
+  padding-block: 0;
+  border-block-end: 1px solid var(--line);
+}
+.rec-toc-label { display: none; }
+.rec-toc-list { gap: 0 var(--s5); }
+.rec-toc-item {
+  position: relative;
+  min-height: 40px;
+  padding: var(--s3) 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.rec-toc-item:hover { background: none; color: var(--brand); }
+.rec-toc-item::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+}
+.rec-toc-item:hover::after { background: var(--brand-line); }
+.rec-toc-index { color: var(--ink-3); }
+.rec-toc-item:hover .rec-toc-index { color: var(--brand); }
+
+/* Level 1 as a two-column grid of micro-label + value pairs. Six short facts
+   read faster side by side than as six full-width rows. */
+@media (min-width: 720px) {
+  .rec-level .datalist {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rec-level .datalist-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s2);
+    padding: var(--s4);
+  }
+  .rec-level .datalist-row:nth-child(odd) { border-right: 1px solid var(--line); }
+}
+
 /* ---- Identifiers ----------------------------------------------------------
    A control id and a finding id are machine identifiers a person quotes back
    verbatim, so they are set as identifiers — mono, bordered, selectable — and
@@ -1114,4 +1239,73 @@ body {
   .romer-body,
   .romer-status,
   .romer-foot { padding-inline: var(--s4); }
+}
+
+/* ==========================================================================
+   Motion — short, purposeful, once
+   Nothing loops, nothing bounces, nothing animates on scroll. Every rule below
+   is disabled wholesale under `prefers-reduced-motion: reduce` at the foot of
+   this block, and the extraction analysis is exempt by name: that screen is the
+   eight seconds a regulator spends reading that no date was produced, and
+   motion there would only pull attention off the empty field.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Progress rows and meters grow from nothing, once, from the left. */
+  .romer-prog-fill,
+  .meter-fill,
+  .cci-bar-fill {
+    animation: romer-grow var(--t-enter, 320ms) var(--ease) 1;
+  }
+
+  /* The centre column crossfades on a tab change. The sidebar never moves —
+     navigation that shifts under the cursor costs more than it gives. */
+  .romer-body > div[role="tabpanel"]:not([hidden]) {
+    animation: romer-enter 160ms var(--ease) 1;
+  }
+
+  /* Chrome transitions colour only. No scale, no lift: a control that grows
+     under the pointer reads as a toy on a screen a regulator is reading. */
+  .tag,
+  .romer-nav-item,
+  .romer-icon-btn,
+  .ask-chip,
+  .romer-seg-item {
+    transition:
+      background-color 120ms var(--ease),
+      border-color 120ms var(--ease),
+      color 120ms var(--ease);
+  }
+
+  /* The rail's blocking strip settles once when it appears, so a decision
+     arriving while the page is open is noticed without anything blinking. */
+  .romer-blocking { animation: romer-enter var(--t-base, 200ms) var(--ease) 1; }
+}
+
+@keyframes romer-grow {
+  from { transform: scaleX(0); }
+}
+@keyframes romer-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* The one screen that holds completely still. */
+.rx,
+.rx * { animation: none !important; transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .romer-prog-fill,
+  .meter-fill,
+  .cci-bar-fill,
+  .romer-body > div[role="tabpanel"],
+  .romer-blocking,
+  .tag,
+  .romer-nav-item,
+  .romer-icon-btn,
+  .ask-chip,
+  .romer-seg-item {
+    animation: none;
+    transition: none;
+  }
 }

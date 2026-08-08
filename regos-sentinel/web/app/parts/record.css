@@ -293,3 +293,12 @@ details.disclosure.rec-fold > summary {
     transition: none;
   }
 }
+
+/* The verification id, under the tamper badge. Mono because it is quoted back
+   verbatim; muted because it identifies the record rather than judging it. */
+.audit-integrity-id {
+  margin: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}

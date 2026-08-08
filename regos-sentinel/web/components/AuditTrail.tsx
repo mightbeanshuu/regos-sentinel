@@ -11,6 +11,7 @@ import {
   eventLabelOf,
   formatTimestamp,
   labelOf,
+  shortHash,
   legalStateOf,
   plainPhrase,
   stageOf,
@@ -477,6 +478,16 @@ export function AuditTrail({
             {assistantRecordVerified
               ? "Every assistant step is still locked to the step before it."
               : "No assistant has run in this session. Each run is checked the moment it finishes."}
+          </p>
+          {/* Stitch put a "Verification ID" under this badge. A record is sealed
+              at the end of a review, so until one exists there is no id to show —
+              and a plausible-looking one printed here would be exactly the kind
+              of fabrication this page exists to rule out. It appears when the
+              manifest does, and says so plainly until then. */}
+          <p className="audit-integrity-id mono">
+            {manifest
+              ? `Verification ID ${shortHash(manifest.manifest_sha256)}`
+              : "Verification ID · issued when the record is sealed"}
           </p>
         </div>
       </section>
