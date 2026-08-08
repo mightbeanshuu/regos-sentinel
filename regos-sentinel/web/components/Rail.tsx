@@ -25,7 +25,14 @@ function Bolt() {
   );
 }
 
-export function Rail({ state }: { state: WorkspaceState }) {
+export function Rail({
+  state,
+  awaitingUpload = false,
+}: {
+  state: WorkspaceState;
+  /** True from "Restart demo" until a document is added. See `page.tsx`. */
+  awaitingUpload?: boolean;
+}) {
   /* The deadline that cannot be computed — the case this product exists for. */
   const blocked = state.deadline_computations.find((item) => !item.computable);
   const blockedRule = state.obligations
@@ -39,6 +46,29 @@ export function Rail({ state }: { state: WorkspaceState }) {
   const withoutTrigger = rules.length - withTrigger;
 
   const events = [...state.audit_events].slice(-3).reverse();
+
+  /* After a restart the rail resets with the rest of the page. It used to keep
+     reading the seeded workspace, so the centre column said nothing had been
+     reviewed while the rail beside it still named a blocking decision and a
+     duration — two panels describing different sessions, side by side. */
+  if (awaitingUpload) {
+    return (
+      <aside className="romer-rail" aria-label="RegOS intelligence">
+        <p className="romer-rail-head">
+          <Bolt />
+          RegOS intelligence
+          <span className="romer-status-dot romer-status-dot--idle" aria-hidden="true" />
+        </p>
+        <section className="romer-rail-block">
+          <p className="romer-micro">Waiting for a document</p>
+          <div className="romer-rail-card">
+            Nothing has been reviewed in this session. Add the SEBI document you want
+            checked and the decisions, the deadlines and the log all appear here.
+          </div>
+        </section>
+      </aside>
+    );
+  }
 
   return (
     <aside className="romer-rail" aria-label="RegOS intelligence">

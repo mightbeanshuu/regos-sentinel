@@ -1309,3 +1309,138 @@ body {
     transition: none;
   }
 }
+
+/* The rail's live dot goes quiet when the workspace is waiting for a document.
+   A green "live" pip over an empty rail claims activity that is not happening. */
+.romer-status-dot--idle { background: var(--ink-3); }
+
+/* ---- The bell popover ------------------------------------------------------
+   Two lists: what is waiting on a person, and what the assistants recorded.
+   Every row is a record that exists — a notification list is the easiest place
+   in a product to invent activity, and one invented row here would undo the
+   claim the rest of the page is built on. */
+
+.romer-bell { position: relative; }
+.romer-bell > summary { list-style: none; }
+.romer-bell > summary::-webkit-details-marker { display: none; }
+
+.romer-pop {
+  position: absolute;
+  top: calc(100% + var(--s2));
+  right: 0;
+  z-index: 40;
+  width: min(340px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--glass-fill-1-opaque);
+  box-shadow: var(--glass-shadow-1);
+}
+.romer-pop .romer-micro { padding-inline: 0; margin-bottom: 0; }
+.romer-pop .romer-micro + * { margin-top: 0; }
+.romer-pop .meta { margin: 0 0 var(--s2); }
+
+.romer-pop-list { display: flex; flex-direction: column; margin: 0 0 var(--s2); padding: 0; list-style: none; }
+.romer-pop-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  width: 100%;
+  padding: var(--s2);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.romer-pop-row:hover { background: #1d1d1e; }
+.romer-pop-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.romer-pop-mark--review { background: var(--review-wash); color: var(--review); }
+.romer-pop-mark--ok     { background: var(--ok-wash);     color: var(--ok); }
+.romer-pop-title { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
+.romer-pop-meta  { display: block; font-size: 0.6875rem; color: var(--ink-3); }
+
+/* ---- The attestation card --------------------------------------------------
+   "This decision is recorded against your name" carried a saturated burnt-amber
+   gradient built for a light page. On near-black it reads as a muddy brown
+   slab, and the one place a person is told their name is about to be attached
+   to a regulatory decision should not look like a rendering fault.
+
+   It becomes what every other "a person is required" surface in this product
+   already is: a peach-washed card with a peach hairline. The weight comes from
+   the words and the primary button, not from a heavy fill. */
+
+.decision-commit {
+  background: var(--review-wash);
+  border: 1px solid var(--review-line);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+}
+.decision-commit-title { color: var(--ink); }
+.decision-commit-sub,
+.decision-commit-hint { color: var(--ink-2); opacity: 1; }
+.decision-commit-quiet { color: var(--ink-2); }
+.decision-commit-quiet:hover:not(:disabled) { color: var(--ink); }
+
+/* Same treatment for the guided review's own action bar. */
+.rcx-actionbar {
+  background: var(--review-wash);
+  border: 1px solid var(--review-line);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+}
+
+/* ---- The account menu ------------------------------------------------------ */
+
+.romer-account {
+  position: absolute;
+  bottom: calc(100% + var(--s2));
+  left: 0;
+  z-index: 40;
+  width: min(300px, 78vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--glass-fill-1-opaque);
+  box-shadow: var(--glass-shadow-1);
+}
+.romer-account .romer-micro { padding-inline: 0; margin: 0; }
+.romer-account .meta { margin: 0; }
+.romer-account-name { margin: 0; font-size: 0.9375rem; font-weight: 650; color: var(--ink); }
+.romer-account-list { display: flex; flex-direction: column; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.romer-account-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+.romer-account-note {
+  margin: 0;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+.romer-side-foot .profile { position: relative; }

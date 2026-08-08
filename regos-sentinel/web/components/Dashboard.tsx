@@ -213,6 +213,7 @@ export function Dashboard({
   onOpenDocuments,
   onOpenAssistants,
   onRunAssistants,
+  onRunAgent,
   awaitingUpload = false,
   onShowWorkspace,
 }: {
@@ -229,6 +230,8 @@ export function Dashboard({
   /** Switches the global tab strip to "AI assistants". See the note on `openAssistants`. */
   onOpenAssistants?: () => void;
   onRunAssistants?: (documentId: string) => void;
+  /** Starts one named check from the dashboard row that reports on it. */
+  onRunAgent?: (id: AgentId) => void;
   /** True from "Restart demo" until a document is added. See `DashboardStart`. */
   awaitingUpload?: boolean;
   onShowWorkspace?: () => void;
@@ -1306,6 +1309,19 @@ export function Dashboard({
                   </ul>
                 ) : (
                   <Tag value="Not run yet" tone="neutral" />
+                )}
+                {/* Runnable from here, not only from the assistants tab. The
+                    counts beside it are the reason someone looks at this row,
+                    so the action belongs on the same line as the counts. */}
+                {onRunAgent && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--small"
+                    disabled={busy}
+                    onClick={track(() => onRunAgent(id))}
+                  >
+                    {run ? "Run again" : "Run"}
+                  </button>
                 )}
               </div>
             );

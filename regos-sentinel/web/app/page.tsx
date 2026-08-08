@@ -10,6 +10,7 @@ import { FlowMap } from "../components/FlowMap";
 import { FlowScene } from "../components/FlowScene";
 import { GuidedReview } from "../components/GuidedReview";
 import { Rail } from "../components/Rail";
+import { Tag } from "../components/ui";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import {
   IconAgents,
@@ -22,7 +23,7 @@ import {
   IconLedger,
 } from "../components/vector";
 import { regosApi } from "../lib/api";
-import { cscrfCategoryLabel, labelOf } from "../lib/presentation";
+import { agentNameOf, checkLabel, cscrfCategoryLabel, labelOf } from "../lib/presentation";
 import type {
   DocumentLimits,
   LiveSourceVerificationReceipt,
@@ -283,9 +284,34 @@ export default function Home() {
   /* What the bell counts: deadlines the source cannot produce a date for, plus
      checks the last run stopped on for a person. Both are read, never assumed —
      an empty bell has to mean the desk is genuinely clear. */
-  const waitingCount =
-    state.deadline_computations.filter((item) => !item.computable).length +
-    (state.builds.at(-1)?.tests.filter((test) => test.status === "BLOCK").length ?? 0);
+  const waitingCount = awaitingUpload
+    ? 0
+    : state.deadline_computations.filter((item) => !item.computable).length +
+      (state.builds.at(-1)?.tests.filter((test) => test.status === "BLOCK").length ?? 0);
+
+  /* What the bell opens. Each row points at the tab that can resolve it. */
+  const waitingItems = awaitingUpload
+    ? []
+    : [
+        ...state.deadline_computations
+          .filter((item) => !item.computable)
+          .map((item) => ({
+            id: item.id,
+            title: "Decide what starts this reporting clock",
+            note: item.citation.locator,
+            tab: "guided" as TabId,
+          })),
+        ...(state.builds.at(-1)?.tests ?? [])
+          .filter((test) => test.status === "BLOCK")
+          .map((test) => ({
+            id: test.id,
+            title: checkLabel(test.id, test.name),
+            note: test.message,
+            tab: "guided" as TabId,
+          })),
+      ];
+
+  const assistantRuns = awaitingUpload ? [] : [...state.agent_runs].slice(-4).reverse();
 
   const sourceChecked = receipt
     ? sourceStale
@@ -369,19 +395,46 @@ export default function Home() {
                 </span>
               </span>
             </summary>
-            <div className="profile-menu">
-              <p className="profile-menu-name">{state.entity_profile.legal_name}</p>
+            {/* The account menu. It shows the firm this workspace belongs to and
+                every registration the API reports for it.
+
+                There is no firm switcher, and that is a deliberate omission. The
+                backend exposes exactly one `entity_profile` and no endpoint for a
+                second workspace, so a switcher would either do nothing or move
+                between firms this prototype invented — and an invented regulated
+                entity is a worse fabrication than an invented number. The menu
+                says what a live deployment does instead of miming it. */}
+            <div className="romer-account">
+              <p className="romer-micro">Signed in to</p>
+              <p className="romer-account-name">{state.entity_profile.legal_name}</p>
               <p className="meta">
-                {labelOf(state.entity_profile.entity_type)}
+                {labelOf(state.entity_profile.entity_type)} ·{" "}
+                {cscrfCategoryLabel(state.entity_profile.cscrf_category)}
                 {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
-                {" · synthetic demo profile"}
               </p>
-              {/* No reset here. It is the same `restart()` as the sidebar's
-                  "Restart demo", and one destructive operation wearing two
-                  labels in two places is how a demo gets wiped by accident. */}
-              <p className="meta">
-                This demo has one synthetic broker profile. In a live deployment each
-                broker would have their own.
+
+              <p className="romer-micro">Registrations on file</p>
+              {state.entity_profile.registrations.length === 0 ? (
+                <p className="meta">No registration is recorded for this firm.</p>
+              ) : (
+                <ul className="romer-account-list">
+                  {state.entity_profile.registrations.map((reg, index) => (
+                    <li key={`${reg.registration_type}-${index}`}>
+                      <span>{labelOf(reg.registration_type)}</span>
+                      <Tag
+                        value={reg.operational ? "Operational" : "Not operational"}
+                        tone={reg.operational ? "ok" : "neutral"}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="romer-account-note">
+                This prototype carries one synthetic broker. A live deployment gives
+                every broker their own workspace, and switching between them would
+                move you between real regulated entities — so no switcher is offered
+                here rather than one that moves between firms nobody registered.
               </p>
             </div>
           </details>
@@ -424,21 +477,75 @@ export default function Home() {
               />
             </form>
 
-            <button
-              type="button"
-              className="romer-icon-btn"
-              onClick={() => setTab("dashboard")}
-              aria-label={
-                waitingCount === 0
-                  ? "Nothing is waiting on a person"
-                  : `${waitingCount} item${waitingCount === 1 ? "" : "s"} waiting on a person`
-              }
-            >
-              <IconBell />
-              {waitingCount > 0 && (
-                <span className="romer-bell-count" aria-hidden="true">{waitingCount}</span>
-              )}
-            </button>
+            {/* Every row below is a record that exists. A notification list is
+                the easiest place in a product to invent activity, and inventing
+                one here would undo the claim the whole page rests on. */}
+            <details className="romer-bell">
+              <summary
+                className="romer-icon-btn"
+                aria-label={
+                  waitingCount === 0
+                    ? "Nothing is waiting on a person"
+                    : `${waitingCount} item${waitingCount === 1 ? "" : "s"} waiting on a person`
+                }
+              >
+                <IconBell />
+                {waitingCount > 0 && (
+                  <span className="romer-bell-count" aria-hidden="true">{waitingCount}</span>
+                )}
+              </summary>
+              <div className="romer-pop">
+                <p className="romer-micro">Waiting on a person</p>
+                {waitingItems.length === 0 ? (
+                  <p className="meta">Nothing is waiting on a person in this workspace.</p>
+                ) : (
+                  <ul className="romer-pop-list">
+                    {waitingItems.map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className="romer-pop-row"
+                          onClick={() => setTab(item.tab)}
+                        >
+                          <span className="romer-pop-mark romer-pop-mark--review" aria-hidden="true">!</span>
+                          <span>
+                            <span className="romer-pop-title">{item.title}</span>
+                            <span className="romer-pop-meta">{item.note}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <p className="romer-micro">What the assistants recorded</p>
+                {assistantRuns.length === 0 ? (
+                  <p className="meta">No assistant has run in this session.</p>
+                ) : (
+                  <ul className="romer-pop-list">
+                    {assistantRuns.map((run) => (
+                      <li key={`${run.agent_id}-${run.started_at}`}>
+                        <button
+                          type="button"
+                          className="romer-pop-row"
+                          onClick={() => setTab("agents")}
+                        >
+                          <span className="romer-pop-mark romer-pop-mark--ok" aria-hidden="true">✓</span>
+                          <span>
+                            <span className="romer-pop-title">{agentNameOf(run.agent_id)}</span>
+                            <span className="romer-pop-meta">
+                              {run.findings.length} finding
+                              {run.findings.length === 1 ? "" : "s"} · {run.tool_call_count} step
+                              {run.tool_call_count === 1 ? "" : "s"}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </details>
 
             <button
               type="button"
@@ -452,13 +559,18 @@ export default function Home() {
         </div>
 
         <div className="romer-status">
-          <span className="romer-status-live" style={{ color: "var(--ok)" }}>
+          <span
+            className="romer-status-live"
+            style={{ color: awaitingUpload ? "var(--ink-3)" : "var(--ok)" }}
+          >
             <span className="romer-status-dot" aria-hidden="true" />
-            Review in progress
+            {awaitingUpload ? "Waiting for a document" : "Review in progress"}
           </span>
           <span>
             <span className="romer-status-key">SEBI source:</span>
-            <span className="romer-status-val">{sourceChecked}</span>
+            <span className="romer-status-val">
+              {awaitingUpload ? "none added yet" : sourceChecked}
+            </span>
           </span>
         </div>
 
@@ -489,6 +601,9 @@ export default function Home() {
                 void download(() => regosApi.downloadBuildReport(state.builds.at(-1)!.id))}
               onRefresh={() => void load()}
               onOpenDocuments={() => setTab("document")}
+              onRunAgent={(id) => {
+                void act(() => regosApi.runAgent(id, "DETERMINISTIC_PLAN") as Promise<WorkspaceState>);
+              }}
               awaitingUpload={awaitingUpload}
               onShowWorkspace={() => setAwaitingUpload(false)}
               onRunAssistants={(documentId) => {
@@ -599,7 +714,7 @@ export default function Home() {
       </div>
 
       {/* ---- Intelligence rail --------------------------------------------- */}
-      <Rail state={state} />
+      <Rail state={state} awaitingUpload={awaitingUpload} />
 
       {showFlow && (
         <div
