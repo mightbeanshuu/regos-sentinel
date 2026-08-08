@@ -545,10 +545,23 @@ export function Dashboard({
           <p className={`romer-stat-figure${queue.length > 0 ? " romer-stat-figure--review" : ""}`}>
             {queue.length}
           </p>
+          {/* The note has to describe the figure directly above it. It used to
+              report only the uncomputable deadlines, so a queue of 8 sat over
+              the words "1 due date cannot be worked out" — a card contradicting
+              its own number in the first viewport. */}
           <p className="romer-stat-note">
-            {blockedDates.length > 0
-              ? `${blockedDates.length} due date${blockedDates.length === 1 ? "" : "s"} cannot be worked out`
-              : "nothing waiting on a person"}
+            {queue.length === 0
+              ? "nothing waiting on a person"
+              : [
+                  blockedDates.length > 0
+                    ? `${blockedDates.length} due date${blockedDates.length === 1 ? "" : "s"} cannot be worked out`
+                    : null,
+                  waiting.length > 0
+                    ? `${waiting.length} check${waiting.length === 1 ? "" : "s"} held for a person`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || `${queue.length} waiting on a person`}
           </p>
         </article>
         <article className="romer-stat">

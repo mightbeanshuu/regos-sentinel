@@ -129,9 +129,47 @@ _URGENCY_STRONG = (
 )
 
 
+#: A PDF text layer routinely breaks a word across a space — "from the end o f",
+#: "th e date of receipt". Every timing pattern above matches on whole words, so a
+#: single stray space inside "of" was enough to hide a clock-start the circular
+#: states plainly, and the product then asked a compliance officer to supply a date
+#: the source had already given. That is the one error this classifier must not
+#: make, so the fragments are rejoined before anything is matched.
+#:
+#: Only pairs that rejoin into one of the short function words these patterns
+#: actually depend on are merged. The repair therefore cannot invent a clock-start
+#: that the intact sentence would not also have produced — the failure mode a
+#: looser "delete suspicious spaces" rule would have introduced.
+_SPLIT_REPAIRABLE = frozenset(
+    {"of", "the", "from", "after", "before", "date", "end", "and", "for", "its"}
+)
+
+
+def _repair_split_words(text: str) -> str:
+    """Rejoin PDF-split fragments, but only into a known short function word.
+
+    Walks the tokens rather than substituting on a pattern: a regex pairs greedily
+    and "end o f" binds as ("end", "o"), which strands the "f" and leaves the very
+    phrase this repair exists for still broken.
+    """
+    tokens = text.split(" ")
+    repaired: List[str] = []
+    index = 0
+    while index < len(tokens):
+        if index + 1 < len(tokens):
+            merged = f"{tokens[index]}{tokens[index + 1]}"
+            if merged in _SPLIT_REPAIRABLE:
+                repaired.append(merged)
+                index += 2
+                continue
+        repaired.append(tokens[index])
+        index += 1
+    return " ".join(repaired)
+
+
 def features(text: str) -> Dict[str, float]:
     """The feature vector for one sentence. Deliberately few, deliberately legible."""
-    padded = f" {' '.join(text.lower().split())} "
+    padded = f" {_repair_split_words(' '.join(text.lower().split()))} "
     # "immediate relatives" names a family relationship, not urgency. Real transmission
     # circulars use it constantly and it must not read as a deadline.
     urgency_text = padded.replace("immediate relative", " ")

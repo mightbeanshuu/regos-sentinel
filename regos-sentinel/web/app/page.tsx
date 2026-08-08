@@ -77,6 +77,26 @@ export default function Home() {
      only surface in this product that answers one. */
   const [askSeed, setAskSeed] = useState("");
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+
+  /* A refused action has to be visible from where it was refused. This banner
+     sits at the top of the body, and the actions that can fail — committing a
+     reading, approving a build — live far down a long page, so a rejection
+     could render entirely off-screen and read as a button that does nothing.
+     Bring the banner to the reader and move focus to it, which also announces
+     the text to a screen reader. */
+  useEffect(() => {
+    if (!error) return;
+    const node = errorRef.current;
+    if (!node) return;
+    node.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "center",
+    });
+    node.focus();
+  }, [error]);
 
   // The Stitch tab shell scrolls horizontally on a phone. Keep the selected
   // destination in view when a workflow button changes tabs programmatically;
@@ -431,10 +451,9 @@ export default function Home() {
               )}
 
               <p className="romer-account-note">
-                This prototype carries one synthetic broker. A live deployment gives
-                every broker their own workspace, and switching between them would
-                move you between real regulated entities — so no switcher is offered
-                here rather than one that moves between firms nobody registered.
+                One synthetic broker in this prototype. A live deployment gives each
+                broker their own workspace — so no switcher is offered here rather
+                than one that moves between firms nobody registered.
               </p>
             </div>
           </details>
@@ -500,7 +519,7 @@ export default function Home() {
                   <p className="meta">Nothing is waiting on a person in this workspace.</p>
                 ) : (
                   <ul className="romer-pop-list">
-                    {waitingItems.map((item) => (
+                    {waitingItems.slice(0, 5).map((item) => (
                       <li key={item.id}>
                         <button
                           type="button"
@@ -516,6 +535,12 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {waitingItems.length > 5 && (
+                  <p className="romer-pop-more">
+                    and {waitingItems.length - 5} more — open Review a requirement to work
+                    through them.
+                  </p>
                 )}
 
                 <p className="romer-micro">What the assistants recorded</p>
@@ -576,7 +601,13 @@ export default function Home() {
 
         <main className="romer-body">
         {error && (
-          <p className="banner" role="alert" style={{ marginBottom: "24px" }}>
+          <p
+            ref={errorRef}
+            className="banner"
+            role="alert"
+            tabIndex={-1}
+            style={{ marginBottom: "24px" }}
+          >
             <span aria-hidden="true">✕</span>
             {error}
           </p>

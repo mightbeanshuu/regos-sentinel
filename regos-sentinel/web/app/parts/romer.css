@@ -234,7 +234,11 @@ body {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  /* Visible, not `auto`. `overflow-y: auto` makes this a clipping context, and
+     the account menu — which is wider than the 232px column by design — was
+     sliced off at the column edge. The sidebar holds a brand line, seven items
+     and a profile chip inside 100vh, so it has nothing to scroll. */
+  overflow: visible;
 }
 
 .romer-brand {
@@ -509,6 +513,7 @@ body {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .romer-rail-head {
@@ -1328,18 +1333,26 @@ body {
   position: absolute;
   top: calc(100% + var(--s2));
   right: 0;
-  z-index: 40;
-  width: min(340px, 90vw);
-  max-height: 60vh;
+  z-index: 60;
+  width: 340px;
+  max-width: min(340px, calc(100vw - 2 * var(--s4)));
+  max-height: min(60vh, 520px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: var(--s2);
   padding: var(--s4);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
-  background: var(--glass-fill-1-opaque);
-  box-shadow: var(--glass-shadow-1);
+  /* A FLAT OPAQUE FILL, not a glass token. `--glass-fill-*` are translucent by
+     design, and a translucent overlay let the stat cards and the decision card
+     read straight through the notification rows — two layers of text on top of
+     each other. An overlay is the one surface that must never be see-through. */
+  background-color: #14151a;
+  background-image: none;
+  backdrop-filter: none;
+  box-shadow: 0 18px 44px -18px oklch(0 0 0 / 0.95);
 }
 .romer-pop .romer-micro { padding-inline: 0; margin-bottom: 0; }
 .romer-pop .romer-micro + * { margin-top: 0; }
@@ -1373,8 +1386,34 @@ body {
 }
 .romer-pop-mark--review { background: var(--review-wash); color: var(--review); }
 .romer-pop-mark--ok     { background: var(--ok-wash);     color: var(--ok); }
-.romer-pop-title { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
-.romer-pop-meta  { display: block; font-size: 0.6875rem; color: var(--ink-3); }
+/* Both lines clamp. A check message can run to a paragraph, and one long row
+   used to push the popover wider than the column it hangs from. */
+.romer-pop-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.romer-pop-meta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.romer-pop-row > span:last-child { min-width: 0; }
+.romer-pop-more {
+  margin: 0;
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
 
 /* ---- The attestation card --------------------------------------------------
    "This decision is recorded against your name" carried a saturated burnt-amber
@@ -1420,8 +1459,10 @@ body {
   padding: var(--s4);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
-  background: var(--glass-fill-1-opaque);
-  box-shadow: var(--glass-shadow-1);
+  background-color: #14151a;
+  background-image: none;
+  backdrop-filter: none;
+  box-shadow: 0 18px 44px -18px oklch(0 0 0 / 0.95);
 }
 .romer-account .romer-micro { padding-inline: 0; margin: 0; }
 .romer-account .meta { margin: 0; }

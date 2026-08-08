@@ -1374,10 +1374,17 @@ function StepHumanDecision({
                 rewritten later in this session.
               </p>
               <div className="btn-row">
+                {/* The cited sections are a server-side precondition, not a
+                    suggestion: the API rejects a reading with 409 until every
+                    reference resolves. Leaving this button live meant a filled-in
+                    form could be submitted, refused, and the refusal rendered in
+                    the page-top banner — some 2,500px above the reader, who saw
+                    a primary button do nothing at all. The gate belongs where
+                    the click is, in the same shape the policy gate already uses. */}
                 <button
                   type="button"
                   className="btn btn--primary decision-commit-btn"
-                  disabled={busy || policyChoice === "none"}
+                  disabled={busy || policyChoice === "none" || !referencesLoaded}
                   onClick={() => {
                     setTouched(true);
                     if (!readingComplete) return;
@@ -1392,7 +1399,13 @@ function StepHumanDecision({
                   {busy && <span className="spinner" aria-hidden="true" />}
                   Record my reading, then show the draft interpretation
                 </button>
-                {policyChoice === "none" && (
+                {!referencesLoaded && (
+                  <p className="decision-commit-hint">
+                    Read the {state.references.length || 4} cited sections first — the
+                    button above them loads and fingerprints each one.
+                  </p>
+                )}
+                {referencesLoaded && policyChoice === "none" && (
                   <p className="decision-commit-hint">
                     Pick a clock-start policy to continue — or no due date will be worked out.
                   </p>
