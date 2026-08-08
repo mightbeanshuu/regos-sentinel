@@ -3,7 +3,7 @@
 import { useCallback, useId, useState, type ReactNode } from "react";
 
 import { useChangeKey, useTween } from "../lib/liveness";
-import { shortHash, stateOf, type Tone } from "../lib/presentation";
+import { glyphFor, shortHash, stateOf, type Tone } from "../lib/presentation";
 
 /* ---------------------------------------------------------------------------
  * State label — icon + sentence-case text. Colour is never the only signal.
@@ -34,9 +34,13 @@ export function StateLabel({
 export function Tag({ value, tone }: { value: string | null | undefined; tone?: Tone }) {
   const meta = stateOf(value);
   const resolved = tone ?? meta.tone;
+  /* The glyph follows the tone that is actually rendered. It used to come from
+     the state's own tone, so an overridden chip printed a peach fill with the
+     neutral "○" on it — colour saying one thing and the non-colour signal
+     saying another, which is exactly the case the glyph exists to cover. */
   return (
     <span className={`tag tag--${resolved}`} title={meta.hint}>
-      <span aria-hidden="true">{meta.glyph}</span>
+      <span aria-hidden="true">{glyphFor(resolved)}</span>
       {meta.label}
     </span>
   );

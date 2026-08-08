@@ -126,6 +126,61 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
+/**
+ * A progress row in the Romer grammar: track, accent fill, and the figure in
+ * the fill's own colour. `absent` is not a styling flag — when there is nothing
+ * to count, the row says so in words rather than drawing an empty bar at 0/0,
+ * which would read as a measured result of zero.
+ */
+function ProgRow({
+  label,
+  value,
+  max,
+  tone,
+  absent,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  tone: "ok" | "review" | "info";
+  absent: string | null;
+}) {
+  if (absent) {
+    return (
+      <div className="romer-prog">
+        <p className="romer-prog-foot">
+          <span>{label}</span>
+          <span className="meta">{absent}</span>
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="romer-prog">
+      <span
+        className="romer-prog-track"
+        role="meter"
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuetext={`${value} of ${max}`}
+      >
+        <span
+          className={`romer-prog-fill romer-prog-fill--${tone}`}
+          style={{ transform: `scaleX(${max > 0 ? value / max : 0})` }}
+        />
+      </span>
+      <p className="romer-prog-foot">
+        <span>{label}</span>
+        <span className={`romer-prog-figure romer-prog-figure--${tone}`}>
+          {value}/{max}
+        </span>
+      </p>
+    </div>
+  );
+}
+
 /** Dot · word · count. The one legend grammar, shared with SegBar and the charts. */
 function LegendChip({
   tone,
@@ -1091,6 +1146,60 @@ export function Dashboard({
           />
         )}
       </section>
+
+      {/* ---- 6b · What is waiting, and how far the review has got ------------
+          Romer's FOCUS QUEUE / APPROVAL PIPELINE pair. The left card is the
+          real desk queue — the same list the lead decision is drawn from, so
+          the two can never disagree. The right card counts three ratios and
+          gives each figure the colour of its own bar, which is the grammar
+          Romer uses for 12/16 · 2/6 · 4/4. */}
+      <div className="dash-pair">
+        <section className="b-card">
+          <p className="romer-micro">What is waiting</p>
+          {queue.length === 0 ? (
+            <p className="meta">Nothing is waiting on a person in this workspace.</p>
+          ) : (
+            <ul className="romer-queue">
+              {queue.slice(0, 5).map((item) => (
+                <li className="romer-queue-row" key={item.id}>
+                  <span className="romer-queue-title">{item.title}</span>
+                  <Tag value={item.status} tone={item.tone === "fail" ? "fail" : "review"} />
+                </li>
+              ))}
+            </ul>
+          )}
+          {queue.length > 5 && (
+            <p className="meta">and {queue.length - 5} more below.</p>
+          )}
+        </section>
+
+        <section className="b-card">
+          <p className="romer-micro">Review progress</p>
+          <div className="stack-s">
+            <ProgRow
+              label="Passages classified"
+              value={state.coverage.length}
+              max={state.coverage.length}
+              tone="info"
+              absent={state.coverage.length === 0 ? "No passage has been read yet" : null}
+            />
+            <ProgRow
+              label="Deadlines computed"
+              value={computableDates}
+              max={totalDeadlines}
+              tone="review"
+              absent={totalDeadlines === 0 ? "No deadline has been read yet" : null}
+            />
+            <ProgRow
+              label="Evidence current"
+              value={evidenceCurrent.length}
+              max={state.evidence.length}
+              tone="ok"
+              absent={state.evidence.length === 0 ? "No evidence is on file yet" : null}
+            />
+          </div>
+        </section>
+      </div>
 
       {/* ---- 7 · Recent record ----------------------------------------------
           One disclosure holds everything that already happened: the audit trail,

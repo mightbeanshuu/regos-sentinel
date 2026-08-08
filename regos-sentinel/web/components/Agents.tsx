@@ -12,6 +12,7 @@ import { useReducedMotion } from "motion/react";
 
 import { regosApi } from "../lib/api";
 import { AgentConsole } from "./AgentConsole";
+import { AskPanel } from "./AskPanel";
 import type { AgentConsoleHandle } from "./AgentConsole";
 import {
   agentNameOf,
@@ -157,10 +158,13 @@ export function Agents({
   state,
   busy,
   onRun,
+  askSeed,
 }: {
   state: WorkspaceState;
   busy: boolean;
   onRun: (operation: () => Promise<WorkspaceState>) => Promise<void>;
+  /** A question typed into the top-bar search, carried here to be edited and sent. */
+  askSeed?: string;
 }) {
   const [catalogue, setCatalogue] = useState<AgentCatalogueEntry[] | null>(null);
   const [planner, setPlanner] = useState<PlannerStatus | null>(null);
@@ -578,6 +582,11 @@ export function Agents({
           <circle className="axc-trace-dot" cx={trace.x2} cy={trace.y2} r={3.5} />
         </svg>
       )}
+      {/* Ask RegOS lives here as well as on the dashboard: this is the page about
+          the assistants, and it is where the top-bar search lands. */}
+      <section className="ag-ask">
+        <AskPanel seed={askSeed} />
+      </section>
     </div>
   );
 }

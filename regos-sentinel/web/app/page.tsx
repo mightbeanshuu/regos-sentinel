@@ -13,9 +13,12 @@ import { Rail } from "../components/Rail";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import {
   IconAgents,
+  IconAsk,
+  IconBell,
   IconClauses,
   IconDecision,
   IconGauge,
+  IconHelp,
   IconLedger,
 } from "../components/vector";
 import { regosApi } from "../lib/api";
@@ -69,6 +72,9 @@ export default function Home() {
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [showFlow, setShowFlow] = useState(false);
+  /* The top-bar search carries its question into the assistant, which is the
+     only surface in this product that answers one. */
+  const [askSeed, setAskSeed] = useState("");
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // The Stitch tab shell scrolls horizontally on a phone. Keep the selected
@@ -274,6 +280,13 @@ export default function Home() {
   /* Same derivation the dashboard uses: a receipt whose hash no longer matches
      means SEBI has republished the document since this review read it. */
   const sourceStale = receipt !== null && !receipt.hash_matches_expected;
+  /* What the bell counts: deadlines the source cannot produce a date for, plus
+     checks the last run stopped on for a person. Both are read, never assumed —
+     an empty bell has to mean the desk is genuinely clear. */
+  const waitingCount =
+    state.deadline_computations.filter((item) => !item.computable).length +
+    (state.builds.at(-1)?.tests.filter((test) => test.status === "BLOCK").length ?? 0);
+
   const sourceChecked = receipt
     ? sourceStale
       ? "changed since this review"
@@ -377,6 +390,67 @@ export default function Home() {
 
       {/* ---- Centre column ------------------------------------------------- */}
       <div className="romer-main">
+        {/* Breadcrumb, search, and a bell carrying the real number of things
+            waiting on a person. The search does not decorate: it carries the
+            question into the assistant, which is the only place in this product
+            that answers one. A box that searched nothing would be the same lie
+            as an invented figure, told with an icon instead of a number. */}
+        <div className="romer-topbar">
+          <p className="romer-crumbs">
+            <span>{state.entity_profile.legal_name}</span>
+            <span className="romer-crumbs-sep" aria-hidden="true">›</span>
+            <span className="romer-crumbs-here">
+              {TABS.find((item) => item.id === tab)?.label}
+            </span>
+          </p>
+
+          <div className="romer-topbar-tools">
+            <form
+              className="romer-search"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!askSeed.trim()) return;
+                setTab("agents");
+              }}
+            >
+              <IconAsk />
+              <input
+                type="search"
+                value={askSeed}
+                placeholder="Ask about these SEBI rules…"
+                aria-label="Ask about these SEBI rules"
+                onChange={(event) => setAskSeed(event.target.value)}
+              />
+            </form>
+
+            <button
+              type="button"
+              className="romer-icon-btn"
+              onClick={() => setTab("dashboard")}
+              aria-label={
+                waitingCount === 0
+                  ? "Nothing is waiting on a person"
+                  : `${waitingCount} item${waitingCount === 1 ? "" : "s"} waiting on a person`
+              }
+            >
+              <IconBell />
+              {waitingCount > 0 && (
+                <span className="romer-bell-count" aria-hidden="true">{waitingCount}</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="romer-icon-btn"
+              onClick={() => setShowFlow(true)}
+              aria-label="How it works"
+            >
+              <IconHelp />
+            </button>
+          </div>
+        </div>
+
         <div className="romer-status">
           <span className="romer-status-live" style={{ color: "var(--ok)" }}>
             <span className="romer-status-dot" aria-hidden="true" />
@@ -501,7 +575,7 @@ export default function Home() {
           aria-labelledby="tab-agents"
           hidden={tab !== "agents"}
         >
-          {tab === "agents" && <Agents state={state} busy={busy} onRun={act} />}
+          {tab === "agents" && <Agents state={state} busy={busy} onRun={act} askSeed={askSeed} />}
         </div>
 
         <div

@@ -36,6 +36,11 @@ const GLYPH: Record<Tone, string> = {
   accent: "→",
 };
 
+/** The non-colour signal for a tone, for callers that override the tone. */
+export function glyphFor(tone: Tone): string {
+  return GLYPH[tone];
+}
+
 function meta(label: string, tone: Tone, hint?: string): StateMeta {
   return { label, tone, glyph: GLYPH[tone], hint };
 }

@@ -302,6 +302,103 @@ body { background: var(--bg); color: var(--ink); }
 .romer-status-key { color: var(--ink-3); }
 .romer-status-val { color: var(--ink); margin-left: 0.4em; }
 
+/* ---- Top bar: where am I, and what is waiting -------------------------------
+   Breadcrumb, a search that jumps into the assistant, and a bell carrying the
+   real count of things waiting on a person. Nothing here is ornamental: a
+   search box that searches nothing, or a bell that never rings, would be the
+   same lie as an invented figure — it just tells it with an icon. */
+
+.romer-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) var(--s6);
+  border-bottom: 1px solid var(--line);
+}
+
+.romer-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+/* --line-2 measured 1.44:1 here. A separator may be quiet, but it is still a
+   character on screen and has to be legible. */
+.romer-crumbs-sep { color: var(--ink-3); }
+.romer-crumbs-here { color: var(--ink); }
+
+.romer-topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+.romer-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 240px;
+  max-width: 34vw;
+  padding: 6px var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink-3);
+}
+.romer-search:focus-within { border-color: var(--brand-line); }
+.romer-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.romer-search input:focus { outline: none; }
+.romer-search input::placeholder { color: var(--ink-3); }
+
+.romer-icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background-color var(--t-micro) var(--ease), color var(--t-micro) var(--ease);
+}
+.romer-icon-btn:hover { background: #1d1d1e; color: var(--ink); }
+/* The count is peach because it counts things a person has to do, which is the
+   same meaning peach carries everywhere else in this product. */
+.romer-bell-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--review);
+  color: var(--brand-ink);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 700px) {
+  .romer-search { display: none; }
+}
+
 .romer-body {
   flex: 1 1 auto;
   min-width: 0;
@@ -410,12 +507,13 @@ body { background: var(--bg); color: var(--ink); }
    2 · Romer component signatures
    ========================================================================== */
 
-/* Status chips: small, uppercase, radius 4, wash fill, no border. The tag
-   already carries its glyph and word from `lib/presentation.ts`, so only the
-   shape changes here — the meaning is untouched. */
+/* Status chips, per the component sheet: uppercase, radius 4, wash fill, a
+   hairline in the chip's own colour, and the glyph the tag already carries from
+   `lib/presentation.ts`. Only the shape is defined here — no chip's meaning,
+   label or tone is decided in CSS. */
 .tag {
   padding: 3px 7px;
-  border: 0;
+  border: 1px solid var(--line);
   border-radius: var(--chip-radius);
   font-size: 0.625rem;
   font-weight: 700;
@@ -428,11 +526,67 @@ body { background: var(--bg); color: var(--ink); }
    chip prints the accent on them rather than muted text. Measured against the
    colour each one actually carries: aqua 9.2:1 · peach 7.8:1 · coral 8.3:1 ·
    periwinkle 10.6:1. */
-.tag--ok      { background: #25373b; color: var(--ok); }
-.tag--review  { background: #3e332c; color: var(--review); }
-.tag--fail    { background: #3b2a2c; color: var(--fail); }
-.tag--accent  { background: #2b2c3d; color: var(--accent); }
-.tag--neutral { background: var(--bg-2); color: var(--ink-2); }
+.tag--ok      { background: #25373b; color: var(--ok);     border-color: var(--ok-line); }
+.tag--review  { background: #3e332c; color: var(--review); border-color: var(--review-line); }
+.tag--fail    { background: #3b2a2c; color: var(--fail);   border-color: var(--fail-line); }
+.tag--accent  { background: #2b2c3d; color: var(--accent); border-color: var(--accent-line); }
+.tag--neutral { background: var(--bg-2); color: var(--ink-2); border-color: var(--line-2); }
+
+/* ---- Button system: default · hover · focus · disabled --------------------
+   The focus ring is lime and offset, so it reads on every surface including
+   the lime button itself. Disabled dims and drops the pointer without moving:
+   a control that still animates under the cursor reads as available. */
+
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Topic and filter chips. Active is a lime hairline and lime text, never a
+   lime fill — a filled chip in a row of outlined ones reads as a button. */
+.ask-chip,
+.vault-filter,
+.audit-filter {
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.ask-chip:hover:not(:disabled),
+.audit-filter:hover {
+  border-color: var(--brand-line);
+  color: var(--brand);
+}
+.ask-chip--on,
+.audit-filter--on {
+  background: transparent;
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* Segmented control: 1H · 6H · 24H. One track, the active segment lit. */
+.romer-seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.romer-seg-item {
+  padding: 4px var(--s3);
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.romer-seg-item--on { background: var(--brand-wash); color: var(--brand); }
 
 /* Cards separate with a hairline, never a shadow. */
 .b-card,
@@ -516,6 +670,14 @@ body { background: var(--bg); color: var(--ink); }
   border-radius: var(--radius-lg);
   background: var(--surface);
 }
+/* "DEADLINES COMPUTED" wrapped to two lines while its three neighbours held
+   one, so the four figures sat at three different heights. The label tightens
+   inside a stat card rather than the card growing to fit the longest one. */
+.romer-stat .romer-micro {
+  padding-inline: 0;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+}
 .romer-stat-figure {
   margin: 0;
   font-size: 2rem;
@@ -561,6 +723,56 @@ body { background: var(--bg); color: var(--ink); }
 .romer-prog-figure--ok     { color: var(--ok); }
 .romer-prog-figure--review { color: var(--review); }
 .romer-prog-figure--info   { color: var(--accent); }
+
+/* The two cards sit side by side and stack before either gets narrow enough to
+   break a task name a word at a time. */
+/* Two rules, both learned from the harness.
+
+   `min(360px, 100%)` rather than a bare 360px: an auto-fit minmax floor does
+   not shrink below its minimum, so at 390px the 360px track plus the body
+   padding pushed the page 2px wider than the viewport and the whole document
+   scrolled sideways.
+
+   The explicit stack below 1100px rather than trusting auto-fit: at 768 the
+   centre column measured exactly 736px, which is exactly two 360px tracks plus
+   the gap, so it kept two columns and left the task name 138px to break a word
+   at a time. A breakpoint says what is meant instead of landing on the tie. */
+.dash-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: var(--s4);
+}
+@media (max-width: 1100px) {
+  .dash-pair { grid-template-columns: minmax(0, 1fr); }
+}
+.dash-pair > .b-card { gap: var(--s3); }
+
+.romer-queue { list-style: none; margin: 0; padding: 0; }
+.romer-queue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+.romer-queue-row + .romer-queue-row { border-top: 1px solid var(--line); }
+.romer-queue-title { min-width: 0; }
+.romer-queue-row > .tag { flex: 0 0 auto; }
+
+/* On a phone the chip left the task name 104px, which broke it a word at a
+   time. The name takes the full width and the chip drops beneath it. */
+@media (max-width: 560px) {
+  .romer-queue-row { flex-wrap: wrap; row-gap: var(--s2); }
+  .romer-queue-title { flex: 1 1 100%; }
+}
+
+/* Ask RegOS on the assistants page, separated from the checks above it. */
+.ag-ask {
+  padding-top: var(--s5);
+  border-top: 1px solid var(--line);
+}
 
 /* Three controls painted themselves with `var(--ink)` or a literal `#fff` to
    invert against a light canvas. Now that --ink IS the light colour they came

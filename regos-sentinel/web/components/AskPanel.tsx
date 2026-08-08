@@ -129,7 +129,7 @@ function AnswerBody({ answer }: { answer: AssistantAnswer }) {
   );
 }
 
-export function AskPanel() {
+export function AskPanel({ seed }: { seed?: string } = {}) {
   const [draft, setDraft] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [asking, setAsking] = useState(false);
@@ -138,6 +138,13 @@ export function AskPanel() {
   const [composerActive, setComposerActive] = useState(false);
   const nextIdRef = useRef(1);
   const threadRef = useRef<HTMLDivElement | null>(null);
+
+  /* A question typed into the top-bar search arrives here. It fills the
+     composer rather than sending itself: the reader gets to see and edit what
+     is about to be asked before an answer is recorded against this workspace. */
+  useEffect(() => {
+    if (seed) setDraft(seed);
+  }, [seed]);
 
   /**
    * Cycle the placeholder while the field is genuinely idle. It stops the moment

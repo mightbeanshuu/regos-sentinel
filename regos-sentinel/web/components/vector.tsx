@@ -161,3 +161,24 @@ export function GridField() {
     </svg>
   );
 }
+
+/** Waiting on a person. Carries the desk count in the top bar. */
+export function IconBell() {
+  return (
+    <Icon>
+      <path d="M10 2.8a4.4 4.4 0 0 0-4.4 4.4c0 3.2-1.2 4.4-1.2 4.4h11.2s-1.2-1.2-1.2-4.4A4.4 4.4 0 0 0 10 2.8Z" />
+      <path d="M8.7 14.4a1.5 1.5 0 0 0 2.6 0" />
+    </Icon>
+  );
+}
+
+/** Opens "How it works". */
+export function IconHelp() {
+  return (
+    <Icon>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M8.3 8a1.8 1.8 0 1 1 2.4 1.7c-.5.2-.7.6-.7 1.1v.3" />
+      <path d="M10 13.6h.01" />
+    </Icon>
+  );
+}
