@@ -1,0 +1,645 @@
+/* ==========================================================================
+   RegOS Sentinel — the Romer skin
+   Loaded LAST, after every other stylesheet, so it may override them without
+   any of them being edited. Nothing in here changes what a state MEANS; it
+   changes what the state looks like on a near-black canvas.
+
+   Why a token layer and not a rewrite: the whole design system already reads
+   its colour from `:root`, so redefining those custom properties reskins the
+   Panel, the Callout, the tables, the meters, the disclosures and every tag in
+   one place. Only the app shell and the handful of Romer signatures — the
+   ALL-CAPS micro label, the radius-4 chip, the progress row whose figure takes
+   the fill's own colour — need rules of their own.
+
+   THE COLOUR CONTRACT, and why it is not decoration. This product's entire
+   claim is that it separates what a source STATES, what a rule CALCULATED,
+   what an AI SUGGESTED and what a human DECIDED. Four accents carry that, and
+   each one keeps the role Romer already gave it:
+
+     aqua       #76d2e3   verified / done          (Romer: SYSTEM LIVE, ACTIVE)
+     peach      #ffc297   a person is required     (Romer: URGENT, BLOCKING)
+     coral      #ff9d9d   a check actually failed
+     periwinkle #c8cbff   computed / informational (Romer: the signal line)
+     lime       #d0fe67   BRAND AND ACTION ONLY — never a success signal
+
+   Lime is the one that would quietly break this. If lime also meant "good" it
+   would collide with aqua and the four states stop being readable, which is
+   the product. It appears on primary buttons, the active nav marker, the focus
+   ring and the brand mark, and nowhere else.
+
+   Every value below was measured against the canvas #070708:
+     aqua 11.6:1 · peach 12.9:1 · periwinkle 12.9:1 · coral 10.1:1
+     lime 17.3:1 · --ink-3 #7c7f83 5.01:1 (the floor — nothing dimmer)
+   ========================================================================== */
+
+:root {
+  /* ---- Ink ------------------------------------------------------------- */
+  --ink:   #f7f8f7;
+  --ink-2: #a1a3a6;
+  --ink-3: #7c7f83;   /* 5.01:1 on --bg. The floor. Anything dimmer fails AA
+                         at the 12–13px sizes this token is actually used at. */
+
+  /* ---- Surfaces -------------------------------------------------------- */
+  --surface: #0a0a0b;
+  --bg:      #070708;
+  --bg-2:    #0d0e0f;
+  --line:    #202124;
+  --line-2:  #2b2c2f;
+
+  /* ---- Brand and action ------------------------------------------------ */
+  --brand:      #d0fe67;
+  --brand-ink:  #070708;   /* text on lime is always the canvas colour */
+  --brand-wash: rgba(208, 254, 103, 0.08);
+  --brand-line: rgba(208, 254, 103, 0.32);
+
+  /* ---- The washes ------------------------------------------------------
+     A wash does two different jobs in this codebase and they pull opposite
+     ways on a dark canvas. Small chips fill with a wash and print the BRIGHT
+     accent on it. Card-sized surfaces — the decision card, the evidence cards,
+     the callouts, the drop zone — fill with the same token and print MUTED
+     text on it. Romer's chip washes (#25373b, #3e332c) are light enough that
+     --ink-3 measured 3.04:1 on them, and the harness caught it on five tabs.
+
+     So the token splits by job. `--*-wash` is now a near-canvas tint sized for
+     the worst case, muted text: every one clears 4.6:1 against #7c7f83. The
+     brighter Romer chip fills move to `.tag--*` further down, where the text
+     is the accent itself and clears 7.8:1 or better. */
+
+  /* ---- Informational. Periwinkle, never a success or failure signal. ---- */
+  --accent:      #c8cbff;
+  --accent-deep: #a6a9d9;
+  --accent-wash: #131420;   /* --ink-3 on this: 4.64:1 */
+  --accent-line: rgba(200, 203, 255, 0.28);
+
+  /* ---- Verified / done ------------------------------------------------- */
+  --ok:      #76d2e3;
+  --ok-wash: #0e1618;       /* 4.64:1 */
+  --ok-line: rgba(118, 210, 227, 0.28);
+
+  /* ---- A person is required. Expected hand-off, not a warning. --------- */
+  --review:      #ffc297;
+  --review-wash: #1a1512;   /* 4.61:1 */
+  --review-line: rgba(255, 194, 151, 0.28);
+
+  /* ---- A check actually failed. Nothing else is ever coral. ------------ */
+  --fail:      #ff9d9d;
+  --fail-wash: #1a1213;     /* 4.66:1 */
+  --fail-line: rgba(255, 157, 157, 0.28);
+
+  /* The change-flash briefly painted a near-white field under live values,
+     which put white text on white for the length of the animation. */
+  --flash-wash: #23262e;
+
+  /* ---- Geometry -------------------------------------------------------- */
+  --radius:    8px;
+  --radius-lg: 12px;
+  /* Hairlines separate in this system. Shadows would only muddy a near-black
+     canvas, so both elevation tokens are neutralised rather than re-tuned. */
+  --shadow:   none;
+  --shadow-2: none;
+
+  /* ---- Romer signatures ------------------------------------------------ */
+  --rail-w:    300px;
+  --sidebar-w: 232px;
+  --chip-radius: 4px;
+
+  color-scheme: dark;
+}
+
+/* The glass recipes were authored to refract a light canvas. Over near-black
+   they render as milky films on exactly the passages a regulator reads, so
+   every one of them collapses to the flat card this system uses instead. */
+:root {
+  --glass-fill-1: none;
+  --glass-fill-2: none;
+  --glass-fill-1-opaque: var(--surface);
+  --glass-fill-2-opaque: var(--surface);
+  --glass-border-1: var(--line);
+  --glass-border-2: var(--line);
+  --glass-shadow-1: none;
+  --glass-shadow-2: none;
+  --glass-highlight: none;
+  --glass-blur-1: 0px;
+  --glass-blur-2: 0px;
+  --glass-saturate: 1;
+}
+
+body { background: var(--bg); color: var(--ink); }
+
+/* ==========================================================================
+   1 · The three-column shell
+   Sidebar · centre · intelligence rail, split by vertical hairlines. The five
+   tabs move out of the top strip and into the sidebar, which is what lets the
+   rail exist at all — and the rail is where the blocking decision finally
+   stops scrolling away.
+   ========================================================================== */
+
+.romer {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--rail-w);
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ---- Sidebar ------------------------------------------------------------ */
+
+.romer-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  padding: var(--s4) var(--s3);
+  border-right: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.romer-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s2) 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.romer-brand svg { color: var(--brand); flex: 0 0 auto; }
+
+.romer-nav { display: flex; flex-direction: column; gap: 2px; }
+
+/* The micro ALL-CAPS label is the signature of this design. Every section,
+   card header and rail block is titled this way. */
+.romer-micro {
+  margin: 0 0 var(--s2);
+  padding-inline: var(--s2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.romer-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 40px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-micro) var(--ease),
+              color var(--t-micro) var(--ease);
+}
+.romer-nav-item svg { flex: 0 0 auto; color: var(--ink-3); }
+.romer-nav-item:hover { background: #161719; color: var(--ink); }
+
+.romer-nav-item--on {
+  background: #1d1d1e;
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+/* Active state is carried by fill + border + weight + a lime icon, which is
+   exactly how Romer marks it. No side bar: a thick coloured edge on one side
+   of a card is the most recognisable tell of a generated interface, and this
+   design does not use one anywhere. The lime is on the icon because that is
+   navigation state — no semantic tone may appear here, since a nav item is
+   never "verified" or "needs a person". */
+.romer-nav-item--on svg { color: var(--brand); }
+
+.romer-side-group {
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.romer-side-foot { margin-top: auto; }
+
+.romer-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.romer-profile:hover { background: #161719; border-color: var(--line); }
+.romer-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.romer-profile-name {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* One line, clipped rather than wrapped. "Small-size RE · synthetic" had 149px
+   and broke a word at a time, which reads as a rendering fault; the full name
+   is one line above it and the profile menu repeats both in full. */
+.romer-profile-sub {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Centre column ------------------------------------------------------ */
+
+.romer-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.romer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s3) var(--s6);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.romer-status-live { display: inline-flex; align-items: center; gap: var(--s2); }
+.romer-status-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: currentColor;
+}
+.romer-status-key { color: var(--ink-3); }
+.romer-status-val { color: var(--ink); margin-left: 0.4em; }
+
+.romer-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--s6);
+}
+.romer-body > * { max-width: 980px; }
+
+.romer-foot {
+  padding: var(--s4) var(--s6);
+  border-top: 1px solid var(--line);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+.romer-foot p { max-width: 92ch; margin: 0; }
+
+/* ---- Intelligence rail --------------------------------------------------- */
+
+.romer-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4);
+  border-left: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.romer-rail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.romer-rail-head svg { color: var(--brand); }
+.romer-rail-head .romer-status-dot { margin-left: auto; color: var(--ok); }
+
+.romer-rail-block { display: flex; flex-direction: column; }
+
+.romer-rail-card {
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.romer-rail-card strong { color: var(--ink); font-weight: 600; }
+/* Inline emphasis names the thing the sentence is about, the way Romer marks
+   "Project Alpha". The tone still carries meaning: peach for what needs a
+   person, periwinkle for a reference to the source. */
+.romer-rail-card .em-review { color: var(--review); font-weight: 600; }
+.romer-rail-card .em-info   { color: var(--accent); font-weight: 600; }
+
+.romer-log { display: flex; flex-direction: column; gap: var(--s3); }
+.romer-log-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s2) var(--s3);
+}
+.romer-log-dot {
+  width: 6px; height: 6px; margin-top: 6px;
+  border-radius: 999px;
+  background: var(--ink-3);
+}
+.romer-log-title { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
+.romer-log-meta  { margin: 0; font-size: 0.6875rem; color: var(--ink-3); }
+
+/* The blocking strip is pinned to the bottom of the rail so the one thing
+   waiting on a person cannot scroll out of sight. */
+.romer-blocking {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: auto;
+  padding: var(--s3);
+  border: 1px solid var(--review-line);
+  border-radius: var(--radius);
+  background: var(--review-wash);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.romer-blocking-glyph {
+  display: grid; place-items: center;
+  width: 18px; height: 18px; flex: 0 0 18px;
+  border-radius: 999px;
+  background: var(--review);
+  color: var(--brand-ink);
+  font-size: 0.6875rem;
+}
+.romer-blocking-title { color: var(--ink); }
+.romer-blocking-note  { color: var(--ink-3); }
+
+/* ==========================================================================
+   2 · Romer component signatures
+   ========================================================================== */
+
+/* Status chips: small, uppercase, radius 4, wash fill, no border. The tag
+   already carries its glyph and word from `lib/presentation.ts`, so only the
+   shape changes here — the meaning is untouched. */
+.tag {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: var(--chip-radius);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+/* The brighter Romer chip fills live here, not on the wash tokens, because a
+   chip prints the accent on them rather than muted text. Measured against the
+   colour each one actually carries: aqua 9.2:1 · peach 7.8:1 · coral 8.3:1 ·
+   periwinkle 10.6:1. */
+.tag--ok      { background: #25373b; color: var(--ok); }
+.tag--review  { background: #3e332c; color: var(--review); }
+.tag--fail    { background: #3b2a2c; color: var(--fail); }
+.tag--accent  { background: #2b2c3d; color: var(--accent); }
+.tag--neutral { background: var(--bg-2); color: var(--ink-2); }
+
+/* Cards separate with a hairline, never a shadow. */
+.b-card,
+.panel,
+.romer-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+/* Primary action is lime with canvas-dark text. This is the only place the
+   brand colour is allowed to fill a surface. */
+.btn--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.btn--primary:hover:not(:disabled) {
+  background: #dcff8a;
+  border-color: #dcff8a;
+  color: var(--brand-ink);
+}
+.btn--secondary {
+  background: transparent;
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--brand-line);
+  color: var(--brand);
+}
+.btn--quiet { color: var(--ink-2); }
+.btn--quiet:hover:not(:disabled) { background: #1d1d1e; color: var(--ink); }
+
+/* The board re-themes its own buttons at `.cmd .btn--*`, which outranks the
+   plain class above and was painting the primary action near-white. The brand
+   colour has to win on the one surface that carries the lead decision. */
+.cmd .btn--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.cmd .btn--primary:hover:not(:disabled) { background: #dcff8a; }
+.cmd .btn--secondary,
+.cmd .btn--quiet {
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+}
+.cmd .btn--secondary:hover:not(:disabled),
+.cmd .btn--quiet:hover:not(:disabled) {
+  border-color: var(--brand-line);
+  color: var(--brand);
+}
+
+/* The Cyber Capability Index dial takes the brand colour at every band, not a
+   semantic one. Coral here would read as "this firm fails", and the index is a
+   coverage measure, not a verdict — the product already had to be corrected
+   once for implying otherwise (AGENTS.md:299, PRODUCT.md:85). The band word and
+   its sentence carry the reading; the arc only shows how far along it is. */
+.cci-arc,
+.cci-arc--ok,
+.cci-arc--review,
+.cci-arc--fail { stroke: var(--brand); }
+
+*:focus-visible { outline-color: var(--brand); }
+
+/* The stat card: micro label, large tabular figure, small note. */
+.romer-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s3);
+}
+.romer-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.romer-stat-figure {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.romer-stat-figure--ok     { color: var(--ok); }
+.romer-stat-figure--review { color: var(--review); }
+.romer-stat-figure--muted  { color: var(--ink-3); }
+.romer-stat-note { margin: 0; font-size: 0.75rem; color: var(--ink-3); }
+
+/* The progress row: track, accent fill, and a figure that takes the fill's own
+   colour — the grammar Romer uses for 12/16 · 2/6 · 4/4. */
+.romer-prog { display: flex; flex-direction: column; gap: var(--s2); }
+.romer-prog-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.romer-prog-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: left center;
+  transition: transform var(--t-enter, 320ms) var(--ease);
+}
+.romer-prog-fill--ok     { background: var(--ok); }
+.romer-prog-fill--review { background: var(--review); }
+.romer-prog-fill--info   { background: var(--accent); }
+.romer-prog-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+.romer-prog-figure { font-variant-numeric: tabular-nums; font-weight: 600; }
+.romer-prog-figure--ok     { color: var(--ok); }
+.romer-prog-figure--review { color: var(--review); }
+.romer-prog-figure--info   { color: var(--accent); }
+
+/* Three controls painted themselves with `var(--ink)` or a literal `#fff` to
+   invert against a light canvas. Now that --ink IS the light colour they came
+   out as white slabs on near-black. Each is a primary or active affordance, so
+   each takes the brand colour rather than the ink. */
+.chat-ask-btn,
+.cmd .chat-ask-btn {
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+.chat-ask-btn:hover:not(:disabled),
+.cmd .chat-ask-btn:hover:not(:disabled) { background: #dcff8a; }
+
+.audit-filter--on {
+  background: var(--brand-wash);
+  border-color: var(--brand-line);
+  color: var(--brand);
+}
+
+/* The step a reader is on is navigation state, so it takes brand — the same
+   rule as the active sidebar item. Done stays aqua and blocked stays peach,
+   because those two ARE review states. */
+.jr-progress-item--current .jr-progress-index {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+/* Quotations keep the serif and gain a lime edge: verbatim regulation is the
+   most authoritative text in the product and is set to look like it. */
+.quote,
+.jr-quote {
+  background: var(--bg-2);
+  border-left: 3px solid var(--brand);
+}
+
+/* Charts and meters read their colour from the same tokens, so only the track
+   needs restating against the dark canvas. */
+.meter-track,
+.cci-track,
+.cci-bar,
+.segbar { background: var(--line); }
+
+/* ==========================================================================
+   3 · Narrow widths
+   The rail folds under the centre column before the sidebar does: losing the
+   sidebar costs navigation, losing the rail costs only a second reading of
+   what the centre column already says.
+   ========================================================================== */
+
+@media (max-width: 1180px) {
+  .romer { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+  .romer-rail {
+    grid-column: 1 / -1;
+    position: static;
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .romer-blocking { margin-top: 0; }
+}
+
+@media (max-width: 860px) {
+  .romer { grid-template-columns: minmax(0, 1fr); }
+  .romer-side {
+    position: static;
+    height: auto;
+    flex-direction: column;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .romer-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--s2);
+  }
+  .romer-nav-item--on::before { display: none; }
+  .romer-nav-item--on { border-color: var(--brand-line); }
+  .romer-body,
+  .romer-status,
+  .romer-foot { padding-inline: var(--s4); }
+}

@@ -9,6 +9,7 @@ import { DocumentReview } from "../components/DocumentReview";
 import { FlowMap } from "../components/FlowMap";
 import { FlowScene } from "../components/FlowScene";
 import { GuidedReview } from "../components/GuidedReview";
+import { Rail } from "../components/Rail";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import {
   IconAgents,
@@ -18,7 +19,7 @@ import {
   IconLedger,
 } from "../components/vector";
 import { regosApi } from "../lib/api";
-import { labelOf } from "../lib/presentation";
+import { cscrfCategoryLabel, labelOf } from "../lib/presentation";
 import type {
   DocumentLimits,
   LiveSourceVerificationReceipt,
@@ -270,130 +271,124 @@ export default function Home() {
     );
   }
 
-  return (
-    <>
-      <header className="app-header" id="top">
-        <div className="app-header-inner">
-          <div className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="rg-shield" x1="4" y1="3" x2="20" y2="22" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#5B8FE0" />
-                    <stop offset="1" stopColor="#1D3F76" />
-                  </linearGradient>
-                  <linearGradient id="rg-sheen" x1="12" y1="2" x2="12" y2="12" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#fff" stopOpacity="0.55" />
-                    <stop offset="1" stopColor="#fff" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
-                  fill="url(#rg-shield)"
-                />
-                <path
-                  d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z"
-                  stroke="#fff"
-                  strokeOpacity="0.35"
-                  strokeWidth="0.8"
-                />
-                <path
-                  d="M12 3.4 5.3 5.9v5.1c0 .5 0 1 .1 1.5h13.2c.1-.5.1-1 .1-1.5V5.9L12 3.4Z"
-                  fill="url(#rg-sheen)"
-                  opacity="0.5"
-                />
-                <path
-                  d="m8.4 12.1 2.5 2.5 4.7-5"
-                  stroke="#fff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span className="brand-text">
-              <span className="brand-name">RegOS Sentinel</span>
-            </span>
-          </div>
+  /* Same derivation the dashboard uses: a receipt whose hash no longer matches
+     means SEBI has republished the document since this review read it. */
+  const sourceStale = receipt !== null && !receipt.hash_matches_expected;
+  const sourceChecked = receipt
+    ? sourceStale
+      ? "changed since this review"
+      : "verified"
+    : "not re-checked";
 
-          <div className="header-actions">
+  return (
+    <div className="romer" id="top">
+      {/* ---- Sidebar: the five sections, then the two demo controls --------- */}
+      <nav className="romer-side" aria-label="Main sections">
+        <p className="romer-brand">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2.2 4.2 5.1v6c0 4.7 3.3 9 7.8 10.2 4.5-1.2 7.8-5.5 7.8-10.2v-6L12 2.2Z" />
+          </svg>
+          RegOS Sentinel
+        </p>
+
+        <div>
+          <p className="romer-micro">Navigation</p>
+          <div className="romer-nav" role="tablist">
+            {TABS.map((item, index) => {
+              const TabIcon = item.icon;
+              const on = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  ref={(node) => { tabRefs.current[index] = node; }}
+                  type="button"
+                  role="tab"
+                  id={`tab-${item.id}`}
+                  className={`romer-nav-item${on ? " romer-nav-item--on" : ""}`}
+                  aria-selected={on}
+                  aria-controls={`panel-${item.id}`}
+                  tabIndex={on ? 0 : -1}
+                  onClick={() => setTab(item.id)}
+                  onKeyDown={(event) => onTabKeyDown(event, index)}
+                >
+                  <TabIcon />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="romer-side-group">
+          <div className="romer-nav">
             <button
               type="button"
-              className="btn btn--quiet btn--small"
+              className="romer-nav-item"
               onClick={() => setShowFlow(true)}
             >
               How it works
             </button>
             <button
               type="button"
-              className="btn btn--quiet btn--small"
+              className="romer-nav-item"
               disabled={busy || sourceBusy}
               onClick={() => void restart()}
             >
               Restart demo
             </button>
-            {state && (
-              <details className="profile">
-                <summary className="profile-chip">
-                  <span className="profile-avatar" aria-hidden="true">
-                    {state.entity_profile.legal_name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}
-                  </span>
-                  <span className="profile-name">{state.entity_profile.legal_name}</span>
-                  <span className="profile-caret" aria-hidden="true">▾</span>
-                </summary>
-                <div className="profile-menu">
-                  <p className="profile-menu-name">{state.entity_profile.legal_name}</p>
-                  <p className="meta">
-                    {labelOf(state.entity_profile.entity_type)}
-                    {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
-                    {" · synthetic demo profile"}
-                  </p>
-                  {/* No reset here. It is the same `restart()` as the header's
-                      "Restart demo", and one destructive operation wearing two
-                      labels in two places is how a demo gets wiped by accident.
-                      This menu states who the firm is; the header acts. */}
-                  <p className="meta">
-                    This demo has one synthetic broker profile. In a live deployment each
-                    broker would have their own.
-                  </p>
-                </div>
-              </details>
-            )}
           </div>
         </div>
-      </header>
 
-      <nav className="tabs" aria-label="Main sections">
-        <div className="tablist" role="tablist">
-          {TABS.map((item, index) => {
-            const TabIcon = item.icon;
-            const waiting = item.id === "guided"
-              ? state.builds.at(-1)?.tests.filter((t) => t.status === "BLOCK").length ?? 0
-              : 0;
-            return (
-              <button
-                key={item.id}
-                ref={(node) => { tabRefs.current[index] = node; }}
-                type="button"
-                role="tab"
-                id={`tab-${item.id}`}
-                className="tab"
-                aria-selected={tab === item.id}
-                aria-controls={`panel-${item.id}`}
-                tabIndex={tab === item.id ? 0 : -1}
-                onClick={() => setTab(item.id)}
-                onKeyDown={(event) => onTabKeyDown(event, index)}
-              >
-                <span className="tab-icon" aria-hidden="true"><TabIcon /></span>
-                {item.label}
-                {waiting > 0 && <span className="tab-badge">{waiting}</span>}
-              </button>
-            );
-          })}
+        <div className="romer-side-foot">
+          <details className="profile">
+            <summary className="romer-profile">
+              <span className="romer-avatar" aria-hidden="true">
+                {state.entity_profile.legal_name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span className="romer-profile-name">{state.entity_profile.legal_name}</span>
+                {/* The category alone. "· synthetic" pushed this to 25 characters
+                    in a 149px slot and broke a word at a time; the profile menu
+                    below and the page footer both already say the data is
+                    synthetic, so nothing is lost by not saying it a third time. */}
+                <span className="romer-profile-sub">
+                  {cscrfCategoryLabel(state.entity_profile.cscrf_category)}
+                </span>
+              </span>
+            </summary>
+            <div className="profile-menu">
+              <p className="profile-menu-name">{state.entity_profile.legal_name}</p>
+              <p className="meta">
+                {labelOf(state.entity_profile.entity_type)}
+                {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+                {" · synthetic demo profile"}
+              </p>
+              {/* No reset here. It is the same `restart()` as the sidebar's
+                  "Restart demo", and one destructive operation wearing two
+                  labels in two places is how a demo gets wiped by accident. */}
+              <p className="meta">
+                This demo has one synthetic broker profile. In a live deployment each
+                broker would have their own.
+              </p>
+            </div>
+          </details>
         </div>
       </nav>
 
-      <main className={tab === "dashboard" ? "page page--flush" : "page"}>
+      {/* ---- Centre column ------------------------------------------------- */}
+      <div className="romer-main">
+        <div className="romer-status">
+          <span className="romer-status-live" style={{ color: "var(--ok)" }}>
+            <span className="romer-status-dot" aria-hidden="true" />
+            Review in progress
+          </span>
+          <span>
+            <span className="romer-status-key">SEBI source:</span>
+            <span className="romer-status-val">{sourceChecked}</span>
+          </span>
+        </div>
+
+        <main className="romer-body">
         {error && (
           <p className="banner" role="alert" style={{ marginBottom: "24px" }}>
             <span aria-hidden="true">✕</span>
@@ -519,7 +514,18 @@ export default function Home() {
             <AuditTrail state={state} onOpenGuidedReview={() => setTab("guided")} />
           )}
         </div>
-      </main>
+        </main>
+
+        <footer className="romer-foot">
+          <p>
+            This tool supports your decisions. It is not legal advice, it is not a SEBI
+            determination, the broker data is synthetic, and nothing is filed automatically.
+          </p>
+        </footer>
+      </div>
+
+      {/* ---- Intelligence rail --------------------------------------------- */}
+      <Rail state={state} />
 
       {showFlow && (
         <div
@@ -547,15 +553,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      <footer className="app-footer">
-        <div className="app-footer-inner">
-          <p>
-            This tool supports your decisions. It is not legal advice, it is not a SEBI
-            determination, the broker data is synthetic, and nothing is filed automatically.
-          </p>
-        </div>
-      </footer>
-    </>
+    </div>
   );
 }

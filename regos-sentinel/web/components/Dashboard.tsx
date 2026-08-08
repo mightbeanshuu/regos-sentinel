@@ -475,6 +475,57 @@ export function Dashboard({
         </div>
       </header>
 
+      {/* ---- 0 · Four counted facts -----------------------------------------
+          Romer opens with a stat row, and so does this — but every figure is
+          counted from live workspace state and every note says what the figure
+          is of. No trend arrows and no "2 from last period": this workspace has
+          no previous period to compare against, and inventing one would be the
+          single fastest way to lose a regulator's trust. */}
+      <div className="romer-stats">
+        <article className="romer-stat">
+          <p className="romer-micro">Open decisions</p>
+          <p className={`romer-stat-figure${queue.length > 0 ? " romer-stat-figure--review" : ""}`}>
+            {queue.length}
+          </p>
+          <p className="romer-stat-note">
+            {blockedDates.length > 0
+              ? `${blockedDates.length} due date${blockedDates.length === 1 ? "" : "s"} cannot be worked out`
+              : "nothing waiting on a person"}
+          </p>
+        </article>
+        <article className="romer-stat">
+          <p className="romer-micro">Deadlines computed</p>
+          <p className="romer-stat-figure">{computableDates}</p>
+          <p className="romer-stat-note">
+            of {totalDeadlines} deadline{totalDeadlines === 1 ? "" : "s"}
+          </p>
+        </article>
+        <article className="romer-stat">
+          <p className="romer-micro">Evidence current</p>
+          <p
+            className={`romer-stat-figure${
+              state.evidence.length > 0 && evidenceCurrent.length === state.evidence.length
+                ? " romer-stat-figure--ok"
+                : ""
+            }`}
+          >
+            {evidenceCurrent.length}/{state.evidence.length}
+          </p>
+          <p className="romer-stat-note">
+            {state.evidence.length > 0 && evidenceCurrent.length === state.evidence.length
+              ? "all items up to date"
+              : "some items need revalidation"}
+          </p>
+        </article>
+        <article className="romer-stat">
+          <p className="romer-micro">Checks run</p>
+          <p className={`romer-stat-figure${build ? "" : " romer-stat-figure--muted"}`}>
+            {build?.tests.length ?? 0}
+          </p>
+          <p className="romer-stat-note">{build ? "in the latest run" : "not run yet"}</p>
+        </article>
+      </div>
+
       {/* ---- 1 · The one unresolved decision --------------------------------
           Everything below this block exists to explain it. It is the only thing
           in the first viewport with a primary action. */}

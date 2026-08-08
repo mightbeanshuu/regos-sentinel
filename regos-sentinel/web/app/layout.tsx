@@ -13,6 +13,11 @@ import "./parts/upload.css";
 import "./parts/assistants.css";
 import "./parts/record.css";
 
+/* The Romer skin loads LAST, after every surface, because it redefines the
+   `:root` tokens the whole system reads its colour from. Importing it earlier
+   would let a surface file's literal colours win over the theme. */
+import "./parts/romer.css";
+
 export const metadata: Metadata = {
   title: "RegOS Sentinel — Compliance Review",
   description:
