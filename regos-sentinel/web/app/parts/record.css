@@ -302,3 +302,10 @@ details.disclosure.rec-fold > summary {
   letter-spacing: 0.02em;
   color: var(--ink-3);
 }
+
+/* The hero wrapped once the centre column narrowed, dropping the tamper badge
+   under the title instead of beside it. The title column may shrink; the
+   integrity block keeps its own basis so the two share the row wherever they
+   can, and stack only when the title genuinely has no room left. */
+.audit-hero > .stack-s { flex: 1 1 22ch; min-width: 0; }
+.audit-integrity { flex: 0 1 34ch; }
