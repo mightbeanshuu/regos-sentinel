@@ -56,7 +56,7 @@ const STEPS = [
 function StageHead({ index }: { index: number }) {
   return (
     <h2 className="jr-h">
-      <span>{index + 1}.</span> {STEPS[index]}
+      <span>{index + 1}</span> {STEPS[index]}
     </h2>
   );
 }
@@ -70,6 +70,75 @@ const STEP_STATE_WORD: Record<StepState, string> = {
   done: "completed",
   blocked: "needs your decision",
 };
+
+
+/**
+ * The hero moment, set out as facts rather than prose.
+ *
+ * Three rows and a trace. The middle row is the one this product exists for:
+ * the source gives a period and never gives the event it runs from, so the
+ * third row cannot hold a date. "Cannot be computed" is white and large — not
+ * coral, not an error, not an empty grey box. It is the system working.
+ *
+ * Every line comes from the engine's own `calculation_trace`. Writing a
+ * plausible-looking derivation here instead would be the exact failure the
+ * screen is built to demonstrate the absence of.
+ */
+function ExtractionAnalysis({
+  deadline,
+}: {
+  deadline: WorkspaceState["deadline_computations"][number];
+}) {
+  return (
+    <section className="rx" aria-label="How this deadline was worked out">
+      <div className="rx-facts">
+        <div className="rx-fact">
+          <p className="romer-micro">Deadline</p>
+          <p className="rx-value">{deadline.duration_label}</p>
+          <StateLabel value={deadline.duration_provenance} />
+        </div>
+        <div className="rx-fact">
+          <p className="romer-micro">Clock starts from</p>
+          <p className="rx-absent">
+            {deadline.trigger_label ?? "— not stated in the source —"}
+          </p>
+        </div>
+        <div className="rx-fact">
+          <p className="romer-micro">Due date</p>
+          <p className={deadline.due_date ? "rx-value" : "rx-cannot"}>
+            {deadline.due_date ? formatDate(deadline.due_date) : "Cannot be computed"}
+          </p>
+        </div>
+        {!deadline.computable && (
+          <p className="rx-blocked">
+            <span aria-hidden="true">!</span>
+            Blocked — a named reviewer has to record what starts the clock.
+          </p>
+        )}
+      </div>
+
+      <div className="rx-trace">
+        <p className="romer-micro">How this was worked out</p>
+        <ol className="rx-trace-list">
+          {deadline.calculation_trace.map((line) => {
+            const missing = /absent|cannot|not stated/i.test(line);
+            return (
+              <li className="rx-trace-row" key={line}>
+                <span
+                  className={`rx-trace-mark rx-trace-mark--${missing ? "review" : "ok"}`}
+                  aria-hidden="true"
+                >
+                  {missing ? "!" : "✓"}
+                </span>
+                <span>{plainPhrase(line)}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </section>
+  );
+}
 
 /** `FAQ-Q17-A` → `Q17(a)`. A relabelling of a real id, never a new fact. */
 function questionLabelOf(spanId: string): string {
@@ -210,7 +279,7 @@ export function GuidedReview(props: GuidedReviewProps) {
           {/* Context, not a stage: it carries no action and no number, so the five
               numbered headings below match the five items in the progress line. */}
           <section className="jr-sect" id="jr-s0">
-            <h2 className="jr-h">The case</h2>
+            <p className="romer-micro">Context parameters</p>
             <dl className="datalist jr-case-strip">
               <DataRow label="Firm">
                 <span className="strong-ink">{state.entity_profile.legal_name}</span>{" "}
@@ -222,8 +291,8 @@ export function GuidedReview(props: GuidedReviewProps) {
               <DataRow label="Rule in force today">
                 {control ? (
                   <>
-                    <span className="strong-ink">{control.id}</span>{" "}
-                    <span className="meta">— {firmRule}</span>
+                    <span className="romer-id">{control.id}</span>
+                    <p className="meta romer-rule">{firmRule}</p>
                   </>
                 ) : (
                   <span className="meta">No control recorded for this firm yet.</span>
@@ -235,10 +304,11 @@ export function GuidedReview(props: GuidedReviewProps) {
                   {state.findings.length === 1 ? "" : "s"}
                 </span>
                 {state.findings.length > 0 && (
-                  <ul className="stack-s" style={{ marginTop: "4px" }}>
+                  <ul className="romer-idlist">
                     {state.findings.map((finding) => (
-                      <li key={finding.id} className="meta">
-                        {finding.id} — {finding.title}
+                      <li key={finding.id}>
+                        <span className="romer-id" title={finding.title}>{finding.id}</span>
+                        <span className="meta">{finding.title}</span>
                       </li>
                     ))}
                   </ul>
@@ -411,13 +481,7 @@ export function GuidedReview(props: GuidedReviewProps) {
                 {/* The absent source fact stays in the normal reading path, with
                     its citation, wherever a decision depends on it. */}
                 {blockedDeadline && !approved && (
-                  <p className="vs-note">
-                    The source states <span className="strong-ink">{blockedDeadline.duration_label}</span>.
-                    It does not state the event that period runs from —{" "}
-                    <span className="strong-ink">not stated in the reviewed source</span> (
-                    {blockedDeadline.citation.locator}). No due date is worked out until a
-                    person records the firm&rsquo;s clock-start policy.
-                  </p>
+                  <ExtractionAnalysis deadline={blockedDeadline} />
                 )}
                 <Disclosure summary="The full comparison">
                   <StepCompare

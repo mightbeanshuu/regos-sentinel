@@ -106,25 +106,56 @@
   color-scheme: dark;
 }
 
-/* The glass recipes were authored to refract a light canvas. Over near-black
-   they render as milky films on exactly the passages a regulator reads, so
-   every one of them collapses to the flat card this system uses instead. */
+/* ---- Glass, and where it is allowed --------------------------------------
+   The original recipes were authored to refract a light canvas; over near-black
+   they came out as milky films. Rather than delete the effect, it is re-mixed
+   for this canvas and then confined.
+
+   Two rules, both learned the hard way and both still binding:
+
+   1. GLASS NEEDS SOMETHING BEHIND IT TO REFRACT. Over a flat fill it renders as
+      a plain box, so the shell carries an ambient field (below) for the glass
+      to pick up. Without it the effect costs contrast and buys nothing.
+   2. GLASS STAYS OFF DENSE TEXT. Quoted regulation, tables, the extraction
+      analysis and the record all keep flat opaque surfaces. Contrast on the
+      passages a regulator actually reads is not somewhere to spend legibility
+      on an effect. Glass is for chrome and for figures — the rail, the stat
+      cards, the sidebar, the composer — never for the evidence. */
 :root {
-  --glass-fill-1: none;
-  --glass-fill-2: none;
-  --glass-fill-1-opaque: var(--surface);
-  --glass-fill-2-opaque: var(--surface);
-  --glass-border-1: var(--line);
-  --glass-border-2: var(--line);
-  --glass-shadow-1: none;
-  --glass-shadow-2: none;
-  --glass-highlight: none;
-  --glass-blur-1: 0px;
-  --glass-blur-2: 0px;
-  --glass-saturate: 1;
+  --glass-fill-1: linear-gradient(
+    168deg,
+    oklch(0.30 0.012 258 / 0.42),
+    oklch(0.22 0.010 258 / 0.28)
+  );
+  --glass-fill-2: linear-gradient(
+    168deg,
+    oklch(0.26 0.010 258 / 0.34),
+    oklch(0.20 0.008 258 / 0.22)
+  );
+  --glass-fill-1-opaque: #101114;
+  --glass-fill-2-opaque: #0d0e11;
+  --glass-border-1: oklch(0.62 0.02 258 / 0.16);
+  --glass-border-2: oklch(0.62 0.02 258 / 0.12);
+  --glass-shadow-1: 0 12px 32px -18px oklch(0 0 0 / 0.9);
+  --glass-shadow-2: 0 8px 24px -16px oklch(0 0 0 / 0.85);
+  --glass-highlight: inset 0 1px 0 oklch(1 0 0 / 0.05);
+  --glass-blur-1: 18px;
+  --glass-blur-2: 12px;
+  --glass-saturate: 1.25;
 }
 
-body { background: var(--bg); color: var(--ink); }
+/* The ambient field. Two very low-chroma pools, one lime and one aqua, sunk far
+   enough into the canvas that they never read as colour — they exist so the
+   glass above has depth to pick up. Fixed, so nothing drifts on scroll. */
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(70% 55% at 12% 0%, oklch(0.62 0.14 122 / 0.055), transparent 62%),
+    radial-gradient(60% 50% at 95% 8%, oklch(0.66 0.10 208 / 0.045), transparent 60%),
+    radial-gradient(80% 60% at 50% 100%, oklch(0.55 0.06 258 / 0.05), transparent 65%);
+  background-attachment: fixed;
+  color: var(--ink);
+}
 
 /* ==========================================================================
    1 · The three-column shell
@@ -138,8 +169,43 @@ body { background: var(--bg); color: var(--ink); }
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--rail-w);
   min-height: 100vh;
-  background: var(--bg);
+  /* Transparent, so the body's ambient field shows through and the glass
+     surfaces above have something to refract. */
+  background: transparent;
 }
+
+/* ---- Where glass is applied ------------------------------------------------
+   Chrome and figures only. Each of these is a frame around content rather than
+   a surface carrying a passage of prose. */
+
+@supports (backdrop-filter: blur(1px)) {
+  .romer-side,
+  .romer-rail,
+  .romer-topbar {
+    background: var(--glass-fill-2);
+    backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturate));
+  }
+  .romer-stat,
+  .romer-rail-card,
+  .chat-composer-glow {
+    background: var(--glass-fill-2);
+    backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturate));
+    box-shadow: var(--glass-highlight);
+  }
+}
+
+/* The fallback, and the rule for everything glass may not touch. Quoted
+   regulation, tables, the extraction analysis and the record stay opaque. */
+.romer-side,
+.romer-rail,
+.romer-topbar { background-color: oklch(0.16 0.006 258 / 0.55); }
+
+.quote,
+.jr-quote,
+.rx,
+.table-scroll,
+.rec-page .panel,
+.datalist { backdrop-filter: none; }
 
 /* ---- Sidebar ------------------------------------------------------------ */
 
@@ -792,6 +858,69 @@ body { background: var(--bg); color: var(--ink); }
   color: var(--brand);
 }
 
+/* ---- The five-step rail ----------------------------------------------------
+   Circles on one connecting line with the labels beneath, as Stitch draws it,
+   rather than an inline list. The rail is read left to right in one glance, so
+   the marks have to sit on a shared axis; an inline list put each circle at a
+   different x depending on the length of the label before it. */
+
+.jr-progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+}
+.jr-progress-item {
+  position: relative;
+  flex-direction: column;
+  gap: var(--s2);
+  padding-inline: var(--s2);
+  text-align: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The connector runs between one circle and the next, never past the last. */
+.jr-progress-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: calc(50% + 16px);
+  width: calc(100% - 32px);
+  height: 1px;
+  background: var(--line);
+}
+.jr-progress-index { width: 22px; height: 22px; }
+
+/* ---- Numbered section headers ---------------------------------------------
+   "1 | READ THE SOURCE" — a lime index, a hairline separator, the name in
+   ALL-CAPS, and a rule running out to the right edge. It is what tells a
+   reader which of the five steps the block below belongs to. */
+
+.jr-h {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.jr-h::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+.jr-h > span:first-child {
+  padding-right: var(--s3);
+  border-right: 1px solid var(--line);
+  color: var(--brand);
+  margin-right: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The step a reader is on is navigation state, so it takes brand — the same
    rule as the active sidebar item. Done stays aqua and blocked stays peach,
    because those two ARE review states. */
@@ -799,6 +928,137 @@ body { background: var(--bg); color: var(--ink); }
   border-color: var(--brand);
   background: var(--brand);
   color: var(--brand-ink);
+}
+.jr-progress-item--upcoming .jr-progress-index { background: var(--bg-2); }
+
+@media (max-width: 640px) {
+  .jr-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) 0; }
+  .jr-progress-item:not(:last-child)::after { display: none; }
+}
+
+/* ---- The extraction analysis ----------------------------------------------
+   Facts on the left, the engine's own working on the right. This block holds
+   still: it is the eight seconds of the demo where a regulator reads that the
+   system refused to produce a date, and motion here would only take attention
+   off the empty field that is the point. */
+
+.rx {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--s5);
+  padding: var(--s5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.rx-facts { display: flex; flex-direction: column; gap: var(--s4); }
+.rx-fact { display: flex; flex-direction: column; gap: var(--s2); align-items: flex-start; }
+.rx-fact + .rx-fact { padding-top: var(--s4); border-top: 1px solid var(--line); }
+
+.rx-value {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.rx-absent { margin: 0; font-size: 0.9375rem; font-style: italic; color: var(--ink-3); }
+
+/* White and large, deliberately. Coral would say a check failed; grey would say
+   the field is empty. Neither is true — the source does not support a date, and
+   saying so plainly is the product's whole claim. */
+.rx-cannot {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+.rx-blocked {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: 0;
+  padding: var(--s3);
+  border: 1px solid var(--review-line);
+  border-radius: var(--radius);
+  background: var(--review-wash);
+  font-size: 0.8125rem;
+  color: var(--review);
+}
+.rx-blocked > span:first-child { font-weight: 700; }
+
+.rx-trace { display: flex; flex-direction: column; }
+.rx-trace-list { display: flex; flex-direction: column; gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.rx-trace-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.rx-trace-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.rx-trace-mark--ok     { background: var(--ok-wash);     color: var(--ok); }
+.rx-trace-mark--review { background: var(--review-wash); color: var(--review); }
+
+/* ---- Identifiers ----------------------------------------------------------
+   A control id and a finding id are machine identifiers a person quotes back
+   verbatim, so they are set as identifiers — mono, bordered, selectable — and
+   never mixed into a sentence where a reader has to work out where they end. */
+
+.romer-id {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--chip-radius);
+  background: var(--bg-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.romer-rule { margin-top: var(--s2); max-width: 74ch; }
+
+.romer-idlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.romer-idlist li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Definition-list labels take the micro ALL-CAPS treatment everywhere, which is
+   what makes the record and the review read as one instrument. */
+.datalist dt {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 /* Quotations keep the serif and gain a lime edge: verbatim regulation is the

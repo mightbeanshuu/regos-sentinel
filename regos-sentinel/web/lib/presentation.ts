@@ -595,12 +595,27 @@ function settlePlurals(text: string): string {
   );
 }
 
+/**
+ * Any backend enum that reaches a sentence gets its plain label.
+ *
+ * The engine's own calculation trace reads "1 week · SOURCE_EXPLICIT · FAQ
+ * Q17(a)" — a value assembled for a log, rendered to a regulator. Only tokens
+ * that are actually known states are replaced, so SEBI, VAPT, FAQ, PDF and
+ * every other acronym pass through untouched. The label keeps its own casing:
+ * lower-casing it would turn "Stated by SEBI" into "stated by sebi".
+ */
+function unshoutEnums(text: string): string {
+  return text.replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, (token) =>
+    STATES[token] ? STATES[token].label : token,
+  );
+}
+
 export function plainPhrase(text: string): string {
   let plain = PHRASES[text] ?? text;
   for (const [machine, readable] of Object.entries(INLINE_PHRASES)) {
     plain = plain.replaceAll(machine, readable);
   }
-  return settlePlurals(plain);
+  return settlePlurals(unshoutEnums(plain));
 }
 
 /**
