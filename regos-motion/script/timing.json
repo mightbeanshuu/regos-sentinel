@@ -1,32 +1,79 @@
 {
   "fps": 30,
-  "totalFrames": 7809,
+  "totalFrames": 7944,
   "beats": [
+    {
+      "id": "fix_story",
+      "kind": "fixstory",
+      "clip": null,
+      "clipStart": 0,
+      "label": "Caught, fixed, cleared",
+      "startFrame": 0,
+      "durationFrames": 912,
+      "lines": [
+        {
+          "text": "This is one paragraph from a SEBI circular published in July.",
+          "src": "audio/fix_story-0.wav",
+          "startFrame": 0,
+          "durationFrames": 108
+        },
+        {
+          "text": "Six months of monthly reports. Six months from when? It doesn't say.",
+          "src": "audio/fix_story-1.wav",
+          "startFrame": 117,
+          "durationFrames": 132
+        },
+        {
+          "text": "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
+          "src": "audio/fix_story-2.wav",
+          "startFrame": 258,
+          "durationFrames": 211
+        },
+        {
+          "text": "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
+          "src": "audio/fix_story-3.wav",
+          "startFrame": 478,
+          "durationFrames": 185
+        },
+        {
+          "text": "A hundred percent. Nothing to raise.",
+          "src": "audio/fix_story-4.wav",
+          "startFrame": 672,
+          "durationFrames": 66
+        },
+        {
+          "text": "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone.",
+          "src": "audio/fix_story-5.wav",
+          "startFrame": 747,
+          "durationFrames": 141
+        }
+      ]
+    },
     {
       "id": "hook",
       "kind": "title",
       "clip": null,
       "clipStart": 0,
       "label": null,
-      "startFrame": 0,
-      "durationFrames": 357,
+      "startFrame": 912,
+      "durationFrames": 422,
       "lines": [
         {
-          "text": "SEBI tells a broker to close a high severity finding within one week.",
+          "text": "That's not a one-off.",
           "src": "audio/hook-0.wav",
           "startFrame": 0,
-          "durationFrames": 120
+          "durationFrames": 33
         },
         {
-          "text": "It never says one week from when.",
+          "text": "SEBI's cyber framework tells a broker to close a high severity finding within one week, and never says one week from when.",
           "src": "audio/hook-1.wav",
-          "startFrame": 129,
-          "durationFrames": 54
+          "startFrame": 42,
+          "durationFrames": 207
         },
         {
           "text": "So there's no date you can actually work out. Being confident about it doesn't help.",
           "src": "audio/hook-2.wav",
-          "startFrame": 192,
+          "startFrame": 258,
           "durationFrames": 141
         }
       ]
@@ -37,7 +84,7 @@
       "clip": "chrome",
       "clipStart": 3,
       "label": "The workspace",
-      "startFrame": 357,
+      "startFrame": 1334,
       "durationFrames": 236,
       "lines": [
         {
@@ -60,7 +107,7 @@
       "clip": "dashboard",
       "clipStart": 1.5,
       "label": "Dashboard",
-      "startFrame": 593,
+      "startFrame": 1570,
       "durationFrames": 431,
       "lines": [
         {
@@ -89,7 +136,7 @@
       "clip": null,
       "clipStart": 0,
       "label": "How it works",
-      "startFrame": 1024,
+      "startFrame": 2001,
       "durationFrames": 378,
       "lines": [
         {
@@ -118,7 +165,7 @@
       "clip": "source",
       "clipStart": 2,
       "label": "The source",
-      "startFrame": 1402,
+      "startFrame": 2379,
       "durationFrames": 339,
       "lines": [
         {
@@ -147,7 +194,7 @@
       "clip": "verify",
       "clipStart": 8,
       "label": "Live source check",
-      "startFrame": 1741,
+      "startFrame": 2718,
       "durationFrames": 301,
       "lines": [
         {
@@ -176,7 +223,7 @@
       "clip": "blocked",
       "clipStart": 8,
       "label": "The gap",
-      "startFrame": 2042,
+      "startFrame": 3019,
       "durationFrames": 353,
       "lines": [
         {
@@ -205,7 +252,7 @@
       "clip": "decide",
       "clipStart": 12,
       "label": "A named decision",
-      "startFrame": 2395,
+      "startFrame": 3372,
       "durationFrames": 534,
       "lines": [
         {
@@ -240,7 +287,7 @@
       "clip": "impact",
       "clipStart": 26,
       "label": "What changes",
-      "startFrame": 2929,
+      "startFrame": 3906,
       "durationFrames": 389,
       "lines": [
         {
@@ -269,7 +316,7 @@
       "clip": "impact",
       "clipStart": 36,
       "label": "The record",
-      "startFrame": 3318,
+      "startFrame": 4295,
       "durationFrames": 310,
       "lines": [
         {
@@ -298,7 +345,7 @@
       "clip": "assistants",
       "clipStart": 12,
       "label": "AI assistants",
-      "startFrame": 3628,
+      "startFrame": 4605,
       "durationFrames": 413,
       "lines": [
         {
@@ -327,7 +374,7 @@
       "clip": "limits",
       "clipStart": 4,
       "label": "What it will not do",
-      "startFrame": 4041,
+      "startFrame": 5018,
       "durationFrames": 388,
       "lines": [
         {
@@ -356,7 +403,7 @@
       "clip": "ask",
       "clipStart": 5,
       "label": "Ask RegOS",
-      "startFrame": 4429,
+      "startFrame": 5406,
       "durationFrames": 360,
       "lines": [
         {
@@ -385,7 +432,7 @@
       "clip": "upload",
       "clipStart": 22,
       "label": "Your own document",
-      "startFrame": 4789,
+      "startFrame": 5766,
       "durationFrames": 482,
       "lines": [
         {
@@ -414,7 +461,7 @@
       "clip": "upload_case",
       "clipStart": 40,
       "label": "An honest empty result",
-      "startFrame": 5271,
+      "startFrame": 6248,
       "durationFrames": 472,
       "lines": [
         {
@@ -438,66 +485,19 @@
       ]
     },
     {
-      "id": "fix_story",
-      "kind": "fixstory",
-      "clip": null,
-      "clipStart": 0,
-      "label": "Caught, fixed, cleared",
-      "startFrame": 5743,
-      "durationFrames": 897,
-      "lines": [
-        {
-          "text": "Here's that clause on its own, the way SEBI published it.",
-          "src": "audio/fix_story-0.wav",
-          "startFrame": 0,
-          "durationFrames": 93
-        },
-        {
-          "text": "Six months of monthly reports. Six months from when? It doesn't say.",
-          "src": "audio/fix_story-1.wav",
-          "startFrame": 102,
-          "durationFrames": 132
-        },
-        {
-          "text": "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
-          "src": "audio/fix_story-2.wav",
-          "startFrame": 244,
-          "durationFrames": 211
-        },
-        {
-          "text": "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
-          "src": "audio/fix_story-3.wav",
-          "startFrame": 463,
-          "durationFrames": 185
-        },
-        {
-          "text": "A hundred percent. Nothing to raise.",
-          "src": "audio/fix_story-4.wav",
-          "startFrame": 657,
-          "durationFrames": 66
-        },
-        {
-          "text": "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone.",
-          "src": "audio/fix_story-5.wav",
-          "startFrame": 732,
-          "durationFrames": 141
-        }
-      ]
-    },
-    {
       "id": "fix_proof",
       "kind": "clip",
       "clip": "fix",
       "clipStart": 46,
       "label": "The same thing, on the live product",
-      "startFrame": 6640,
-      "durationFrames": 112,
+      "startFrame": 6720,
+      "durationFrames": 167,
       "lines": [
         {
-          "text": "And that's the live product doing it, not a drawing of it.",
+          "text": "That paragraph from the opening — this is the live product doing it, not a drawing of it.",
           "src": "audio/fix_proof-0.wav",
           "startFrame": 0,
-          "durationFrames": 88
+          "durationFrames": 143
         }
       ]
     },
@@ -507,7 +507,7 @@
       "clip": "record",
       "clipStart": 2.5,
       "label": "Full record",
-      "startFrame": 6752,
+      "startFrame": 6887,
       "durationFrames": 298,
       "lines": [
         {
@@ -536,7 +536,7 @@
       "clip": "scenarios",
       "clipStart": 4,
       "label": "Worked cases",
-      "startFrame": 7050,
+      "startFrame": 7185,
       "durationFrames": 303,
       "lines": [
         {
@@ -565,7 +565,7 @@
       "clip": "restart",
       "clipStart": 4,
       "label": "A blank start",
-      "startFrame": 7353,
+      "startFrame": 7488,
       "durationFrames": 289,
       "lines": [
         {
@@ -588,7 +588,7 @@
       "clip": null,
       "clipStart": 0,
       "label": null,
-      "startFrame": 7642,
+      "startFrame": 7777,
       "durationFrames": 167,
       "lines": [
         {

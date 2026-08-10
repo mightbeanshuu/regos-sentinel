@@ -5,11 +5,24 @@
   "beatPadSeconds": 0.8,
   "beats": [
     {
+      "id": "fix_story",
+      "kind": "fixstory",
+      "label": "Caught, fixed, cleared",
+      "sentences": [
+        "This is one paragraph from a SEBI circular published in July.",
+        "Six months of monthly reports. Six months from when? It doesn't say.",
+        "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
+        "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
+        "A hundred percent. Nothing to raise.",
+        "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone."
+      ]
+    },
+    {
       "id": "hook",
       "kind": "title",
       "sentences": [
-        "SEBI tells a broker to close a high severity finding within one week.",
-        "It never says one week from when.",
+        "That's not a one-off.",
+        "SEBI's cyber framework tells a broker to close a high severity finding within one week, and never says one week from when.",
         "So there's no date you can actually work out. Being confident about it doesn't help."
       ]
     },
@@ -180,26 +193,13 @@
       ]
     },
     {
-      "id": "fix_story",
-      "kind": "fixstory",
-      "label": "Caught, fixed, cleared",
-      "sentences": [
-        "Here's that clause on its own, the way SEBI published it.",
-        "Six months of monthly reports. Six months from when? It doesn't say.",
-        "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
-        "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
-        "A hundred percent. Nothing to raise.",
-        "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone."
-      ]
-    },
-    {
       "id": "fix_proof",
       "kind": "clip",
       "clip": "fix",
       "clipStart": 46.0,
       "label": "The same thing, on the live product",
       "sentences": [
-        "And that's the live product doing it, not a drawing of it."
+        "That paragraph from the opening \u2014 this is the live product doing it, not a drawing of it."
       ]
     },
     {
