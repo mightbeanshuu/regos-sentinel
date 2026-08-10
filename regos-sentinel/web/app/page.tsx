@@ -10,6 +10,8 @@ import { FlowMap } from "../components/FlowMap";
 import { FlowScene } from "../components/FlowScene";
 import { GuidedReview } from "../components/GuidedReview";
 import { Rail } from "../components/Rail";
+import { DocumentGuidedReview } from "../components/DocumentGuidedReview";
+import { StartHere, type StartScope } from "../components/StartHere";
 import { Tag } from "../components/ui";
 import { ScenarioCase, ScenarioSelector } from "../components/Scenarios";
 import {
@@ -25,6 +27,7 @@ import {
 import { regosApi } from "../lib/api";
 import { agentNameOf, checkLabel, cscrfCategoryLabel, labelOf } from "../lib/presentation";
 import type {
+  DocumentCaseRecord,
   DocumentLimits,
   DocumentScore,
   LiveSourceVerificationReceipt,
@@ -64,6 +67,7 @@ export default function Home() {
   }, []);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [openDocumentScore, setOpenDocumentScore] = useState<DocumentScore | null>(null);
+  const [openDocumentCase, setOpenDocumentCase] = useState<DocumentCaseRecord | null>(null);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [receipt, setReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
   const [catalogue, setCatalogue] = useState<ScenarioCatalogue | null>(null);
@@ -221,7 +225,13 @@ export default function Home() {
    * Nothing is deleted — the seeded SEBI sources are still on file, the panel
    * says so, and "Continue with the built-in SEBI sources" is one click away.
    */
-  const [awaitingUpload, setAwaitingUpload] = useState(false);
+  /* Opens empty, and that is the point.
+     It used to open on the seeded demo, so a first-time reader met Aster
+     Securities' worked example as though it were their own review — and that
+     example then sat beside a document they had uploaded, with its "1 week" and
+     its "1 of 2 deadline statements" describing a different source entirely.
+     The demo is one click away and clearly labelled as the example it is. */
+  const [awaitingUpload, setAwaitingUpload] = useState(true);
 
   const restart = useCallback(async () => {
     setReceipt(null);
@@ -237,15 +247,33 @@ export default function Home() {
     if (documents.length > 0) setAwaitingUpload(false);
   }, [documents.length]);
 
+  /* One gate for every tab except the upload surface itself. Before this the
+     dashboard alone had an empty state, so a reader who clicked "Review a
+     requirement" or "Full record" first still met the seeded example presented
+     as their own work. */
+  const startPanel = (scope: StartScope) => (
+    <StartHere
+      scope={scope}
+      busy={busy}
+      officialSourceCount={state?.documents.length ?? 0}
+      onAddDocument={() => setTab("document")}
+      onUseBuiltIn={() => setAwaitingUpload(false)}
+    />
+  );
+
   /* The document the reader has open, and its model read, so the rail can
      describe THAT file instead of the seeded workspace beside it. Scored here
      rather than inside the review panel because two surfaces now need it. */
-  const openDocument = tab === "document" ? documents.at(-1) ?? null : null;
+  /* Not scoped to the upload tab any more. A document the reader has added is
+     the subject of the whole workspace — the rail, the review and the record all
+     have to describe it, or they describe something else while it is on screen. */
+  const openDocument = documents.at(-1) ?? null;
   const openDocumentId = openDocument?.id ?? null;
   const openDocumentPassages = openDocument?.passages.length ?? 0;
   useEffect(() => {
     if (!openDocumentId) {
       setOpenDocumentScore(null);
+      setOpenDocumentCase(null);
       return;
     }
     let cancelled = false;
@@ -253,6 +281,12 @@ export default function Home() {
       .documentScore(openDocumentId)
       .then((value) => { if (!cancelled) setOpenDocumentScore(value); })
       .catch(() => { if (!cancelled) setOpenDocumentScore(null); });
+    // A document with no case yet answers 204, which the client reads as null.
+    // That is the ordinary state of a fresh upload, not a failure.
+    regosApi
+      .documentCase(openDocumentId)
+      .then((value) => { if (!cancelled) setOpenDocumentCase(value); })
+      .catch(() => { if (!cancelled) setOpenDocumentCase(null); });
     return () => { cancelled = true; };
   }, [openDocumentId, openDocumentPassages]);
 
@@ -439,16 +473,28 @@ export default function Home() {
           <details className="profile">
             <summary className="romer-profile">
               <span className="romer-avatar" aria-hidden="true">
-                {state.entity_profile.legal_name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}
+                {awaitingUpload
+                  ? "+"
+                  : openDocument
+                    ? "\u25A6"
+                    : state.entity_profile.legal_name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}
               </span>
               <span style={{ minWidth: 0 }}>
-                <span className="romer-profile-name">{state.entity_profile.legal_name}</span>
+                <span className="romer-profile-name">
+                  {awaitingUpload
+                    ? "No workspace yet"
+                    : openDocument?.filename ?? state.entity_profile.legal_name}
+                </span>
                 {/* The category alone. "· synthetic" pushed this to 25 characters
                     in a 149px slot and broke a word at a time; the profile menu
                     below and the page footer both already say the data is
                     synthetic, so nothing is lost by not saying it a third time. */}
                 <span className="romer-profile-sub">
-                  {cscrfCategoryLabel(state.entity_profile.cscrf_category)}
+                  {awaitingUpload
+                    ? "nothing added"
+                    : openDocument
+                      ? `${openDocument.scope.page_count} pages · added by you`
+                      : cscrfCategoryLabel(state.entity_profile.cscrf_category)}
                 </span>
               </span>
             </summary>
@@ -463,11 +509,19 @@ export default function Home() {
                 says what a live deployment does instead of miming it. */}
             <div className="romer-account">
               <p className="romer-micro">Signed in to</p>
-              <p className="romer-account-name">{state.entity_profile.legal_name}</p>
+              <p className="romer-account-name">
+                {awaitingUpload ? "No workspace yet" : state.entity_profile.legal_name}
+              </p>
               <p className="meta">
-                {labelOf(state.entity_profile.entity_type)} ·{" "}
-                {cscrfCategoryLabel(state.entity_profile.cscrf_category)}
-                {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+                {awaitingUpload ? (
+                  "Add a document, or open the worked SEBI example, and this names what you are reviewing."
+                ) : (
+                  <>
+                    {labelOf(state.entity_profile.entity_type)} ·{" "}
+                    {cscrfCategoryLabel(state.entity_profile.cscrf_category)}
+                    {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+                  </>
+                )}
               </p>
 
               <p className="romer-micro">Registrations on file</p>
@@ -506,7 +560,16 @@ export default function Home() {
             as an invented figure, told with an icon instead of a number. */}
         <div className="romer-topbar">
           <p className="romer-crumbs">
-            <span>{state.entity_profile.legal_name}</span>
+            {/* What is open, not who we think you are. Printing the seeded firm's
+                legal name above someone else's uploaded circular asserts an
+                identity this product never asked for and cannot verify. */}
+            <span>
+              {openDocument
+                ? openDocument.filename
+                : awaitingUpload
+                  ? "No document yet"
+                  : state.entity_profile.legal_name}
+            </span>
             <span className="romer-crumbs-sep" aria-hidden="true">›</span>
             <span className="romer-crumbs-here">
               {TABS.find((item) => item.id === tab)?.label}
@@ -656,7 +719,8 @@ export default function Home() {
           aria-labelledby="tab-dashboard"
           hidden={tab !== "dashboard"}
         >
-          {tab === "dashboard" && (
+          {tab === "dashboard" && awaitingUpload && startPanel("dashboard")}
+          {tab === "dashboard" && !awaitingUpload && (
             <Dashboard
               state={state}
               documents={documents}
@@ -674,6 +738,7 @@ export default function Home() {
               }}
               awaitingUpload={awaitingUpload}
               onShowWorkspace={() => setAwaitingUpload(false)}
+              documentCase={openDocumentCase}
               onRunAssistants={(documentId) => {
                 void act(() => regosApi.runAllAgents("DETERMINISTIC_PLAN", documentId) as Promise<WorkspaceState>);
               }}
@@ -687,7 +752,19 @@ export default function Home() {
           aria-labelledby="tab-guided"
           hidden={tab !== "guided"}
         >
-          {tab === "guided" && catalogue && (
+          {tab === "guided" && awaitingUpload && startPanel("guided")}
+          {tab === "guided" && !awaitingUpload && openDocument && (
+            <DocumentGuidedReview
+              document={openDocument}
+              busy={busy}
+              onBusy={setBusy}
+              onError={setDocumentError}
+              onDocumentChanged={() => void load()}
+              onOpenDocument={() => setTab("document")}
+            />
+          )}
+
+          {tab === "guided" && !awaitingUpload && !openDocument && catalogue && (
             <div style={{ marginBottom: "28px" }}>
               <ScenarioSelector
                 catalogue={catalogue}
@@ -697,7 +774,7 @@ export default function Home() {
             </div>
           )}
 
-          {tab === "guided" && activeScenario && !activeScenario.guided && (
+          {tab === "guided" && !awaitingUpload && !openDocument && activeScenario && !activeScenario.guided && (
             <ScenarioCase
               scenario={activeScenario}
               outcome={activeOutcome}
@@ -707,7 +784,7 @@ export default function Home() {
             />
           )}
 
-          {tab === "guided" && (!activeScenario || activeScenario.guided) && (
+          {tab === "guided" && !awaitingUpload && !openDocument && (!activeScenario || activeScenario.guided) && (
             <GuidedReview
               state={state}
               receipt={receipt}
@@ -758,7 +835,10 @@ export default function Home() {
           aria-labelledby="tab-agents"
           hidden={tab !== "agents"}
         >
-          {tab === "agents" && <Agents state={state} busy={busy} onRun={act} askSeed={askSeed} />}
+          {tab === "agents" && awaitingUpload && startPanel("agents")}
+          {tab === "agents" && !awaitingUpload && (
+            <Agents state={state} busy={busy} onRun={act} askSeed={askSeed} />
+          )}
         </div>
 
         <div
@@ -767,7 +847,8 @@ export default function Home() {
           aria-labelledby="tab-audit"
           hidden={tab !== "audit"}
         >
-          {tab === "audit" && (
+          {tab === "audit" && awaitingUpload && startPanel("audit")}
+          {tab === "audit" && !awaitingUpload && (
             <AuditTrail state={state} onOpenGuidedReview={() => setTab("guided")} />
           )}
         </div>

@@ -451,6 +451,8 @@ export interface DocumentScope {
   background: number;
   duplicates: number;
   passages_needing_review: number;
+  /** Extracted but never assessed, because they are not in English. */
+  passages_not_in_english: number;
 }
 
 export interface UploadedDocument {

@@ -133,7 +133,13 @@ function DocumentRail({
       </section>
 
       <section className="romer-rail-block">
-        <p className="romer-micro">Decision log</p>
+        {/* Named for whose log it is. These entries belong to the workspace —
+            "The demo profile was created" is the seeded example's own history —
+            and printing them under a heading about the reader's document made
+            them read as that document's past. The uploaded lane keeps its record
+            on the document itself, and the reviewer's decisions on it are in the
+            panels above. */}
+        <p className="romer-micro">Workspace log</p>
         {events.length === 0 ? (
           <div className="romer-rail-card">Nothing has been recorded in this session yet.</div>
         ) : (

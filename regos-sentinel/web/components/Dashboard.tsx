@@ -14,6 +14,7 @@ import {
   plainPhrase,
 } from "../lib/presentation";
 import type {
+  DocumentCaseRecord,
   AgentId,
   CciReport,
   DocumentScore,
@@ -216,6 +217,7 @@ export function Dashboard({
   onRunAgent,
   awaitingUpload = false,
   onShowWorkspace,
+  documentCase = null,
 }: {
   state: WorkspaceState;
   documents?: UploadedDocument[];
@@ -235,6 +237,8 @@ export function Dashboard({
   /** True from "Restart demo" until a document is added. See `DashboardStart`. */
   awaitingUpload?: boolean;
   onShowWorkspace?: () => void;
+  /** The open document's own case, when one has been generated. */
+  documentCase?: DocumentCaseRecord | null;
 }) {
   const [cci, setCci] = useState<CciReport | null>(null);
   // Loading and absence are different things. Until the first read comes back the
@@ -325,6 +329,10 @@ export function Dashboard({
   const failed = build?.tests.filter((item) => item.status === "FAIL") ?? [];
   const passed = build?.tests.filter((item) => item.status === "PASS") ?? [];
 
+  /* The document the reader added, if any. `at(-1)` matches the rest of the app:
+     the most recently added document is the one on screen. */
+  const openDocument = documents.at(-1) ?? null;
+
   const blockedDates = state.deadline_computations.filter((item) => !item.computable);
   /* Passages waiting across every uploaded document. The Open decisions figure
      counts these, so its note has to name them too — otherwise a queue of 8 sits
@@ -411,7 +419,51 @@ export function Dashboard({
   /** The report exists only once nothing is failing and nothing is held open. */
   const reportReady = Boolean(build) && failed.length === 0 && waiting.length === 0;
 
+  /* When a document is open, the one decision on this page has to come from it.
+     This card led with the seeded Case A whatever was on screen — "The reviewed
+     source states a period of 1 week … FAQ dated 11 June 2025 · Q17(a)" — sitting
+     directly under a heading naming the reader's own 205-page framework. Two
+     sources, one card, and no way for a reader to tell which one they were
+     looking at. That is the defect this product exists to find. */
+  const documentLead: DeskItem | null = openDocument
+    ? documentCase
+      ? {
+          id: "document-case",
+          tone: documentCase.state === "APPROVED" ? "ok" : "review",
+          status:
+            documentCase.state === "APPROVED"
+              ? "Decided by a named person"
+              : "Needs your decision",
+          title:
+            documentCase.state === "APPROVED"
+              ? "This deadline has a recorded starting point"
+              : "Decide what starts this clock",
+          reason:
+            documentCase.state === "APPROVED"
+              ? `A named reviewer recorded what starts the ${documentCase.duration_label ?? "stated"} period in this passage, and the record keeps their reason.`
+              : `This document states a period of ${documentCase.duration_label ?? "time"} but never says what starts it, so no due date can be worked out. A named person has to decide the starting point.`,
+          support: `${documentCase.locator} · ${openDocument.filename}`,
+          actionLabel:
+            documentCase.state === "APPROVED" ? "Open the decision" : "Decide what starts the clock",
+          onAction: onOpenDecision,
+        }
+      : {
+          id: "document-no-case",
+          tone: "neutral",
+          status: "Ready to review",
+          title: "Find the deadline gap in this document",
+          reason:
+            `${openDocument.scope.possible_requirements.toLocaleString()} passages in `
+            + `${openDocument.filename} are requirement-shaped. RegOS can name the one that `
+            + "states how long you have but never says when the clock starts.",
+          support: null,
+          actionLabel: "Open the review",
+          onAction: onOpenDecision,
+        }
+    : null;
+
   const lead: DeskItem =
+    documentLead ??
     queue[0] ??
     (build
       ? {
@@ -442,7 +494,25 @@ export function Dashboard({
   const rest = queue.slice(1);
 
   /** The one line that changes after an action. Every figure is read, none is invented. */
-  const statusLine = [
+  const statusLine = openDocument
+    ? [
+        // Read from the document, because that is what the card above describes.
+        // The workspace version summed a seeded queue with this document's
+        // passages and reported "18 items waiting" over a card that had just
+        // said 17 — one number, two sources, and no way to tell.
+        `${openDocument.scope.passages_reviewed.toLocaleString()} passages read from `
+          + `${openDocument.scope.pages_read} of ${openDocument.scope.page_count} pages`,
+        openDocument.scope.passages_needing_review > 0
+          ? `${openDocument.scope.passages_needing_review} waiting on a person`
+          : "nothing in this document is waiting on a person",
+        openDocument.requirements.length > 0
+          ? `${openDocument.requirements.length} requirement${openDocument.requirements.length === 1 ? "" : "s"} approved`
+          : "no requirement approved yet",
+        "not validated by SEBI",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : [
     build
       ? `${passed.length} of ${build.tests.length} checks passed`
       : "no check has been run in this workspace yet",
@@ -457,17 +527,29 @@ export function Dashboard({
         ? "SEBI source has changed since this review"
         : "SEBI source verified"
       : "SEBI source not re-checked yet",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
   const statusTone: DeskTone = failed.length > 0 ? "fail" : queue.length > 0 ? "review" : "ok";
   const settleClass = settleKey > 0 && !reducedMotion ? " dash-settle" : "";
 
-  const profileLine = (
+  /* Whose review this is.
+     The seeded firm is a demonstration profile, and printing its legal name over
+     a document the reader uploaded claims we know who they are. We do not — the
+     upload lane never asks, and inventing an entity is the same class of mistake
+     as inventing a deadline. When a document is open the subhead names the
+     document, which is the one thing on this page we can actually stand behind. */
+  const profileLine = openDocument ? (
+    <p className="cmd-sub">
+      {openDocument.filename} · {openDocument.scope.page_count} page
+      {openDocument.scope.page_count === 1 ? "" : "s"} · added by you, not validated by SEBI
+    </p>
+  ) : (
     <p className="cmd-sub">
       {state.entity_profile.legal_name} · {labelOf(state.entity_profile.entity_type)}
       {state.entity_profile.is_qsb ? " · Qualified stockbroker" : ""}
+      {" · demonstration profile"}
     </p>
   );
 
@@ -553,6 +635,66 @@ export function Dashboard({
           is of. No trend arrows and no "2 from last period": this workspace has
           no previous period to compare against, and inventing one would be the
           single fastest way to lose a regulator's trust. */}
+      {/* When the reader has added a document, these four describe THAT document.
+          They used to describe the seeded workspace whatever was on screen, so a
+          205-page framework with 828 requirement-shaped passages sat under
+          "Open decisions 1 · 1 due date cannot be worked out" — a figure from
+          Aster Securities' worked example, printed as the reader's own position.
+          The seeded figures are still exactly right when the seeded example is
+          what is open; they are simply no longer right for everything. */}
+      {openDocument ? (
+        <div className="romer-stats">
+          <article className="romer-stat">
+            <p className="romer-micro">Waiting on you</p>
+            <p
+              className={`romer-stat-figure${
+                openDocument.scope.passages_needing_review > 0 ? " romer-stat-figure--review" : ""
+              }`}
+            >
+              {openDocument.scope.passages_needing_review}
+            </p>
+            <p className="romer-stat-note">
+              {openDocument.scope.passages_needing_review === 0
+                ? "every passage has been settled"
+                : "passages carrying more than one requirement strength"}
+            </p>
+          </article>
+          <article className="romer-stat">
+            <p className="romer-micro">Requirement-shaped</p>
+            <p className="romer-stat-figure">
+              {openDocument.scope.possible_requirements.toLocaleString()}
+            </p>
+            <p className="romer-stat-note">
+              of {openDocument.scope.passages_reviewed.toLocaleString()} passages read
+            </p>
+          </article>
+          <article className="romer-stat">
+            <p className="romer-micro">Approved by a person</p>
+            <p
+              className={`romer-stat-figure${
+                openDocument.requirements.length > 0 ? " romer-stat-figure--ok" : " romer-stat-figure--muted"
+              }`}
+            >
+              {openDocument.requirements.length}
+            </p>
+            <p className="romer-stat-note">
+              {openDocument.requirements.length === 0
+                ? "no requirement created yet"
+                : "requirements with a named reviewer"}
+            </p>
+          </article>
+          <article className="romer-stat">
+            <p className="romer-micro">Pages read</p>
+            <p className="romer-stat-figure">{openDocument.scope.pages_read}</p>
+            <p className="romer-stat-note">
+              of {openDocument.scope.page_count}
+              {openDocument.scope.passages_not_in_english > 0
+                ? ` · ${openDocument.scope.passages_not_in_english} passages not in English`
+                : ""}
+            </p>
+          </article>
+        </div>
+      ) : (
       <div className="romer-stats">
         <article className="romer-stat">
           <p className="romer-micro">Open decisions</p>
@@ -613,6 +755,7 @@ export function Dashboard({
           <p className="romer-stat-note">{build ? "in the latest run" : "not run yet"}</p>
         </article>
       </div>
+      )}
 
       {/* ---- 1 · The one unresolved decision --------------------------------
           Everything below this block exists to explain it. It is the only thing
@@ -659,7 +802,7 @@ export function Dashboard({
 
         {/* Reporting clocks are context for the decision above, not a module of
             their own: they are the thing the missing clock-start would start. */}
-        {state.findings.length > 0 && (
+        {!openDocument && state.findings.length > 0 && (
           <div className="dash-clocks">
             <p className="b-label"><IconClock /> The reporting clocks this decision governs</p>
             <IncidentReportingClock state={state} compact onResolve={track(onOpenDecision)} />
