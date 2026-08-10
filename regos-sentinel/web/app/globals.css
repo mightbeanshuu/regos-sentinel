@@ -2469,6 +2469,42 @@ body {
 }
 .review-drawer .passage { border-bottom: 0; padding-left: 0; padding-right: 0; }
 
+/* ---- Density inside the drawer -------------------------------------------
+   The reading form is six short answers and it filled a whole screen. The
+   shared `.field-grid` floor is 240px, so in a 550px drawer it resolved to two
+   columns and stranded "To what?" alone on a row with half of it empty; add the
+   standard gaps and the reviewer had to scroll past their own form to reach the
+   button that submits it.
+
+   Nothing here shrinks the passage or its wording — the quote keeps its size,
+   because that is the thing being read. It is the CHROME around the answers
+   that gets tighter: three short fields fit on one row, the callout stops being
+   a panel-sized block, and the whole form is visible at once, which is the only
+   way a person can check their own reading before committing it. */
+.review-drawer .field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: var(--s3);
+}
+.review-drawer .field-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  margin-bottom: 3px;
+}
+.review-drawer .field input,
+.review-drawer .field select,
+.review-drawer .field textarea {
+  padding: 7px 10px;
+  font-size: 0.8125rem;
+}
+.review-drawer .field textarea { min-height: 62px; }
+.review-drawer .callout {
+  padding: var(--s3);
+  border-radius: 10px;
+}
+.review-drawer .callout-title { font-size: 0.8125rem; margin-bottom: 2px; }
+.review-drawer .callout p { font-size: 0.78125rem; line-height: 1.5; }
+.review-drawer .stack { gap: var(--s3); }
+
 /* ---------- Chat-style Ask -------------------------------------------------- */
 
 .chat { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }

@@ -182,3 +182,49 @@ export function IconHelp() {
     </Icon>
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * The three-step promise: assistants read · fixed rules decide · you approve.
+ * Drawn on the same 20×20 grid as the rest of the set so the strip reads as an
+ * instrument rather than three borrowed glyphs. Each one encodes what its step
+ * is ALLOWED to do, which is the claim the strip exists to make.
+ * ------------------------------------------------------------------------- */
+
+/** Assistants read — an eye, open across three lines of text. It looks; it holds
+    no pen. Drawn as one shape rather than a page with an eye laid over it: at
+    17px the two overlapping outlines read as a smudge, and a glyph nobody can
+    resolve makes the claim worse than no glyph at all. */
+export function IconStepRead() {
+  return (
+    <Icon>
+      <path d="M2.2 10s2.9-4.4 7.8-4.4S17.8 10 17.8 10s-2.9 4.4-7.8 4.4S2.2 10 2.2 10Z" />
+      <circle cx="10" cy="10" r="2.1" />
+      <path d="M6.4 3.4h7.2" />
+      <path d="M6.4 16.6h7.2" />
+    </Icon>
+  );
+}
+
+/** Fixed rules decide — a balance at rest. Deterministic, and it does not lean. */
+export function IconStepRule() {
+  return (
+    <Icon>
+      <path d="M10 3.4v13.2" />
+      <path d="M4.6 6.2h10.8" />
+      <path d="M4.6 6.2 2.4 11a2.6 2.6 0 0 0 4.4 0Z" />
+      <path d="M15.4 6.2 13.2 11a2.6 2.6 0 0 0 4.4 0Z" />
+      <path d="M7 16.6h6" />
+    </Icon>
+  );
+}
+
+/** You approve — a signature line under a nib. Only a person signs. */
+export function IconStepApprove() {
+  return (
+    <Icon>
+      <path d="M12.6 3.6 16 7l-6.6 6.6-3.9.9.9-3.9Z" />
+      <path d="M11.2 5 14.6 8.4" />
+      <path d="M3.4 17h13.2" />
+    </Icon>
+  );
+}

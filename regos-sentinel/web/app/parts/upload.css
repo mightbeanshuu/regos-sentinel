@@ -102,3 +102,20 @@
   .upload-solo { padding: var(--s4) 0 var(--s7); gap: var(--s5); }
   .upload-gate { padding: var(--s6) var(--s4); }
 }
+
+
+/* ---- The wait, told honestly ---------------------------------------------
+   A long circular takes real time to read on the hosted tier, and for most of
+   it a bare spinner is indistinguishable from a hang. These two lines carry an
+   estimate sized from the file and, past twice that, a sentence saying it has
+   not failed. No progress bar: extraction reports no percentage, so a bar would
+   be an animation impersonating a measurement.                             */
+.upload-sheet-wait {
+  max-width: 62ch;
+  margin-top: var(--s2);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+.upload-sheet-wait strong { color: var(--ink-2); font-weight: 640; }
+.upload-sheet-wait--long { color: var(--review); }

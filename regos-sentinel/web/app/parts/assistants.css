@@ -58,3 +58,106 @@
   .ag-node-arrow { margin-left: auto; transform: rotate(90deg); }
   .axc-card-actions > .btn { width: 100%; justify-content: center; }
 }
+
+
+/* ---- The three-step promise, with the handoff made visible ----------------
+   Read → decided → signed. The strip used to be three empty rings and a text
+   arrow, which drew the single most important claim this product makes as
+   nothing at all.
+
+   Three rules hold this together:
+
+   1. THE RESTING STATE IS THE VISIBLE ONE. Everything below is fully painted
+      with no animation running; the keyframes only ever brighten what is
+      already there. An earlier anime.js entrance on this page left inline
+      opacity:0 behind on cleanup and StrictMode replayed it 0→0, so the panel
+      came up blank. Motion that can fail closed does not belong on a claim.
+   2. THE COLOURS ARE THE CONTRACT, not decoration. Periwinkle is computed and
+      informational, aqua is verified, peach is "a person is required" — so the
+      strip is spelling read → decided → signed in the app's own vocabulary.
+   3. IT LOOPS SLOWLY AND STOPS UNDER REDUCED MOTION. 6s, which is a pulse you
+      notice once and then ignore, not a thing that pulls at the eye while
+      someone is reading regulation beside it.                              */
+
+.ag-node { position: relative; }
+
+.ag-node-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  color: var(--ink-3);
+  flex: none;
+  transition: color 320ms var(--ease), border-color 320ms var(--ease),
+              box-shadow 320ms var(--ease);
+}
+.ag-node-dot svg { width: 17px; height: 17px; }
+
+/* Each node owns a tone, and the ring, the glyph and the pulse all read it. */
+/* `--accent` IS the periwinkle: computed/informational. Named by role, not hue. */
+.ag-node--info  { --node-ink: var(--accent); }
+.ag-node--ok    { --node-ink: var(--ok); }
+.ag-node--review{ --node-ink: var(--review); }
+
+.ag-node--info .ag-node-dot,
+.ag-node--ok .ag-node-dot,
+.ag-node--review .ag-node-dot { color: var(--node-ink); border-color: currentColor; }
+
+/* The connector, and the signal that runs down it. */
+.ag-node-link { display: inline-flex; align-items: center; color: var(--ink-3); }
+.ag-node-link svg { overflow: visible; }
+.ag-link-track {
+  stroke: var(--line-2);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.ag-link-head {
+  stroke: var(--ink-3);
+  stroke-width: 1.4;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ag-link-pulse {
+  stroke: var(--node-ink, var(--accent));
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  /* A short lit segment travelling a 42px track: dash on, gap longer than the
+     track so exactly one segment is ever in flight. */
+  stroke-dasharray: 10 60;
+  stroke-dashoffset: 14;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ag-link-pulse {
+    animation: ag-travel 6s var(--ease) infinite;
+  }
+  .ag-node:nth-child(1) .ag-link-pulse { animation-delay: 0.2s; }
+  .ag-node:nth-child(2) .ag-link-pulse { animation-delay: 2.2s; }
+
+  /* The ring lights as the signal arrives, then hands on. */
+  .ag-node-dot { animation: ag-arrive 6s var(--ease) infinite; }
+  .ag-node:nth-child(1) .ag-node-dot { animation-delay: 0s; }
+  .ag-node:nth-child(2) .ag-node-dot { animation-delay: 2s; }
+  .ag-node:nth-child(3) .ag-node-dot { animation-delay: 4s; }
+}
+
+@keyframes ag-travel {
+  0%   { opacity: 0; stroke-dashoffset: 14; }
+  4%   { opacity: 1; }
+  28%  { opacity: 1; stroke-dashoffset: -46; }
+  34%  { opacity: 0; stroke-dashoffset: -46; }
+  100% { opacity: 0; stroke-dashoffset: -46; }
+}
+
+@keyframes ag-arrive {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  6%       { box-shadow: 0 0 0 4px color-mix(in oklab, var(--node-ink) 22%, transparent); }
+  22%      { box-shadow: 0 0 18px -2px color-mix(in oklab, var(--node-ink) 55%, transparent); }
+  40%      { box-shadow: 0 0 0 0 transparent; }
+}

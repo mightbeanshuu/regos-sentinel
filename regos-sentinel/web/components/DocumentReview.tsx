@@ -200,6 +200,32 @@ function SourceSheet({
   preparing: boolean;
   stillness: boolean;
 }) {
+  /* A real elapsed count, not a progress bar.
+     Reading a long circular on the hosted free tier takes a while — SEBI's
+     205-page CSCRF framework measures about 105 seconds end to end — and for
+     most of that a spinner is indistinguishable from a hang. A progress bar
+     would be the easy answer and the dishonest one: extraction reports no
+     percentage, so any bar would be an animation pretending to be a
+     measurement, which is the exact thing this product refuses to do
+     everywhere else. Counting the seconds that have actually passed is a
+     number we have, and it turns a wait into something a person can judge. */
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!preparing) { setElapsed(0); return; }
+    const started = performance.now();
+    const timer = window.setInterval(
+      () => setElapsed(Math.floor((performance.now() - started) / 1000)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [preparing]);
+
+  /* Sized from the file, so the estimate is about THIS document. Measured on the
+     hosted tier: ~2.5s a page, and a page with no text layer is machine-read,
+     which costs more again. Given as a range because it is an estimate. */
+  const estimateSeconds = Math.max(10, Math.round((file.size / 1024 / 1024) * 34));
+  const longRead = estimateSeconds > 25;
+
   return (
     <div
       className={`panel upload-sheet${stillness ? " upload-sheet--still" : ""}`}
@@ -208,12 +234,37 @@ function SourceSheet({
       <p className="upload-sheet-name">{file.name}</p>
       <p className="upload-sheet-meta">PDF · {formatBytes(file.size)}</p>
       {preparing && (
-        <p className="upload-sheet-state">
-          {!stillness && (
-            <span className="upload-sheet-bar" aria-hidden="true"><span /></span>
+        <>
+          <p className="upload-sheet-state">
+            {!stillness && (
+              <span className="upload-sheet-bar" aria-hidden="true"><span /></span>
+            )}
+            Reading every page · {elapsed}s
+          </p>
+          <p className="upload-sheet-wait">
+            {longRead ? (
+              <>
+                A document this size usually takes around{" "}
+                <strong>{estimateSeconds}–{estimateSeconds * 2} seconds</strong> here.
+                Every page is read, split into passages and classified before anything
+                appears, so there is nothing to show until it is done. Leave this tab
+                open — closing it loses the read.
+              </>
+            ) : (
+              <>
+                Every page is read, split into passages and classified before anything
+                appears. Leave this tab open — closing it loses the read.
+              </>
+            )}
+          </p>
+          {elapsed > estimateSeconds * 2 && (
+            <p className="upload-sheet-wait upload-sheet-wait--long">
+              Still going. Long or scanned documents take the longest, because pages
+              with no text layer are machine-read one at a time. It has not failed —
+              a failure would say so here.
+            </p>
           )}
-          Preparing passages for review
-        </p>
+        </>
       )}
     </div>
   );

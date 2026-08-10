@@ -524,6 +524,13 @@ export default function Home() {
                 )}
               </p>
 
+              {/* The registrations belong to the seeded firm. Printed under
+                  "No workspace yet" they contradicted the line above them —
+                  "Stock broker · Operational" is an affirmative claim about a
+                  regulated entity, made on a screen that had just said there
+                  isn't one. The whole block waits for a workspace now. */}
+              {awaitingUpload ? null : (
+              <>
               <p className="romer-micro">Registrations on file</p>
               {state.entity_profile.registrations.length === 0 ? (
                 <p className="meta">No registration is recorded for this firm.</p>
@@ -546,6 +553,16 @@ export default function Home() {
                 broker their own workspace — so no switcher is offered here rather
                 than one that moves between firms nobody registered.
               </p>
+              </>
+              )}
+
+              {awaitingUpload && (
+                <p className="romer-account-note">
+                  This prototype ships with a synthetic broker and two official SEBI
+                  sources. Nothing has been read from them in this session, so nothing
+                  here is claimed about any firm yet.
+                </p>
+              )}
             </div>
           </details>
         </div>

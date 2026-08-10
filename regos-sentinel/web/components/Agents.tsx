@@ -11,6 +11,7 @@ import {
 import { useReducedMotion } from "motion/react";
 
 import { regosApi } from "../lib/api";
+import { IconStepApprove, IconStepRead, IconStepRule } from "./vector";
 import { AgentConsole } from "./AgentConsole";
 import { AskPanel } from "./AskPanel";
 import type { AgentConsoleHandle } from "./AgentConsole";
@@ -153,6 +154,13 @@ interface Trace {
   y2: number;
   length: number;
 }
+
+/** The three steps, their glyph, and the state each one stands for. */
+const PIPELINE = [
+  { label: "Assistants read", Icon: IconStepRead, tone: "info" },
+  { label: "Fixed rules decide", Icon: IconStepRule, tone: "ok" },
+  { label: "You approve", Icon: IconStepApprove, tone: "review" },
+] as const;
 
 export function Agents({
   state,
@@ -311,13 +319,37 @@ export function Agents({
         </p>
       </section>
 
-      {/* ---- The promise, as a pipeline. Not navigation. ------------------ */}
+      {/* ---- The promise, as a pipeline. Not navigation. ------------------
+          The three nodes were empty rings and a text arrow — the most important
+          claim this product makes, drawn as nothing. Each node now carries a
+          glyph of what its step is ALLOWED to do (an eye that holds no pen, a
+          balance at rest, a nib over a signature line), and a signal travels the
+          strip so the handoff is something you watch rather than read.
+
+          The colours are the Romer contract, not decoration: periwinkle is
+          computed/informational, aqua is verified, peach is "a person is
+          required". Read → decided → signed, in the app's own vocabulary.
+
+          Motion is CSS. An earlier anime.js entrance on this page left inline
+          opacity:0 behind on cleanup and StrictMode re-ran it 0→0, so the panel
+          rendered blank; the resting state here is the visible default and the
+          animation only ever adds to it. */}
       <div className="ag-pipeline" aria-label="How the assistants are allowed to work">
-        {["Assistants read", "Fixed rules decide", "You approve"].map((step, index) => (
-          <span className="ag-node" key={step}>
-            <span className={`ag-node-dot${index === 0 ? " ag-node-dot--live" : ""}`} aria-hidden="true" />
-            <span className="ag-node-word">{step}</span>
-            {index < 2 && <span className="ag-node-arrow" aria-hidden="true">→</span>}
+        {PIPELINE.map((step, index) => (
+          <span className={`ag-node ag-node--${step.tone}`} key={step.label}>
+            <span className="ag-node-dot" aria-hidden="true">
+              <step.Icon />
+            </span>
+            <span className="ag-node-word">{step.label}</span>
+            {index < PIPELINE.length - 1 && (
+              <span className="ag-node-link" aria-hidden="true">
+                <svg viewBox="0 0 44 8" width="44" height="8" aria-hidden="true">
+                  <path className="ag-link-track" d="M1 4h42" />
+                  <path className="ag-link-pulse" d="M1 4h42" />
+                  <path className="ag-link-head" d="m37 1 3.5 3-3.5 3" />
+                </svg>
+              </span>
+            )}
           </span>
         ))}
       </div>

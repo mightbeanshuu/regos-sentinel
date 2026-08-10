@@ -123,8 +123,9 @@ function DocumentRail({
               {score.blocked_durations > 0 && (
                 <>
                   {" "}
-                  <span className="em-review">{score.blocked_durations}</span> give a period
-                  only — a period alone cannot produce a date.
+                  <span className="em-review">{score.blocked_durations}</span>{" "}
+                  {score.blocked_durations === 1 ? "gives" : "give"} a period only — a
+                  period alone cannot produce a date.
                 </>
               )}
             </>
