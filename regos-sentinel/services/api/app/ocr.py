@@ -70,7 +70,17 @@ MAX_OCR_PAGES_PER_DOCUMENT = min(60, MAX_PAGE_COUNT)
 
 #: Concurrent page reads. The slow half (the tesseract subprocess, or the remote
 #: call) parallelises safely; the pdfium rasteriser is serialised separately below.
-OCR_WORKERS = 4
+#:
+#: Two, not four, and the reason is a production-only failure. The hosted API runs
+#: on a 512 MB instance. A single A4 page at this density is an 11.6 MB PPM, and
+#: each concurrent read holds that plus a tesseract subprocess of its own — so at
+#: four workers a scanned circular could ask for more memory than the box has, and
+#: an out-of-memory kill leaves no traceback to find. It looks exactly like a 502
+#: from a healthy service, which is how SEBI's own 205-page CSCRF framework failed
+#: in production while passing every local run.
+#:
+#: `REGOS_OCR_WORKERS` raises it where there is memory to spare.
+OCR_WORKERS = max(1, int(os.environ.get("REGOS_OCR_WORKERS", "2")))
 
 #: PDFium is not thread-safe; every rasterisation goes through this lock. The
 #: tesseract subprocesses — where the time actually goes — still run in parallel.
@@ -155,11 +165,20 @@ def _remote_page(payload: bytes, index: int) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def _page_ppm(payload: bytes, index: int) -> Optional[bytes]:
+def _page_ppm(payload: bytes, index: int) -> Optional[bytearray]:
     """One page rasterised to a P6 PPM, in memory. None on any failure.
 
     PPM is built by hand so the deployment needs no imaging stack — the header plus
     the renderer's own RGB rows is the whole format.
+
+    Written into one preallocated buffer, which is not a micro-optimisation. The
+    first version copied the whole bitmap out of pdfium, then built a list of
+    per-row `bytes`, then joined it: four full-size copies of an image that is
+    15.5 MB before the alpha channel comes off. Measured, rasterising a single
+    A4 page moved process RSS by 80 MB. On the 512 MB instance the API is hosted
+    on, that is the difference between a document that uploads and an
+    out-of-memory kill — and an OOM kill produces no traceback, so it reaches the
+    reader as a bare 502 from a service whose logs look healthy.
     """
     try:
         import pypdfium2 as pdfium
@@ -173,24 +192,37 @@ def _page_ppm(payload: bytes, index: int) -> Optional[bytes]:
                 )
                 width, height, stride = bitmap.width, bitmap.height, bitmap.stride
                 channels = bitmap.n_channels
-                raw = bytes(bitmap.buffer)
+                header = b"P6\n%d %d\n255\n" % (width, height)
+                out_row = width * 3
+                out = bytearray(len(header) + out_row * height)
+                out[: len(header)] = header
+                # A memoryview over pdfium's own buffer: read in place, no copy.
+                # It stays valid only while the document is open, so the whole
+                # transcription happens inside this block.
+                source = memoryview(bitmap.buffer)
+                cursor = len(header)
+                row_bytes = width * channels
+                for y in range(height):
+                    row = source[y * stride : y * stride + row_bytes]
+                    if channels == 4:
+                        opaque = bytearray(row)
+                        del opaque[3::4]
+                        out[cursor : cursor + out_row] = opaque
+                    else:
+                        out[cursor : cursor + out_row] = row
+                    cursor += out_row
+                source.release()
             finally:
                 document.close()
-        row_bytes = width * channels
-        rows: List[bytes] = []
-        for y in range(height):
-            row = raw[y * stride : y * stride + row_bytes]
-            if channels == 4:
-                trimmed = bytearray(row)
-                del trimmed[3::4]
-                row = bytes(trimmed)
-            rows.append(row)
-        return b"P6\n%d %d\n255\n" % (width, height) + b"".join(rows)
+        # Returned as the bytearray it was built in. `bytes(out)` here would be a
+        # final 11.6 MB copy of a buffer whose only consumer is a subprocess that
+        # accepts any bytes-like object.
+        return out
     except Exception:  # noqa: BLE001 — a page that cannot render stays unreadable
         return None
 
 
-def _tesseract(ppm: bytes) -> str:
+def _tesseract(ppm: bytes | bytearray) -> str:
     """Run the local binary over one rasterised page. Empty on any failure."""
     binary = shutil.which(OCR_LOCAL_BINARY)
     if binary is None:
