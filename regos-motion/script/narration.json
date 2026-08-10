@@ -8,9 +8,9 @@
       "id": "hook",
       "kind": "title",
       "sentences": [
-        "SEBI's cyber security framework tells a broker to close a high severity finding within one week.",
+        "SEBI tells a broker to close a high severity finding within one week.",
         "It never says one week from when.",
-        "A period with no starting point cannot produce a date, and no amount of confidence will change that."
+        "So there's no date you can actually work out. Being confident about it doesn't help."
       ]
     },
     {
@@ -20,8 +20,8 @@
       "clipStart": 3.0,
       "label": "The workspace",
       "sentences": [
-        "This is RegOS Sentinel, signed in as one small size regulated entity.",
-        "The bell carries the real number of things waiting on a person, and the profile names the firm and every registration on file."
+        "This is RegOS Sentinel.",
+        "The bell shows what's genuinely waiting on a person, and the profile names the firm it belongs to."
       ]
     },
     {
@@ -31,9 +31,9 @@
       "clipStart": 1.5,
       "label": "Dashboard",
       "sentences": [
-        "The desk opens on four counted facts. Not one of them is an estimate.",
-        "Open decisions, deadlines computed, evidence still current, and checks run.",
-        "One decision is blocking, and the reason sits right beside it instead of three screens away."
+        "The desk opens on four numbers, and all four are counted from what's actually there.",
+        "Open decisions, deadlines worked out, evidence still current, checks run.",
+        "One decision is blocking, and the reason for it sits right next to it."
       ]
     },
     {
@@ -41,9 +41,9 @@
       "kind": "pipeline",
       "label": "How it works",
       "sentences": [
-        "Before it asks for any trust, the product explains its own pipeline.",
-        "Fetch the SEBI source, read it, compare it against the firm's control, and record a decision.",
-        "And stop, wherever the source stops."
+        "Before it asks you to trust anything, it shows you what it does.",
+        "Fetch the SEBI source, read it, compare it to the firm's control, record a decision.",
+        "And then stop, wherever the source stops."
       ]
     },
     {
@@ -53,9 +53,9 @@
       "clipStart": 2.0,
       "label": "The source",
       "sentences": [
-        "Every answer begins at the source itself.",
-        "The exact passage, the page it sits on, the question number, and a fingerprint of the document it was read from.",
-        "Nothing here is summarised, and nothing is invented."
+        "Everything starts at the source.",
+        "The exact passage, the page, the question number, and a fingerprint of the file it came from.",
+        "Nothing's summarised, and nothing's made up."
       ]
     },
     {
@@ -65,9 +65,9 @@
       "clipStart": 8.0,
       "label": "Live source check",
       "sentences": [
-        "A saved copy is only as good as the day it was saved.",
-        "So the fingerprint can be checked, live, against the page SEBI serves right now.",
-        "The result is a receipt, whichever way it goes."
+        "A saved copy is only good as of the day you saved it.",
+        "So you can check that fingerprint against the page SEBI is serving right now.",
+        "Either way, you get a receipt."
       ]
     },
     {
@@ -77,9 +77,9 @@
       "clipStart": 8.0,
       "label": "The gap",
       "sentences": [
-        "Now it reads that passage against the firm's own control.",
-        "The period is stated. The starting point is not.",
-        "So no due date is calculated. The clock stays blocked, and the gap goes in front of a person."
+        "Now it reads the passage against the firm's own control.",
+        "The period's there. The starting point isn't.",
+        "So it won't work out a due date. It leaves the clock blocked and puts the gap in front of a person."
       ]
     },
     {
@@ -89,10 +89,10 @@
       "clipStart": 12.0,
       "label": "A named decision",
       "sentences": [
-        "The decision belongs to a named officer, and the tool enforces the order it has to happen in.",
-        "It will not accept a reading until every section the answer depends on has been read and fingerprinted.",
-        "Then the officer's own reading is time stamped, before the draft interpretation is ever revealed.",
-        "That order is the difference between a judgement and a rubber stamp."
+        "The decision belongs to a named officer, and the order it happens in matters.",
+        "You can't record a reading until every section the answer leans on has been opened and fingerprinted.",
+        "Then your own reading gets time stamped, before the tool shows you what it thinks.",
+        "That's what keeps it a judgement instead of a rubber stamp."
       ]
     },
     {
@@ -102,9 +102,9 @@
       "clipStart": 26.0,
       "label": "What changes",
       "sentences": [
-        "With the clock start recorded, the deadline computes and the checks pass.",
+        "Once the clock start is on record, the date works out and the checks pass.",
         "One broad three month control splits into the two rules the source actually described.",
-        "One week for missing patches, three months for everything else."
+        "A week for missing patches, three months for the rest."
       ]
     },
     {
@@ -114,9 +114,9 @@
       "clipStart": 36.0,
       "label": "The record",
       "sentences": [
-        "The whole thing downloads as a compliance build report.",
-        "The decision, the person who made it, the evidence behind it, and the check codes that tie all three together.",
-        "A regulator can recompute every one of them."
+        "All of it downloads as one report.",
+        "The decision, who made it, what it rests on, and the check codes tying them together.",
+        "A regulator can redo every one of them."
       ]
     },
     {
@@ -126,9 +126,9 @@
       "clipStart": 12.0,
       "label": "AI assistants",
       "sentences": [
-        "Four assistants read the same corpus, each with exactly one job.",
-        "They follow a fixed sequence of steps, and every step is recorded and fingerprinted as it runs.",
-        "A tamper check then recalculates all of them, so an edited step cannot pass silently."
+        "Four assistants read the same corpus, and each one has a single job.",
+        "They work through fixed steps, and every step is recorded as it runs.",
+        "Then a tamper check recalculates the lot, so an edited step can't slip through."
       ]
     },
     {
@@ -138,9 +138,9 @@
       "clipStart": 4.0,
       "label": "What it will not do",
       "sentences": [
-        "Every check states what it may not do, in the same panel that states what it does.",
-        "It searches a pinned excerpt corpus. It does not browse the web.",
-        "It cannot resolve a pointer to a passage nobody has committed, and it says so rather than guessing."
+        "Each check tells you what it can't do, right where it tells you what it does.",
+        "It searches a pinned set of excerpts. It doesn't browse the web.",
+        "If a pointer leads somewhere nobody has committed, it says so instead of guessing."
       ]
     },
     {
@@ -150,9 +150,9 @@
       "clipStart": 5.0,
       "label": "Ask RegOS",
       "sentences": [
-        "Ask it a question in plain English.",
+        "You can ask it something in plain English.",
         "The answer comes back quoted from SEBI, with the locator attached.",
-        "Quoted exactly, never paraphrased, and never produced when the corpus does not contain it."
+        "Word for word. And if the corpus doesn't have it, you get nothing rather than a guess."
       ]
     },
     {
@@ -163,8 +163,8 @@
       "label": "Your own document",
       "sentences": [
         "None of this is a fixed demo path. Point it at your own circular.",
-        "This is a live SEBI PDF, downloaded from their website minutes before this recording.",
-        "Seven pages read, fifty eight passages classified, and a deadline clarity score computed from that file alone."
+        "This one's a real SEBI circular on transmission of securities, from July.",
+        "Thirty eight pages, two hundred and seventeen passages, and a deadline score worked out from that file alone."
       ]
     },
     {
@@ -174,9 +174,33 @@
       "clipStart": 40.0,
       "label": "An honest empty result",
       "sentences": [
-        "Then it looks for the same deadline gap inside your document.",
-        "In this one, it does not find one, and it says exactly that.",
-        "There is nothing to decide here. A product that always finds something is a product that invents things."
+        "Then it goes looking for the same kind of gap inside your document.",
+        "Here it finds one. Page three says monthly reports for a period of six months, and never says six months from when.",
+        "Same defect as the opening, in a circular published three weeks ago."
+      ]
+    },
+    {
+      "id": "fix_caught",
+      "kind": "clip",
+      "clip": "fix",
+      "clipStart": 3.0,
+      "label": "The gap, on its own",
+      "sentences": [
+        "Here's that same clause on its own, exactly as SEBI published it.",
+        "Fifty percent. It finds the six month period, finds no start date, and raises the case."
+      ]
+    },
+    {
+      "id": "fix_clear",
+      "kind": "clip",
+      "clip": "fix",
+      "clipStart": 45.0,
+      "label": "The same clause, fixed",
+      "sentences": [
+        "Now the same clause with the missing start date written in.",
+        "That edit is ours, not SEBI's, and the document says so on its face.",
+        "A hundred percent, and no case to raise.",
+        "It isn't hunting for something to flag. It's looking for one specific thing, and that thing is gone."
       ]
     },
     {
@@ -186,9 +210,9 @@
       "clipStart": 2.5,
       "label": "Full record",
       "sentences": [
-        "Everything lands in one ledger.",
-        "Who decided what, when, on which evidence, and under which fingerprint.",
-        "This is the artefact an inspection actually asks for."
+        "It all lands in one ledger.",
+        "Who decided what, when, on what evidence, under which fingerprint.",
+        "This is the thing an inspection actually asks you for."
       ]
     },
     {
@@ -198,9 +222,9 @@
       "clipStart": 4.0,
       "label": "Worked cases",
       "sentences": [
-        "Four worked cases ship with the product.",
-        "Each one carries a cited source and an expected outcome, written down before it runs.",
-        "Including one that runs against a real SEBI advisory."
+        "Four worked cases ship with it.",
+        "Each has a cited source and an expected outcome, written down before it runs.",
+        "One of them runs against a real SEBI advisory."
       ]
     },
     {
@@ -210,8 +234,8 @@
       "clipStart": 4.0,
       "label": "A blank start",
       "sentences": [
-        "And it can be handed to a stranger. Restart, and the desk goes honestly blank.",
-        "No findings, no deadlines, no score, until a document is actually added."
+        "And you can hand it to someone cold. It opens empty.",
+        "No findings, no deadlines, no score, until somebody actually adds a document."
       ]
     },
     {
@@ -219,8 +243,8 @@
       "kind": "title",
       "sentences": [
         "RegOS Sentinel.",
-        "Decision support that shows its work.",
-        "And stops where the source stops."
+        "It shows its work.",
+        "And it stops where the source stops."
       ]
     }
   ]
