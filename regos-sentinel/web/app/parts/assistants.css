@@ -161,3 +161,94 @@
   22%      { box-shadow: 0 0 18px -2px color-mix(in oklab, var(--node-ink) 55%, transparent); }
   40%      { box-shadow: 0 0 0 0 transparent; }
 }
+
+
+/* ---- An assistant that is reading looks like it -------------------------
+   "Run this check" used to disable every button on the page and change
+   nothing else: four cards greyed together and none of them said which one was
+   actually working, on an operation that takes ten to twenty seconds. The card
+   that is reading now carries the state, and the other three are simply
+   disabled as before.
+
+   Three parts, and each one is honest about what it knows:
+     · a rule sweeps the card the way the assistant sweeps the document. It is
+       a LOOP, not a progress bar — the run reports no percentage, and a bar
+       that filled to 90% and waited would be inventing a measurement.
+     · the avatar keeps a slow pulse in its own tone, so the eye can find the
+       working card without reading anything.
+     · the button says "Reading the document…", which is the state in words and
+       is the whole of it under reduced motion.
+
+   Painted state first, motion second: with no animation running the card is
+   its ordinary self plus a border in the accent. Nothing here can fail closed
+   and leave a card invisible, which is the trap the anime.js entrance on this
+   page fell into once already.                                            */
+.ag-card--reading {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-2));
+}
+
+.ag-card-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The sweep: a soft band of the accent crossing the card, once every 1.9s. */
+  .ag-card-scan::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      color-mix(in oklab, var(--accent) 14%, transparent) 45%,
+      color-mix(in oklab, var(--accent) 22%, transparent) 50%,
+      color-mix(in oklab, var(--accent) 14%, transparent) 55%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: ag-scan 1.9s linear infinite;
+  }
+
+  /* And a hairline riding the leading edge, so the sweep reads as a scan line
+     rather than a gradient drifting past. */
+  .ag-card-scan::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    left: 0;
+    background: linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in oklab, var(--accent) 70%, transparent),
+      transparent
+    );
+    transform: translateX(-10px);
+    animation: ag-scan-edge 1.9s linear infinite;
+  }
+
+  .ag-card--reading .ag-avatar { animation: ag-avatar-pulse 1.9s var(--ease) infinite; }
+}
+
+@keyframes ag-scan {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes ag-scan-edge {
+  from { transform: translateX(-10px); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  to   { transform: translateX(calc(100% + 10px)); opacity: 0; }
+}
+
+@keyframes ag-avatar-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  45%      { box-shadow: 0 0 16px -2px color-mix(in oklab, currentColor 55%, transparent); }
+}

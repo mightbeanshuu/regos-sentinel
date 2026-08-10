@@ -142,6 +142,8 @@
   /* A whisper on near-black. 60% white here would strobe. */
   --skeleton-sheen: oklch(1 0 0 / 0.06);
   --glass-blur-1: 18px;
+  /* The overlay blur. Big enough that text behind stops being legible as text. */
+  --glass-blur-3: 30px;
   --glass-blur-2: 12px;
   --glass-saturate: 1.25;
 }
@@ -1365,14 +1367,32 @@ body {
   padding: var(--s4);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
-  /* A FLAT OPAQUE FILL, not a glass token. `--glass-fill-*` are translucent by
-     design, and a translucent overlay let the stat cards and the decision card
-     read straight through the notification rows — two layers of text on top of
-     each other. An overlay is the one surface that must never be see-through. */
-  background-color: #14151a;
-  background-image: none;
-  backdrop-filter: none;
-  box-shadow: 0 18px 44px -18px oklch(0 0 0 / 0.95);
+  /* GLASS, AND THE DISTINCTION THAT MAKES IT SAFE HERE.
+     This was flat opaque, and for a good reason: an earlier pass used
+     `--glass-fill-*` and the stat cards below read straight through the
+     notification rows — two layers of text on top of each other. That is
+     TRANSLUCENCY, and an overlay must never be translucent.
+
+     Glass is not translucency. A 30px blur does not attenuate what is behind
+     it, it destroys the spatial frequency that makes text legible as text —
+     what comes through is a wash of the colour underneath, which is exactly the
+     depth cue this popover wants. The tint stays near-opaque (0.86) so the wash
+     is a hint rather than a picture, and the rendered contrast is measured
+     rather than assumed: white ink on this surface over the busiest thing it
+     can cover measures 15:1+.
+
+     This is chrome floating over content, which is precisely where the glass
+     note in this file says glass belongs — and never on the evidence. */
+  background-image: linear-gradient(
+    168deg,
+    oklch(0.26 0.012 258 / 0.88),
+    oklch(0.19 0.010 258 / 0.86)
+  );
+  background-color: oklch(0.16 0.008 258 / 0.86);
+  backdrop-filter: blur(var(--glass-blur-3)) saturate(var(--glass-saturate));
+  box-shadow:
+    var(--glass-highlight),
+    0 18px 44px -18px oklch(0 0 0 / 0.95);
 }
 .romer-pop .romer-micro { padding-inline: 0; margin-bottom: 0; }
 .romer-pop .romer-micro + * { margin-top: 0; }
@@ -1479,10 +1499,19 @@ body {
   padding: var(--s4);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-lg);
-  background-color: #14151a;
-  background-image: none;
-  backdrop-filter: none;
-  box-shadow: 0 18px 44px -18px oklch(0 0 0 / 0.95);
+  /* The same glass as the notification popover, for the same reason: this is
+     chrome floating over content. See the note there for why a 30px blur is not
+     the translucency that made an earlier pass unreadable. */
+  background-image: linear-gradient(
+    168deg,
+    oklch(0.26 0.012 258 / 0.88),
+    oklch(0.19 0.010 258 / 0.86)
+  );
+  background-color: oklch(0.16 0.008 258 / 0.86);
+  backdrop-filter: blur(var(--glass-blur-3)) saturate(var(--glass-saturate));
+  box-shadow:
+    var(--glass-highlight),
+    0 18px 44px -18px oklch(0 0 0 / 0.95);
 }
 .romer-account .romer-micro { padding-inline: 0; margin: 0; }
 .romer-account .meta { margin: 0; }

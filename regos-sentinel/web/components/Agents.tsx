@@ -155,6 +155,9 @@ interface Trace {
   length: number;
 }
 
+/** How briefly the "reading" state may exist before it is worth nothing. */
+const MIN_READING_MS = 700;
+
 /** The three steps, their glyph, and the state each one stands for. */
 const PIPELINE = [
   { label: "Assistants read", Icon: IconStepRead, tone: "info" },
@@ -201,8 +204,35 @@ export function Agents({
     return () => { live = false; };
   }, [state.agent_runs.length, state.builds.length, reloads]);
 
+  /* Which assistant is reading, so only that card animates.
+     `busy` is global — it goes true for every card the moment any one of them
+     starts, which would light all four and say nothing about which is actually
+     working. */
+  const [runningId, setRunningId] = useState<AgentId | null>(null);
+
   const runOne = useCallback(
-    (id: AgentId) => onRun(() => regosApi.runAgent(id, source)),
+    async (id: AgentId) => {
+      const started = performance.now();
+      setRunningId(id);
+      try {
+        await onRun(() => regosApi.runAgent(id, source));
+      } finally {
+        /* A floor on how briefly the reading state may exist.
+           Against a warm local API a check returns in about a hundred
+           milliseconds — React never paints the state at all, so the card goes
+           from "Run this check" to "Run again" with nothing in between and the
+           reader cannot tell whether anything happened. On the hosted tier the
+           same run takes ten to twenty seconds and the state is the whole story.
+           Holding it to ~700ms is not padding the work; the work is finished. It
+           is holding a TRUE statement on screen long enough to be seen, which is
+           the opposite of a progress bar that keeps claiming after it stops. */
+        const held = performance.now() - started;
+        if (held < MIN_READING_MS) {
+          await new Promise((resolve) => window.setTimeout(resolve, MIN_READING_MS - held));
+        }
+        setRunningId(null);
+      }
+    },
     [onRun, source],
   );
 
@@ -505,6 +535,7 @@ export function Agents({
                 entry={entry}
                 run={runsById.get(entry.id) ?? null}
                 busy={busy}
+                running={runningId === entry.id}
                 traced={trace?.agent === entry.id}
                 onRunOne={() => void runOne(entry.id)}
                 onTrace={toggleTrace}
@@ -699,6 +730,7 @@ function CheckCard({
   entry,
   run,
   busy,
+  running = false,
   traced,
   onRunOne,
   onTrace,
@@ -707,6 +739,8 @@ function CheckCard({
   entry: AgentCatalogueEntry;
   run: AgentRun | null;
   busy: boolean;
+  /** True only for the one assistant currently reading. */
+  running?: boolean;
   traced: boolean;
   onRunOne: () => void;
   onTrace: (agent: AgentId, findingId: string) => void;
@@ -720,7 +754,17 @@ function CheckCard({
   const firstFinding = run?.findings[0] ?? null;
 
   return (
-    <article className={`ag-card${traced ? " axc-card--traced" : ""}`} ref={register}>
+    <article
+      className={`ag-card${traced ? " axc-card--traced" : ""}${running ? " ag-card--reading" : ""}`}
+      ref={register}
+      aria-busy={running || undefined}
+    >
+      {/* The reading state, and it is a real one: this card is the assistant
+          that is working, not all four going grey together. A rule sweeps the
+          card the way the assistant sweeps the document, the avatar keeps a
+          slow pulse, and both stop dead under reduced motion — where the button
+          label carries the state on its own. */}
+      {running && <span className="ag-card-scan" aria-hidden="true" />}
       <div className="ag-card-top">
         <span className={`ag-avatar ag-avatar--${visual?.tone ?? "royal"}`} aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
@@ -795,7 +839,7 @@ function CheckCard({
           disabled={busy}
           onClick={onRunOne}
         >
-          {run ? "Run again" : "Run this check"}
+          {running ? "Reading the document…" : run ? "Run again" : "Run this check"}
         </button>
         {firstFinding && (
           <button
