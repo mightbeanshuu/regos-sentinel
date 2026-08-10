@@ -2400,8 +2400,22 @@ body {
 .docreview-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .docreview-row--current td { background: var(--accent-wash); }
 .docreview-row--current td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
-.docreview-cell-text { display: block; max-width: 36ch; }
-.docreview-cell-status { white-space: nowrap; font-size: 0.8125rem; color: var(--ink-2); }
+/* 36ch was measured when this table lived in a 154px grid track and every
+   passage wrapped to a sliver. With the column now filling the centre it left
+   the wording at ~290px and ~370px of empty table beside it — the passage is
+   what the row is FOR, so it takes the width and the action column shrinks to
+   the chip it holds. 74ch is the same measure the rest of the block prose uses;
+   past that a line stops being comfortable to read regardless of the space. */
+.docreview-cell-text { display: block; max-width: 74ch; }
+.docreview-row td:first-child { width: 100%; }
+.docreview-cell-status {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  width: 1%;
+  text-align: right;
+}
+.docreview-table thead th:last-child { text-align: right; }
 
 /* On a phone the passage list stops being a table.
    Every table here carries a 520px floor so a cramped table still beats a
@@ -2432,10 +2446,6 @@ body {
   .docreview-row--current { box-shadow: inset 2px 0 0 var(--accent); }
   .docreview-cell-text { max-width: none; }
   .docreview-cell-status { white-space: normal; }
-  /* And the drawer stops being sticky. Pinned, it holds ~470px of an 844px
-     phone, so the list it belongs to gets less room than the single row it is
-     describing. It scrolls away here and the reader gets the whole screen back. */
-  .review-drawer { position: static; }
 }
 
 /* A FLAT OPAQUE TOKEN, and both words are load-bearing.
@@ -2451,8 +2461,14 @@ body {
    glass is for chrome and figures, never for the evidence. This panel holds
    quoted regulation, so it takes the opaque fill. */
 .review-drawer {
-  position: sticky;
-  top: var(--s4);
+  /* Static, not sticky, and that is the fix for a whole failure mode rather than
+     one screenshot. Stacked above the list the drawer is in its own grid row, so
+     sticky has nothing to travel within and buys nothing — but it is the only
+     mechanism by which an opaque panel can come to sit ON TOP of the passages it
+     is describing, with rows visible above and below it. A detail panel that
+     hides the list it belongs to is worse than one that scrolls away, and the
+     phone breakpoint had already un-stuck it for the same reason. */
+  position: static;
   background: var(--glass-fill-1-opaque);
   border: 1px solid var(--glass-border-1);
   border-radius: var(--glass-radius-1);

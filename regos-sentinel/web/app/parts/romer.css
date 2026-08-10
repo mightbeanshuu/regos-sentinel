@@ -492,7 +492,25 @@ body {
   min-width: 0;
   padding: var(--s6);
 }
-.romer-body > * { max-width: 980px; }
+/* A measure cap, and it has to know when it is not the one doing the measuring.
+   The Romer shell already bounds the centre column between a 232px sidebar and a
+   300px rail — at 1728 that column is 1196px — so a second 980px clamp inside it
+   does not improve the measure, it strands 216px of empty canvas to the right of
+   every panel. On the document review that void sits beside a 172px rail and a
+   drawer, and the page reads as though the layout has fallen over.
+
+   Prose does not depend on this: block text carries its own 74ch cap (see the
+   `.meta`/`.micro` rules in globals.css), which is the cap that actually governs
+   line length. So the container yields to the shell, and the text keeps its
+   measure — which is the right way round.
+
+   Below the rail's breakpoint the shell stops reserving those columns, and the
+   cap goes back to being the only thing bounding the measure. */
+.romer-body > * { max-width: 100%; }
+
+@media (max-width: 1180px) {
+  .romer-body > * { max-width: 980px; }
+}
 
 .romer-foot {
   padding: var(--s4) var(--s6);
