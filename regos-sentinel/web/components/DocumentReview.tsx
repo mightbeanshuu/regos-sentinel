@@ -98,6 +98,9 @@ function ModelScorecard({ document }: { document: UploadedDocument }) {
         </StatRow>
 
         <p className="lede">{score.clarity_formula}</p>
+        {/* The denominator names itself. A ratio this small is only honest if the
+            reader can see what it left out and why. */}
+        <p className="meta">{score.scope_note}</p>
 
         {/* A distribution gets a distribution display: one bar, one legend. */}
         <SegBar
@@ -113,9 +116,9 @@ function ModelScorecard({ document }: { document: UploadedDocument }) {
 
         {score.with_timing_language === 0 && (
           <p className="lede">
-            The model read all {score.passages_total} passages — none carries timing
-            language, so no deadline can honestly be computed from this document. That is
-            the answer, not an error.
+            The model read all {score.passages_normative.toLocaleString()} requirement-shaped
+            passages — none carries timing language, so no deadline can honestly be computed
+            from this document. That is the answer, not an error.
           </p>
         )}
 
@@ -126,11 +129,21 @@ function ModelScorecard({ document }: { document: UploadedDocument }) {
                 key={label}
                 label={labelOf(label)}
                 value={count}
-                max={score.passages_total}
+                max={score.passages_normative}
                 tone={toneOf(label)}
-                valueLabel={`${count}/${score.passages_total}`}
+                valueLabel={`${count}/${score.passages_normative}`}
               />
             ))}
+            {score.non_normative_timing_passages > 0 && (
+              <p className="meta">
+                A further {score.non_normative_timing_passages.toLocaleString()} passage
+                {score.non_normative_timing_passages === 1 ? "" : "s"} outside those{" "}
+                {score.passages_normative.toLocaleString()} also carr
+                {score.non_normative_timing_passages === 1 ? "ies" : "y"} timing language —
+                table rows, background text, permissions and repeats. They create no duty, so
+                they are counted here but kept out of the ratio above.
+              </p>
+            )}
           </div>
         </Disclosure>
 
@@ -147,6 +160,7 @@ const CLASSIFICATIONS: PassageClass[] = [
   "BACKGROUND",
   "DUPLICATE_OR_SUPERSEDED",
   "NEEDS_REVIEW",
+  "NOT_ASSESSED_SCRIPT",
 ];
 
 interface DocumentReviewProps {

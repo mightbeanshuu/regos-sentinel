@@ -236,6 +236,10 @@ const STATES: Record<string, StateMeta> = {
   RECOMMENDATION: meta("Recommended — no mandatory task", "neutral"),
   PERMISSION: meta("Optional — no mandatory task", "neutral"),
   BACKGROUND: meta("Background only", "neutral"),
+  /* Not "background". Background is a finding — it says the passage was read and
+     creates no duty. These were never read: SEBI publishes bilingually and the
+     language rules read English, so a gap has to look like a gap. */
+  NOT_ASSESSED_SCRIPT: meta("Not assessed — not in English", "review"),
 
   // ---- Timing classes (Avadhi, the deadline reader) --------------------
   PERIOD_AND_TRIGGER: meta("States a period and when it starts", "ok"),

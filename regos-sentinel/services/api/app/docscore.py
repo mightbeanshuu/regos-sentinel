@@ -23,8 +23,28 @@ NORMATIVE_CLASSES = {PassageClass.POSSIBLE_REQUIREMENT, PassageClass.NEEDS_REVIE
 TIMING_LABELS = ("PERIOD_AND_TRIGGER", "PERIOD_ONLY", "URGENCY_ONLY", "NO_TIMING")
 
 CLARITY_FORMULA = (
-    "deadline clarity = passages stating both a period and its clock-start ÷ "
-    "passages carrying any timing language"
+    "deadline clarity = requirement-shaped passages stating both a period and its "
+    "clock-start ÷ requirement-shaped passages carrying any timing language"
+)
+
+# Why the denominator is restricted.
+#
+# The ratio used to run over every extracted passage. On a real 205-page framework
+# that put 65 of 142 timing-bearing passages — 46% — into a compliance figure that
+# had no business holding them: annexure metric-catalogue rows ("Reports of the
+# contingency plan testing conducted in past one year"), the periodicity tables in
+# the reporting annexure, and permissions. None of them is a duty, so none of them
+# can have an unclear deadline. The number moved 24.65% → 29.58% once the
+# denominator matched the claim the number makes.
+#
+# The excluded passages are still counted and still reported, in
+# `timing_counts_all_passages` and `non_normative_timing_passages`. A narrower
+# denominator is only honest if the wider one stays visible beside it.
+SCOPE_NOTE = (
+    "Counted over passages the strength rules read as requirement-shaped. Timing "
+    "language in background text, tables, permissions and duplicates is reported "
+    "separately and excluded, because a passage that creates no duty cannot carry "
+    "an unclear deadline."
 )
 
 
@@ -44,10 +64,18 @@ class DocumentScore(StrictModel):
     generated_by: str = "COMMITTED_MODEL_WEIGHTS"
     passages_total: int
     passages_normative: int
+    #: Timing verdicts over requirement-shaped passages — the metric's own scope.
     timing_counts: dict[str, int]
+    #: The same verdicts over the whole document, so the exclusion stays visible.
+    timing_counts_all_passages: dict[str, int]
     with_timing_language: int
+    #: Requirement-shaped passages that state a period AND what starts it.
+    deadlines_with_trigger: int
+    #: Timing-bearing passages left out of the ratio because they create no duty.
+    non_normative_timing_passages: int
     deadline_clarity: Optional[float]
     clarity_formula: str = CLARITY_FORMULA
+    scope_note: str = SCOPE_NOTE
     blocked_durations: int
     urgency_only: int
     rows: List[PassageScore]
@@ -62,13 +90,15 @@ def score_document(document: UploadedDocument) -> Optional[DocumentScore]:
 
     rows: List[PassageScore] = []
     counts = {label: 0 for label in TIMING_LABELS}
+    all_counts = {label: 0 for label in TIMING_LABELS}
     normative = 0
 
     for passage in document.passages:
         verdict, confidence = classifier.predict(passage.text)
-        counts[verdict] = counts.get(verdict, 0) + 1
+        all_counts[verdict] = all_counts.get(verdict, 0) + 1
         if passage.classification in NORMATIVE_CLASSES:
             normative += 1
+            counts[verdict] = counts.get(verdict, 0) + 1
         rows.append(
             PassageScore(
                 passage_id=passage.id,
@@ -79,9 +109,10 @@ def score_document(document: UploadedDocument) -> Optional[DocumentScore]:
             )
         )
 
-    with_timing = (
-        counts["PERIOD_AND_TRIGGER"] + counts["PERIOD_ONLY"] + counts["URGENCY_ONLY"]
-    )
+    def timing_bearing(table: dict[str, int]) -> int:
+        return table["PERIOD_AND_TRIGGER"] + table["PERIOD_ONLY"] + table["URGENCY_ONLY"]
+
+    with_timing = timing_bearing(counts)
     clarity = (
         round(counts["PERIOD_AND_TRIGGER"] / with_timing, 4) if with_timing else None
     )
@@ -93,7 +124,10 @@ def score_document(document: UploadedDocument) -> Optional[DocumentScore]:
         passages_total=len(document.passages),
         passages_normative=normative,
         timing_counts=counts,
+        timing_counts_all_passages=all_counts,
         with_timing_language=with_timing,
+        deadlines_with_trigger=counts["PERIOD_AND_TRIGGER"],
+        non_normative_timing_passages=timing_bearing(all_counts) - with_timing,
         deadline_clarity=clarity,
         blocked_durations=counts["PERIOD_ONLY"],
         urgency_only=counts["URGENCY_ONLY"],

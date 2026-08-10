@@ -26,6 +26,7 @@ import { regosApi } from "../lib/api";
 import { agentNameOf, checkLabel, cscrfCategoryLabel, labelOf } from "../lib/presentation";
 import type {
   DocumentLimits,
+  DocumentScore,
   LiveSourceVerificationReceipt,
   ScenarioCatalogue,
   ScenarioId,
@@ -62,6 +63,7 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [openDocumentScore, setOpenDocumentScore] = useState<DocumentScore | null>(null);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [receipt, setReceipt] = useState<LiveSourceVerificationReceipt | null>(null);
   const [catalogue, setCatalogue] = useState<ScenarioCatalogue | null>(null);
@@ -234,6 +236,25 @@ export default function Home() {
   useEffect(() => {
     if (documents.length > 0) setAwaitingUpload(false);
   }, [documents.length]);
+
+  /* The document the reader has open, and its model read, so the rail can
+     describe THAT file instead of the seeded workspace beside it. Scored here
+     rather than inside the review panel because two surfaces now need it. */
+  const openDocument = tab === "document" ? documents.at(-1) ?? null : null;
+  const openDocumentId = openDocument?.id ?? null;
+  const openDocumentPassages = openDocument?.passages.length ?? 0;
+  useEffect(() => {
+    if (!openDocumentId) {
+      setOpenDocumentScore(null);
+      return;
+    }
+    let cancelled = false;
+    regosApi
+      .documentScore(openDocumentId)
+      .then((value) => { if (!cancelled) setOpenDocumentScore(value); })
+      .catch(() => { if (!cancelled) setOpenDocumentScore(null); });
+    return () => { cancelled = true; };
+  }, [openDocumentId, openDocumentPassages]);
 
   const activeScenario = catalogue?.scenarios.find((item) => item.id === scenario) ?? null;
   const activeOutcome =
@@ -761,7 +782,12 @@ export default function Home() {
       </div>
 
       {/* ---- Intelligence rail --------------------------------------------- */}
-      <Rail state={state} awaitingUpload={awaitingUpload} />
+      <Rail
+        state={state}
+        awaitingUpload={awaitingUpload}
+        focusDocument={openDocument}
+        focusScore={openDocumentScore}
+      />
 
       {showFlow && (
         <div

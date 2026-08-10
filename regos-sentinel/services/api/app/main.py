@@ -792,13 +792,27 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
         except DocumentRejected as error:
             raise HTTPException(status_code=error.status_code, detail=error.message) from error
         if document.state != DocumentState.APPROVED:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Approve at least one structured requirement before downloading the "
-                    "Compliance Build Report. The draft review packet is available now."
-                ),
-            )
+            # Name the precondition that is actually unmet. This used to say
+            # "approve at least one structured requirement" whatever the reason,
+            # so on a 205-page framework a reviewer who had approved one was told
+            # to do the thing they had just done — the real blocker was seventeen
+            # passages still carrying two requirement strengths.
+            waiting = document.scope.passages_needing_review
+            if waiting:
+                detail = (
+                    f"{waiting} passage{'' if waiting == 1 else 's'} in this document still "
+                    f"carr{'ies' if waiting == 1 else 'y'} more than one requirement strength. "
+                    "Record a reading on each before the Compliance Build Report can be "
+                    "issued — the report states what was settled, so it cannot be issued "
+                    "over an open question. The draft review packet is available now."
+                )
+            else:
+                detail = (
+                    "No requirement has been approved from this document yet. Approve at "
+                    "least one before downloading the Compliance Build Report. The draft "
+                    "review packet is available now."
+                )
+            raise HTTPException(status_code=409, detail=detail)
         return document_pdf(request, document_id, render_document_report, "compliance-build-report")
 
     @application.post("/api/v1/builds/run", response_model=WorkspaceState)

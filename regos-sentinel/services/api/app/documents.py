@@ -69,6 +69,15 @@ class PassageClass(str, Enum):
     BACKGROUND = "BACKGROUND"
     DUPLICATE_OR_SUPERSEDED = "DUPLICATE_OR_SUPERSEDED"
     NEEDS_REVIEW = "NEEDS_REVIEW"
+    #: Extracted, but outside the script the language rules can read.
+    #:
+    #: Real SEBI circulars are bilingual, and `_normalise` folds text to ASCII —
+    #: so every Devanagari passage arrived at the cue matcher as an empty string,
+    #: matched nothing, and was filed as BACKGROUND. "Background" is a finding: it
+    #: asserts the passage was read and carries no duty. Nothing had read it. On
+    #: the 205-page CSCRF framework that put most of a bilingual front matter into
+    #: a count the document then reported as assessed.
+    NOT_ASSESSED_SCRIPT = "NOT_ASSESSED_SCRIPT"
 
 
 UNRESOLVED_CLASSES = {PassageClass.NEEDS_REVIEW}
@@ -78,6 +87,10 @@ NO_TASK_CLASSES = {
     PassageClass.BACKGROUND,
     PassageClass.DUPLICATE_OR_SUPERSEDED,
 }
+#: Deliberately NOT in UNRESOLVED_CLASSES. A reviewer cannot resolve a passage in
+#: a script this build does not read, so blocking the record on it would make the
+#: record unreachable for every bilingual SEBI document — which is most of them.
+#: It is disclosed instead, in the scope table and in the report's limitations.
 
 # Deterministic normative-language cues. These detect the *shape* of a sentence, not its
 # meaning; anything carrying more than one strength is handed to a person rather than guessed.
@@ -191,6 +204,8 @@ class DocumentScope(StrictModel):
     background: int = Field(ge=0)
     duplicates: int = Field(ge=0)
     passages_needing_review: int = Field(ge=0)
+    #: Extracted but never assessed, because they are not in English.
+    passages_not_in_english: int = Field(default=0, ge=0)
 
 
 class UploadedDocument(StrictModel):
@@ -239,8 +254,88 @@ def _matched(text: str, cues: tuple[str, ...]) -> List[str]:
     return [cue.strip() for cue in cues if cue in text]
 
 
+#: The same PDF text-layer damage the timing classifier already repairs, at the
+#: other end of the pipeline. `app/model/classifier.py` rejoins split *function*
+#: words so a stated clock-start is not read as absent; nothing did the same for
+#: the strength cues, so a broken modal verb silently demoted a duty to prose.
+#:
+#: Measured on SEBI's 205-page CSCRF framework: three obligations were lost this
+#: way — "Access rights **s hall** be reviewed and documented on a periodic basis"
+#: (p61), and "REs **shal l** …" on p90 and p118. The first is a mandatory duty
+#: with a vague period, which is precisely the defect this product exists to find.
+#: Three in 827 is 0.36%, and every one of them is a false negative — the only
+#: direction of error that matters here, because a missed duty is silent.
+#:
+#: Whitelist-only, for the reason the sibling states: a pair is merged only when
+#: it rejoins into a word these cues already depend on, so the repair cannot
+#: manufacture an obligation the intact sentence would not also have produced.
+_DEONTIC_REPAIRABLE = frozenset(
+    {
+        "shall",
+        "must",
+        "should",
+        "may",
+        "required",
+        "mandatory",
+        "mandated",
+        "encouraged",
+        "advised",
+        "permitted",
+        "recommended",
+        "discretion",
+    }
+)
+
+
+def _repair_split_deontics(text: str) -> str:
+    """Rejoin a PDF-split modal verb, and nothing else.
+
+    Walks tokens rather than substituting on a pattern, for the reason the timing
+    classifier learned: a regex binds greedily and strands the tail fragment.
+    """
+    tokens = text.split(" ")
+    repaired: List[str] = []
+    index = 0
+    while index < len(tokens):
+        if index + 1 < len(tokens):
+            merged = f"{tokens[index]}{tokens[index + 1]}"
+            if merged in _DEONTIC_REPAIRABLE:
+                repaired.append(merged)
+                index += 2
+                continue
+        repaired.append(tokens[index])
+        index += 1
+    return " ".join(repaired)
+
+
+#: Characters above this point are outside Latin and its extensions — Devanagari,
+#: Bengali, Tamil and the rest of the scripts SEBI publishes alongside English.
+_NON_LATIN_FLOOR = 0x0300
+_LATIN_LETTER = re.compile(r"[A-Za-z]")
+
+
+def _outside_readable_script(text: str) -> bool:
+    """True when a passage is mostly outside the script the cue rules can read.
+
+    Mixed lines — "परिपत्र / CIRCULAR SEBI/HO/ITD-1/…" — still hold enough English
+    to classify, and they keep going through the ordinary path. Only a passage
+    whose non-Latin characters outnumber its Latin letters is set aside.
+    """
+    latin = len(_LATIN_LETTER.findall(text))
+    other = sum(1 for char in text if ord(char) >= _NON_LATIN_FLOOR)
+    return other > latin
+
+
 def classify_passage(text: str, seen_hashes: Dict[str, str]) -> tuple[PassageClass, List[str], str]:
     """Classify one passage from its language alone. Ambiguity resolves to a human, not a guess."""
+    if _outside_readable_script(text):
+        return (
+            PassageClass.NOT_ASSESSED_SCRIPT,
+            [],
+            "This passage is not in English. The language rules read English wording "
+            "only, so it was extracted but never assessed — this is a gap in what was "
+            "read, not a finding that the passage creates no duty.",
+        )
     normalised = _normalise(text)
     digest = hashlib.sha256(normalised.encode("utf-8")).hexdigest()
     if digest in seen_hashes:
@@ -250,9 +345,23 @@ def classify_passage(text: str, seen_hashes: Dict[str, str]) -> tuple[PassageCla
             f"Identical wording already appeared at {seen_hashes[digest]}.",
         )
 
-    mandatory = _matched(normalised, MANDATORY_CUES)
-    recommended = _matched(normalised, RECOMMENDATION_CUES)
-    permitted = _matched(normalised, PERMISSION_CUES)
+    # The digest stays on the unrepaired text so repair can never merge two
+    # genuinely different passages into a duplicate.
+    repaired = _repair_split_deontics(normalised)
+    was_repaired = repaired != normalised
+
+    mandatory = _matched(repaired, MANDATORY_CUES)
+    recommended = _matched(repaired, RECOMMENDATION_CUES)
+    permitted = _matched(repaired, PERMISSION_CUES)
+
+    # A reviewer comparing the passage on screen against the cue list must be able
+    # to see why they differ, so the repair says so rather than hiding the seam.
+    repair_note = (
+        " The text layer of this PDF split a word across a space; it was rejoined "
+        "before the wording was read, so the passage above may differ by one space."
+        if was_repaired
+        else ""
+    )
 
     # "should" is a recommendation cue but also a substring risk; drop it when a stronger
     # recommendation cue already matched, so the reported cue list stays honest.
@@ -265,26 +374,28 @@ def classify_passage(text: str, seen_hashes: Dict[str, str]) -> tuple[PassageCla
             PassageClass.NEEDS_REVIEW,
             mandatory + recommended + permitted,
             "This passage carries more than one requirement strength, so a person decides "
-            "which parts create work.",
+            "which parts create work." + repair_note,
         )
     if mandatory:
         return (
             PassageClass.POSSIBLE_REQUIREMENT,
             mandatory,
             "Requirement-shaped language was found. A person must confirm it before any work "
-            "is created.",
+            "is created." + repair_note,
         )
     if recommended:
         return (
             PassageClass.RECOMMENDATION,
             recommended,
-            "Recommendation language. No mandatory task is created from this passage.",
+            "Recommendation language. No mandatory task is created from this passage."
+            + repair_note,
         )
     if permitted:
         return (
             PassageClass.PERMISSION,
             permitted,
-            "Permission language. No mandatory task is created from this passage.",
+            "Permission language. No mandatory task is created from this passage."
+            + repair_note,
         )
     return (
         PassageClass.BACKGROUND,
@@ -293,7 +404,18 @@ def classify_passage(text: str, seen_hashes: Dict[str, str]) -> tuple[PassageCla
     )
 
 
-SENTENCE_BOUNDARY = re.compile(r"(?<=[.;])\s+(?=[\"'(\[]?[A-Z0-9])")
+SENTENCE_BOUNDARY = re.compile(
+    # The ordinary boundary: a full stop, whitespace, then something that opens a
+    # sentence.
+    r"(?<=[.;])\s+(?=[\"'(\[]?[A-Z0-9])"
+    # And the boundary with the space missing. SEBI's numbered lists routinely
+    # lose it in the text layer — "…folios of segregated portfolios 4.In column
+    # number (4)…" is one passage from the MCR circular, and because the sentence
+    # never ended, the case generator put that run-on forward as the document's
+    # worked example. `[A-Z][a-z]` rather than `[A-Z]`: a full stop followed by
+    # two capitals is an acronym or a reference, not a new sentence.
+    r"|(?<=[.;])(?=[A-Z][a-z])"
+)
 # Matched on a word boundary, never as a bare suffix: "providers." must not be read as the
 # abbreviation "rs.", which would silently glue two separate normative sentences together.
 ABBREVIATION_END = re.compile(
@@ -368,6 +490,7 @@ def _compute_scope(
         background=count(PassageClass.BACKGROUND),
         duplicates=count(PassageClass.DUPLICATE_OR_SUPERSEDED),
         passages_needing_review=count(PassageClass.NEEDS_REVIEW),
+        passages_not_in_english=count(PassageClass.NOT_ASSESSED_SCRIPT),
     )
 
 
@@ -417,6 +540,13 @@ def _limitations(
                 "scanned images; this prototype does not perform OCR, so they were not "
                 "reviewed."
             )
+    if scope.passages_not_in_english:
+        lines.append(
+            f"{scope.passages_not_in_english} passage(s) are not in English. SEBI publishes "
+            "bilingually and these language rules read English wording only, so those "
+            "passages were extracted but never assessed. They are counted as not assessed, "
+            "not as background — nothing here says what they do or do not require."
+        )
     if truncated:
         lines.append(
             f"Only the first {MAX_PASSAGES} passages of {filename} were reviewed. The remainder "

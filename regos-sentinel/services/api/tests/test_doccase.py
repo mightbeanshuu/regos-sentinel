@@ -186,3 +186,25 @@ def test_removing_the_document_removes_its_case() -> None:
 
     response = active.get(f"/api/v1/documents/{document_id}/case")
     assert response.status_code == 404
+
+
+def test_months_are_added_on_the_calendar_not_as_thirty_day_blocks() -> None:
+    """A compliance date is the wrong place for a silent approximation.
+
+    "6 months" from 2026-04-01 used to resolve to 2026-09-28 — 180 days — and the
+    screen printed that as a plain fact. CSCRF FAQ Q20 reads every periodicity in
+    the framework against the financial year, which a rolling day count cannot
+    express at all.
+    """
+    from datetime import date
+
+    from app.doccase import _add_months
+
+    assert _add_months(date(2026, 4, 1), 6) == date(2026, 10, 1)
+    assert _add_months(date(2026, 4, 1), 12) == date(2027, 4, 1)
+    assert _add_months(date(2025, 12, 15), 1) == date(2026, 1, 15)
+    # A day the target month does not have is clamped back into the period the
+    # wording grants, never spilled forward into the next month.
+    assert _add_months(date(2026, 1, 31), 1) == date(2026, 2, 28)
+    assert _add_months(date(2024, 1, 31), 1) == date(2024, 2, 29)
+    assert _add_months(date(2026, 8, 31), 1) == date(2026, 9, 30)

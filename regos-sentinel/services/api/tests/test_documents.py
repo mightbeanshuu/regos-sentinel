@@ -17,7 +17,11 @@ from reportlab.pdfgen import canvas
 
 from app.documents import (
     MAX_PAGE_COUNT,
+    NO_TASK_CLASSES,
+    UNRESOLVED_CLASSES,
+    DocumentScope,
     PassageClass,
+    _limitations,
     _split_sentences,
     classify_passage,
 )
@@ -266,7 +270,17 @@ def test_draft_packet_is_available_before_approval_and_report_is_not(sample_pdf:
     assert "User-uploaded" in rendered
 
     assert report.status_code == 409
-    assert "Approve at least one structured requirement" in report.json()["detail"]
+    # The refusal names the precondition that is actually unmet. It used to give the
+    # same "approve a requirement" line whatever the reason, so a reviewer who had
+    # approved one was told to do the thing they had just done.
+    detail = report.json()["detail"]
+    waiting = document["scope"]["passages_needing_review"]
+    if waiting:
+        assert "more than one requirement strength" in detail
+        assert str(waiting) in detail
+    else:
+        assert "No requirement has been approved" in detail
+    assert "draft review packet is available" in detail
 
 
 def test_one_visitor_cannot_read_another_visitors_document(sample_pdf: bytes) -> None:
@@ -333,3 +347,78 @@ def test_pages_without_extractable_text_are_reported_not_invented(
     assert document["scope"]["pages_read"] == 1
     assert all(item["page"] == 1 for item in document["passages"])
     assert any("does not perform OCR" in line for line in document["limitations"])
+
+
+def test_a_pdf_split_modal_verb_still_reads_as_a_duty() -> None:
+    """PDF text layers break words across a space, and a duty must survive it.
+
+    Found on SEBI's own 205-page CSCRF framework: "Access rights **s hall** be
+    reviewed and documented on a periodic basis" was filed as background, along
+    with two more "shal l" duties on pages 90 and 118. A mandatory duty with a
+    vague period is the exact defect this product exists to surface, so losing it
+    to a stray space is the worst failure available — it is silent.
+    """
+    damaged = build_pdf(
+        [
+            [
+                "Access rights s hall be reviewed and documented on a periodic basis.",
+                "REs shal l measure functional efficacy of their SOC every quarter.",
+            ]
+        ]
+    )
+
+    document = upload(client(), damaged).json()
+    classes = [item["classification"] for item in document["passages"]]
+
+    assert classes.count("POSSIBLE_REQUIREMENT") == 2
+    assert all("shall" in item["matched_cues"] for item in document["passages"])
+    # The seam is disclosed: the wording on screen still holds the stray space.
+    assert all("rejoined" in item["rationale"] for item in document["passages"])
+
+
+def test_the_repair_cannot_manufacture_an_obligation() -> None:
+    """Whitelist-only, so ordinary prose is never merged into a modal verb."""
+    intact = build_pdf([["The hall was booked for the annual general meeting."]])
+
+    document = upload(client(), intact).json()
+
+    assert document["passages"][0]["classification"] == "BACKGROUND"
+    assert document["passages"][0]["matched_cues"] == []
+
+
+def test_non_english_passages_are_not_reported_as_background() -> None:
+    """SEBI publishes bilingually, and a gap has to look like a gap.
+
+    `_normalise` folds text to ASCII, so every Devanagari passage reached the cue
+    matcher as an empty string and was filed BACKGROUND — a class that asserts the
+    passage WAS read and creates no duty. Nothing had read it.
+    """
+    # Asserted against the classifier rather than a generated PDF: ReportLab's
+    # built-in fonts cannot draw Devanagari, so a fixture PDF could not carry the
+    # very characters this test is about. The real evidence is the SEBI CSCRF
+    # framework itself, whose page 1 is almost entirely Hindi.
+    hindi = "यह एक हिंदी वाक्य है जो अंग्रेजी में नहीं है।"
+    assert classify_passage(hindi, {})[0] == PassageClass.NOT_ASSESSED_SCRIPT
+
+    # A bilingual line that still holds enough English keeps the ordinary path.
+    mixed = "परिपत्र / CIRCULAR: REs shall submit the report within 30 days."
+    assert classify_passage(mixed, {})[0] == PassageClass.POSSIBLE_REQUIREMENT
+
+    # It creates no work, and it does not block the record either — a reviewer
+    # cannot resolve a script this build does not read.
+    assert PassageClass.NOT_ASSESSED_SCRIPT not in UNRESOLVED_CLASSES
+    assert PassageClass.NOT_ASSESSED_SCRIPT not in NO_TASK_CLASSES
+
+    scope = DocumentScope(
+        page_count=1,
+        pages_read=1,
+        passages_reviewed=2,
+        possible_requirements=1,
+        recommendations_not_converted=0,
+        permissions_not_converted=0,
+        background=0,
+        duplicates=0,
+        passages_needing_review=0,
+        passages_not_in_english=1,
+    )
+    assert any("not in English" in line for line in _limitations(scope, "circular.pdf", False))

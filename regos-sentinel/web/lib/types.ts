@@ -392,7 +392,8 @@ export type PassageClass =
   | "PERMISSION"
   | "BACKGROUND"
   | "DUPLICATE_OR_SUPERSEDED"
-  | "NEEDS_REVIEW";
+  | "NEEDS_REVIEW"
+  | "NOT_ASSESSED_SCRIPT";
 
 export type DocumentState =
   | "ADDED"
@@ -858,6 +859,8 @@ export interface DocumentCaseApproval {
   approved_at: string;
   requirement_id: string;
   due_date: string | null;
+  /** How that date was reached. Present only when a date was actually computed. */
+  due_date_basis: string | null;
   blocked_reason: string | null;
 }
 
@@ -891,10 +894,16 @@ export interface DocumentScore {
   generated_by: string;
   passages_total: number;
   passages_normative: number;
+  /** Timing verdicts over requirement-shaped passages — the metric's own scope. */
   timing_counts: Record<string, number>;
+  /** The same verdicts over the whole document, so the exclusion stays visible. */
+  timing_counts_all_passages: Record<string, number>;
   with_timing_language: number;
+  deadlines_with_trigger: number;
+  non_normative_timing_passages: number;
   deadline_clarity: number | null;
   clarity_formula: string;
+  scope_note: string;
   blocked_durations: number;
   urgency_only: number;
   rows: DocumentScoreRow[];

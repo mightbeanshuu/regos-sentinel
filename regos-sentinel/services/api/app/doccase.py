@@ -47,7 +47,42 @@ _NUMBER_WORDS = {
     "thirty": 30, "sixty": 60, "ninety": 90,
 }
 
-_UNIT_DAYS = {"day": 1, "week": 7, "month": 30, "year": 365}
+_UNIT_DAYS = {"day": 1, "week": 7}
+
+#: Months and years are added on the calendar, not as 30- and 365-day blocks.
+#:
+#: They used to be: "6 months" from 2026-04-01 resolved to 2026-09-28, three days
+#: early, and the screen printed that date as a plain fact. A compliance date is
+#: the wrong place to carry a silent approximation — and CSCRF FAQ Q20 makes the
+#: point sharper still, because it reads every CSCRF periodicity against the
+#: financial year, which a rolling 180-day count cannot express at all.
+_UNIT_MONTHS = {"month": 1, "year": 12}
+
+#: Stated on every computed date, because arithmetic a reader cannot see is
+#: arithmetic they cannot check.
+DUE_DATE_BASIS = (
+    "Counted forward on the calendar from the start date recorded by the reviewer. "
+    "A month means the same day of a later month; where that day does not exist "
+    "the date falls on the last day of that month."
+)
+
+
+def _add_months(start: date, months: int) -> date:
+    """The same day of a later month, clamped to that month's length.
+
+    31 January plus one month has no 31 February to land on. Clamping to 28/29
+    February keeps the date inside the period the wording grants rather than
+    spilling into March, which would hand the entity days the source did not give.
+    """
+    index = (start.year * 12 + start.month - 1) + months
+    year, month = divmod(index, 12)
+    month += 1
+    if month == 12:
+        next_month_start = date(year + 1, 1, 1)
+    else:
+        next_month_start = date(year, month + 1, 1)
+    last_day = (next_month_start - timedelta(days=1)).day
+    return date(year, month, min(start.day, last_day))
 
 
 class CaseReading(StrictModel):
@@ -70,6 +105,8 @@ class CaseApproval(StrictModel):
     approved_at: str
     requirement_id: str
     due_date: Optional[str] = None
+    #: How that date was reached. Present only when a date was actually computed.
+    due_date_basis: Optional[str] = None
     blocked_reason: Optional[str] = None
 
 
@@ -234,6 +271,9 @@ def _due_date(case: DocumentCase, trigger_date: Optional[str]) -> Optional[str]:
         return None
     start = date.fromisoformat(trigger_date)
     unit = case.duration_unit.rstrip("s")
+    months = _UNIT_MONTHS.get(unit)
+    if months is not None:
+        return _add_months(start, case.duration_value * months).isoformat()
     days = _UNIT_DAYS.get(unit)
     if days is None:
         return None
@@ -275,6 +315,7 @@ def seal_case(
     approved_at: str,
 ) -> DocumentCase:
     assert case.reading is not None
+    due_date = _due_date(case, request.trigger_date)
     case.approval = CaseApproval(
         reviewer_name=case.reading.reviewer_name,
         reviewer_role=case.reading.reviewer_role,
@@ -284,7 +325,8 @@ def seal_case(
         agrees_with_system_suggestion=request.agrees_with_system_suggestion,
         approved_at=approved_at,
         requirement_id=requirement_id,
-        due_date=_due_date(case, request.trigger_date),
+        due_date=due_date,
+        due_date_basis=DUE_DATE_BASIS if due_date else None,
         blocked_reason=blocked_reason,
     )
     case.state = "APPROVED"

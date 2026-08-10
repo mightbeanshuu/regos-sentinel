@@ -29,6 +29,93 @@ from .documents import (
 from .models import BuildRun, BuildStatus, DeonticForce, WorkspaceState
 
 DISCLAIMER = "Decision support. Not legal advice. Not a SEBI determination."
+
+#: How many rows a listing section prints before it says it has stopped.
+#:
+#: The cap itself is fine — nobody reads 1,417 table rows — but it used to be
+#: silent. On the 205-page CSCRF framework this section printed 60 rows of 1,417,
+#: 4.2%, under a heading that reads as the complete list. A bounded list that does
+#: not say it is bounded is a stronger claim than the evidence supports, which is
+#: the one thing this report exists not to do.
+_LIST_CAP = 60
+
+
+class _Sections:
+    """Numbers the sections in the order they are actually emitted."""
+
+    def __init__(self) -> None:
+        self._n = 0
+
+    def next(self, title: str) -> str:
+        self._n += 1
+        return f"{self._n}. {title}"
+
+
+def _note_cap(
+    story: List[object], styles: dict[str, ParagraphStyle], total: int, noun: str
+) -> None:
+    """State the truncation, in the report, where the truncated table is."""
+    if total <= _LIST_CAP:
+        return
+    story.append(
+        _p(
+            f"Showing the first {_LIST_CAP} of {total:,} {noun}s. The remaining "
+            f"{total - _LIST_CAP:,} were read and counted in the table above, and are "
+            "listed in full in the application; they are not reproduced here.",
+            styles["small"],
+        )
+    )
+
+
+def _printable(char: str) -> bool:
+    """Can the report's font actually draw this character?
+
+    Asked of the encoding rather than guessed at from a codepoint range. The base
+    PDF fonts here use WinAnsiEncoding, which cp1252 reproduces exactly — so this
+    is the font's real repertoire, not an approximation of it. It matters: an en
+    dash, a curly quote and the euro sign all sit above U+0080 and all print
+    perfectly, while ₹ and ■ do not.
+    """
+    try:
+        char.encode("cp1252")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _latin(text: str) -> str:
+    """Replace anything the font cannot draw with a marker that names it.
+
+    Printed verbatim, a bilingual SEBI circular came out as 4,134 solid black
+    boxes — 18% of the report — under a column headed "Exact wording". A row of
+    filled rectangles is not the exact wording; it is a redaction bar nobody
+    chose. Devanagari passages are now set aside upstream
+    (`PassageClass.NOT_ASSESSED_SCRIPT`), but form checkboxes, the rupee sign and
+    stray symbol-font glyphs still arrive inside otherwise-English tables.
+    """
+    out: List[str] = []
+    run: List[str] = []
+
+    def flush() -> None:
+        if not run:
+            return
+        blob = "".join(run)
+        if any(char.isalpha() for char in blob):
+            out.append("[text in another script — see the source page]")
+        else:
+            out.append("[symbol]")
+        run.clear()
+
+    for char in text:
+        if _printable(char):
+            flush()
+            out.append(char)
+        else:
+            run.append(char)
+    flush()
+    return "".join(out)
+
+
 REPLAY_COMMAND = "REGOS_OFFLINE=1 uv run python scripts/replay_build.py"
 INK = colors.HexColor("#17211B")
 MUTED = colors.HexColor("#52605A")
@@ -517,6 +604,7 @@ PASSAGE_LABELS: dict[PassageClass, str] = {
     PassageClass.BACKGROUND: "Background only",
     PassageClass.DUPLICATE_OR_SUPERSEDED: "Duplicate or superseded",
     PassageClass.NEEDS_REVIEW: "Needs interpretation",
+    PassageClass.NOT_ASSESSED_SCRIPT: "Not assessed — not in English",
 }
 
 DOCUMENT_STATE_LABELS: dict[DocumentState, str] = {
@@ -580,7 +668,13 @@ def _document_story(
         _p(DISCLAIMER, styles["hero"]),
     ]
 
-    _new_page(story, "1. What was and was not read", styles)
+    # Sections number themselves. They used to carry the number in the string, and
+    # §2 only renders when passages are still unresolved — so the moment a reviewer
+    # finished the job properly the report they earned ran 1, 3, 4, 5, 6. The better
+    # the review, the more broken the document it produced.
+    section = _Sections()
+
+    _new_page(story, section.next("What was and was not read"), styles)
     story.append(
         _p(
             "These counts are read from this document's actual processed state. Nothing outside "
@@ -605,6 +699,10 @@ def _document_story(
                 ["Background passages", str(scope.background)],
                 ["Duplicate or superseded", str(scope.duplicates)],
                 ["Passages still needing review", str(scope.passages_needing_review)],
+                [
+                    "Not assessed — not in English",
+                    str(scope.passages_not_in_english),
+                ],
             ],
             [110 * mm, 50 * mm],
             styles,
@@ -615,7 +713,7 @@ def _document_story(
         item for item in document.passages if item.classification == PassageClass.NEEDS_REVIEW
     ]
     if unresolved:
-        _new_page(story, "2. Passages still needing a human reading", styles)
+        _new_page(story, section.next("Passages still needing a human reading"), styles)
         story.append(
             _p(
                 "No requirement was drafted from any passage below. Each carries more than one "
@@ -624,14 +722,17 @@ def _document_story(
             )
         )
         rows: List[Sequence[object]] = [["Locator", "Passage", "Why it is unresolved"]]
-        for passage in unresolved[:40]:
-            rows.append([passage.locator, passage.text[:400], passage.rationale])
+        for passage in unresolved[:_LIST_CAP]:
+            rows.append([passage.locator, _latin(passage.text[:400]), passage.rationale])
         story.append(_table(rows, [26 * mm, 84 * mm, 50 * mm], styles))
+        _note_cap(story, styles, len(unresolved), "passage")
 
     if document.requirements:
         _new_page(
             story,
-            "3. Requirements approved by a person" if approved else "3. Draft requirements",
+            section.next(
+                "Requirements approved by a person" if approved else "Draft requirements"
+            ),
             styles,
         )
         for requirement in document.requirements:
@@ -649,7 +750,7 @@ def _document_story(
                             f"{requirement.obligation_object}",
                             styles["h2"],
                         ),
-                        _p(f'“{requirement.quote}”', styles["quote"]),
+                        _p(f'“{_latin(requirement.quote)}”', styles["quote"]),
                         _p(f"Locator: {requirement.locator}", styles["small"]),
                         _table(
                             [
@@ -683,7 +784,7 @@ def _document_story(
         item for item in document.passages if item.classification in NO_TASK_CLASSES
     ]
     if not_converted:
-        _new_page(story, "4. Not converted into requirements", styles)
+        _new_page(story, section.next("Not converted into requirements"), styles)
         story.append(
             _p(
                 "These statements were retained without creating mandatory work, because their "
@@ -692,20 +793,21 @@ def _document_story(
             )
         )
         rows = [["Classification", "Locator", "Exact wording", "Operational result"]]
-        for passage in not_converted[:60]:
+        for passage in not_converted[:_LIST_CAP]:
             rows.append(
                 [
                     PASSAGE_LABELS[passage.classification],
                     passage.locator,
-                    f'“{passage.text[:300]}”',
+                    f'“{_latin(passage.text[:300])}”',
                     "No mandatory task was created from this statement.",
                 ]
             )
         story.append(_table(rows, [30 * mm, 24 * mm, 70 * mm, 36 * mm], styles))
+        _note_cap(story, styles, len(not_converted), "statement")
 
     reviewed = [item for item in document.passages if item.reviewed_by]
     if reviewed:
-        _new_page(story, "5. Human decisions on this document", styles)
+        _new_page(story, section.next("Human decisions on this document"), styles)
         rows = [["Locator", "Reading recorded", "Reviewer", "Recorded at"]]
         for passage in reviewed:
             rows.append(
@@ -718,7 +820,7 @@ def _document_story(
             )
         story.append(_table(rows, [24 * mm, 76 * mm, 34 * mm, 26 * mm], styles))
 
-    _new_page(story, "6. Limitations", styles)
+    _new_page(story, section.next("Limitations"), styles)
     for line in document.limitations:
         story.append(_rich(f"• {escape(line)}", styles["body"]))
     if not approved:

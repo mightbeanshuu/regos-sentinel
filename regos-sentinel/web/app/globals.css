@@ -2366,16 +2366,25 @@ body {
 
 /* ---------- Stitch doc-review: KPI · table · review drawer ------------------ */
 
+/* One column, always — the split was never viable in this shell and the media
+   query could not see why. The breakpoint tested the VIEWPORT; what constrains
+   this layout is its CONTAINER, the centre column between a 232px sidebar and a
+   300px rail, and that column is capped. Measured on the real page: the layout
+   is 734px wide at 1920 and at 1600, 598px at 1440, 438px at 1280. Subtract a
+   380px drawer and the table track was 290px / 154px / 0px — holding a table
+   whose floor is 520px, so 232px / 368px / 520px of it sat in hidden horizontal
+   overflow. At 1280 the passage list was two pixels wide.
+   Stacked, the table gets the whole column and the drawer stays pinned above it,
+   so picking a row updates a panel that is already on screen. */
 .docreview-layout {
   display: grid;
-  /* The drawer yields before the passage table does: a hard 380px left the table
-     text in a 75px column at narrower widths. */
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s4);
   align-items: start;
   padding: var(--s4) var(--s5) var(--s5);
 }
-@media (max-width: 1080px) { .docreview-layout { grid-template-columns: 1fr; } }
+/* The drawer is the detail for the row you pick, so it reads before the list. */
+.docreview-layout > .review-drawer { grid-row: 1; }
 
 .docreview-table { border: 1px solid var(--line); border-radius: var(--radius); }
 
@@ -2387,16 +2396,60 @@ body {
 .docreview-cell-text { display: block; max-width: 36ch; }
 .docreview-cell-status { white-space: nowrap; font-size: 0.8125rem; color: var(--ink-2); }
 
-/* The drawer refracts the same wash the Stitch mock rests it on. */
+/* On a phone the passage list stops being a table.
+   Every table here carries a 520px floor so a cramped table still beats a
+   clipped one — but 520px inside a 390px screen means the passage text, which is
+   the whole point of the row, only ever half exists until the reader drags it
+   sideways. The same stacking `.b-doclist` already uses below 560px: one row per
+   passage, status under text, no horizontal drag on the primary reading surface.
+   The header row keeps its markup and its `scope="col"`, so the column names are
+   still announced; only the visual row is removed. */
+@media (max-width: 560px) {
+  /* The table box itself has to stop being a table box: with `display: table`
+     the anonymous row/cell boxes keep sizing to their widest content, so the
+     floor comes back even after min-width is cleared. */
+  .docreview-table table,
+  .docreview-table tbody { display: block; min-width: 0; width: 100%; }
+  .docreview-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .docreview-row { display: block; border-bottom: 1px solid var(--line); }
+  .docreview-row td { display: block; border: 0; padding: var(--s2) var(--s3); }
+  .docreview-row td:first-child { padding-bottom: 0; }
+  .docreview-row--current td:first-child { box-shadow: none; }
+  .docreview-row--current { box-shadow: inset 2px 0 0 var(--accent); }
+  .docreview-cell-text { max-width: none; }
+  .docreview-cell-status { white-space: normal; }
+  /* And the drawer stops being sticky. Pinned, it holds ~470px of an 844px
+     phone, so the list it belongs to gets less room than the single row it is
+     describing. It scrolls away here and the reader gets the whole screen back. */
+  .review-drawer { position: static; }
+}
+
+/* A FLAT OPAQUE TOKEN, and both words are load-bearing.
+   Literal, because this rule used to name its colour outright — a near-white
+   `linear-gradient(178deg, oklch(0.965 …), oklch(0.945 …))` copied off the light
+   Stitch mock. The dark skin reskins the app by redefining `:root` tokens, and a
+   token override can never reach a literal, so under Romer this drawer stayed a
+   near-white slab with the app's light ink printed on it: the passage under
+   review measured 1.23:1 against its own panel. It escaped the Romer sweep
+   because the drawer only exists once a document is uploaded and that pass
+   walked five tabs with none.
+   Flat, because the glass note above this file's siblings already says it:
+   glass is for chrome and figures, never for the evidence. This panel holds
+   quoted regulation, so it takes the opaque fill. */
 .review-drawer {
   position: sticky;
   top: var(--s4);
-  background:
-    linear-gradient(178deg, oklch(0.965 0.014 252 / 0.92), oklch(0.945 0.020 252 / 0.78));
-  backdrop-filter: blur(var(--glass-blur-1)) saturate(var(--glass-saturate));
+  background: var(--glass-fill-1-opaque);
   border: 1px solid var(--glass-border-1);
   border-radius: var(--glass-radius-1);
-  box-shadow: var(--glass-highlight), var(--glass-shadow-1);
+  box-shadow: var(--glass-shadow-1);
   padding: var(--s4) var(--s5);
 }
 .review-drawer-title {

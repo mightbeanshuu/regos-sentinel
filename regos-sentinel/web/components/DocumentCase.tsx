@@ -677,7 +677,15 @@ function CaseSealed({ record }: { record: DocumentCaseRecord }) {
         <DataRow label="Clock starts">{approval.trigger_policy}</DataRow>
         <DataRow label="Due date">
           {approval.due_date ? (
-            <strong>{formatDate(approval.due_date)}</strong>
+            <>
+              <strong>{formatDate(approval.due_date)}</strong>
+              {/* The date never travels without its arithmetic. It used to: months
+                  were added as 30-day blocks, so "6 months" landed three days
+                  early and the screen showed the result as a plain fact. */}
+              {approval.due_date_basis && (
+                <span className="meta"> — {approval.due_date_basis}</span>
+              )}
+            </>
           ) : (
             <>
               <strong>No due date</strong>{" "}
