@@ -1,6 +1,6 @@
 {
   "fps": 30,
-  "totalFrames": 7621,
+  "totalFrames": 7809,
   "beats": [
     {
       "id": "hook",
@@ -438,60 +438,66 @@
       ]
     },
     {
-      "id": "fix_caught",
-      "kind": "clip",
-      "clip": "fix",
-      "clipStart": 3,
-      "label": "The gap, on its own",
+      "id": "fix_story",
+      "kind": "fixstory",
+      "clip": null,
+      "clipStart": 0,
+      "label": "Caught, fixed, cleared",
       "startFrame": 5743,
-      "durationFrames": 323,
+      "durationFrames": 897,
       "lines": [
         {
-          "text": "Here's that same clause on its own, exactly as SEBI published it.",
-          "src": "audio/fix_caught-0.wav",
+          "text": "Here's that clause on its own, the way SEBI published it.",
+          "src": "audio/fix_story-0.wav",
           "startFrame": 0,
-          "durationFrames": 114
+          "durationFrames": 93
         },
         {
-          "text": "Fifty percent. It finds the six month period, finds no start date, and raises the case.",
-          "src": "audio/fix_caught-1.wav",
-          "startFrame": 123,
-          "durationFrames": 176
+          "text": "Six months of monthly reports. Six months from when? It doesn't say.",
+          "src": "audio/fix_story-1.wav",
+          "startFrame": 102,
+          "durationFrames": 132
+        },
+        {
+          "text": "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
+          "src": "audio/fix_story-2.wav",
+          "startFrame": 244,
+          "durationFrames": 211
+        },
+        {
+          "text": "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
+          "src": "audio/fix_story-3.wav",
+          "startFrame": 463,
+          "durationFrames": 185
+        },
+        {
+          "text": "A hundred percent. Nothing to raise.",
+          "src": "audio/fix_story-4.wav",
+          "startFrame": 657,
+          "durationFrames": 66
+        },
+        {
+          "text": "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone.",
+          "src": "audio/fix_story-5.wav",
+          "startFrame": 732,
+          "durationFrames": 141
         }
       ]
     },
     {
-      "id": "fix_clear",
+      "id": "fix_proof",
       "kind": "clip",
       "clip": "fix",
-      "clipStart": 45,
-      "label": "The same clause, fixed",
-      "startFrame": 6066,
-      "durationFrames": 498,
+      "clipStart": 46,
+      "label": "The same thing, on the live product",
+      "startFrame": 6640,
+      "durationFrames": 112,
       "lines": [
         {
-          "text": "Now the same clause with the missing start date written in.",
-          "src": "audio/fix_clear-0.wav",
+          "text": "And that's the live product doing it, not a drawing of it.",
+          "src": "audio/fix_proof-0.wav",
           "startFrame": 0,
-          "durationFrames": 86
-        },
-        {
-          "text": "That edit is ours, not SEBI's, and the document says so on its face.",
-          "src": "audio/fix_clear-1.wav",
-          "startFrame": 95,
-          "durationFrames": 128
-        },
-        {
-          "text": "A hundred percent, and no case to raise.",
-          "src": "audio/fix_clear-2.wav",
-          "startFrame": 233,
-          "durationFrames": 75
-        },
-        {
-          "text": "It isn't hunting for something to flag. It's looking for one specific thing, and that thing is gone.",
-          "src": "audio/fix_clear-3.wav",
-          "startFrame": 316,
-          "durationFrames": 158
+          "durationFrames": 88
         }
       ]
     },
@@ -501,7 +507,7 @@
       "clip": "record",
       "clipStart": 2.5,
       "label": "Full record",
-      "startFrame": 6564,
+      "startFrame": 6752,
       "durationFrames": 298,
       "lines": [
         {
@@ -530,7 +536,7 @@
       "clip": "scenarios",
       "clipStart": 4,
       "label": "Worked cases",
-      "startFrame": 6862,
+      "startFrame": 7050,
       "durationFrames": 303,
       "lines": [
         {
@@ -559,7 +565,7 @@
       "clip": "restart",
       "clipStart": 4,
       "label": "A blank start",
-      "startFrame": 7165,
+      "startFrame": 7353,
       "durationFrames": 289,
       "lines": [
         {
@@ -582,7 +588,7 @@
       "clip": null,
       "clipStart": 0,
       "label": null,
-      "startFrame": 7454,
+      "startFrame": 7642,
       "durationFrames": 167,
       "lines": [
         {

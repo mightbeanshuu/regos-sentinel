@@ -3,6 +3,7 @@ import {AbsoluteFill, Audio, interpolate, Sequence, staticFile, useCurrentFrame}
 import timing from '../../../script/timing.json';
 import {Captions} from './Captions';
 import {ClipBeat} from './ClipBeat';
+import {FixStoryBeat} from './FixStoryBeat';
 import {PipelineBeat} from './PipelineBeat';
 import {TitleBeat} from './TitleBeat';
 import {BG, BRAND, LINE} from './tokens';
@@ -75,6 +76,8 @@ export const RegOSSiteDemo: React.FC = () => {
             />
           ) : beat.kind === 'pipeline' ? (
             <PipelineBeat durationInFrames={beat.durationFrames} />
+          ) : beat.kind === 'fixstory' ? (
+            <FixStoryBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
           ) : (
             <TitleBeat
               variant={beat.id === 'hook' ? 'hook' : 'close'}

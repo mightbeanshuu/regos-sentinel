@@ -180,27 +180,26 @@
       ]
     },
     {
-      "id": "fix_caught",
-      "kind": "clip",
-      "clip": "fix",
-      "clipStart": 3.0,
-      "label": "The gap, on its own",
+      "id": "fix_story",
+      "kind": "fixstory",
+      "label": "Caught, fixed, cleared",
       "sentences": [
-        "Here's that same clause on its own, exactly as SEBI published it.",
-        "Fifty percent. It finds the six month period, finds no start date, and raises the case."
+        "Here's that clause on its own, the way SEBI published it.",
+        "Six months of monthly reports. Six months from when? It doesn't say.",
+        "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
+        "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
+        "A hundred percent. Nothing to raise.",
+        "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone."
       ]
     },
     {
-      "id": "fix_clear",
+      "id": "fix_proof",
       "kind": "clip",
       "clip": "fix",
-      "clipStart": 45.0,
-      "label": "The same clause, fixed",
+      "clipStart": 46.0,
+      "label": "The same thing, on the live product",
       "sentences": [
-        "Now the same clause with the missing start date written in.",
-        "That edit is ours, not SEBI's, and the document says so on its face.",
-        "A hundred percent, and no case to raise.",
-        "It isn't hunting for something to flag. It's looking for one specific thing, and that thing is gone."
+        "And that's the live product doing it, not a drawing of it."
       ]
     },
     {
