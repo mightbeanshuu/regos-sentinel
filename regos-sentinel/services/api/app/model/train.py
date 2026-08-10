@@ -29,6 +29,17 @@ from .real_corpus import REAL_EXAMPLES
 FOLDS = 6
 
 #: Everything the shipped model trains on.
+#: Everything the shipped model trains on.
+#:
+#: `second_pull.py` — 406 hand-labelled sentences from 109 more circulars — is
+#: deliberately NOT here. Adding it moved document-held-out accuracy 0.839 ->
+#: 0.721 and URGENCY_ONLY recall 0.74 -> 0.18, and the reason is not volume or
+#: class balance (both were tried). It is a rubric conflict, and the measurement
+#: that isolates it is in that file's docstring: each corpus predicts ITSELF at
+#: 89-94% and the OTHER at 65-69%. Two internally coherent labelling standards
+#: disagree, and no amount of extra data resolves a disagreement about what the
+#: labels mean. Reconciling them is real work with a real cost; until it is done,
+#: the corpus that produced the reviewed weights is the one that trains.
 ALL_EXAMPLES: List[Example] = list(EXAMPLES) + list(REAL_EXAMPLES)
 
 
