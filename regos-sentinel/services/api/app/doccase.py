@@ -222,7 +222,37 @@ def generate_case(document: UploadedDocument, generated_at: str) -> DocumentCase
         rule_verdict=rule_verdict,
         verdicts_agree=rule_verdict == "PERIOD_WITHOUT_TRIGGER",
         candidates_considered=len(candidates),
+        limitation=_limitation_for(label, value),
     )
+
+
+#: Said out loud when the stated period is shorter than a day.
+#:
+#: `_parse_duration` deliberately drops hours and minutes: this product computes
+#: calendar dates, and printing "28 September" for a two-hour RTO would misstate
+#: it. That decision is right, but silently returning no due date told the reader
+#: the wrong story — SEBI's own two-hour resumption target and thirty-minute
+#: disaster declaration are among the sharpest deadlines it publishes, and a
+#: reviewer who records the clock-start and still gets no date deserves to know
+#: the limit is ours, not the circular's.
+SUB_DAY_LIMITATION = (
+    "This passage states a period shorter than a day ({label}). RegOS works in "
+    "calendar dates, so it will not offer a due date here even once you record "
+    "what starts the clock — a date would misstate an hours-scale deadline. The "
+    "period and its start are still recorded, and the limit is this tool's, not "
+    "the document's."
+)
+
+
+def _limitation_for(label: Optional[str], value: Optional[int]) -> str:
+    base = (
+        "The case names the wording the committed model and the fixed rule read as a "
+        "period with no clock-start. Selection is a proposal — a person decides what "
+        "the passage means, and nothing becomes work until they approve it."
+    )
+    if label and value is None:
+        return f"{base} {SUB_DAY_LIMITATION.format(label=label)}"
+    return base
 
 
 def _suggestion(case: DocumentCase) -> str:

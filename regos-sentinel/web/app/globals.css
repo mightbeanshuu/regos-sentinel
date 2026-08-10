@@ -2408,6 +2408,20 @@ body {
    past that a line stops being comfortable to read regardless of the space. */
 .docreview-cell-text { display: block; max-width: 74ch; }
 .docreview-row td:first-child { width: 100%; }
+/* The bound on the passage list, stated. A list that stops without saying so
+   reads as the whole document. */
+.docreview-more {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin: 0;
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
 .docreview-cell-status {
   white-space: nowrap;
   font-size: 0.8125rem;

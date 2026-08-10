@@ -85,7 +85,10 @@ def main() -> int:
             found = LINK_RE.findall(html)
             fresh = [u for u in found if u not in seen]
             seen.extend(fresh)
-            print(f"  {month:02d}-{year}: {len(found)} listed, {len(fresh)} new ({len(seen)} total)")
+            print(
+                f"  {month:02d}-{year}: {len(found)} listed, "
+                f"{len(fresh)} new ({len(seen)} total)"
+            )
             time.sleep(0.7)
 
         print(f"\n{len(seen)} circular pages found. Fetching PDFs…")

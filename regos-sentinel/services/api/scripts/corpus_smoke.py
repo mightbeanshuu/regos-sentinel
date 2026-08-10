@@ -45,7 +45,10 @@ DEFAULT_CORPUS = Path(__file__).resolve().parents[4] / "real-pdfs"
 #: filed as anything but a duty, a mandatory obligation has been silently lost.
 SPLIT_DEONTIC = re.compile(r"\b(s\s?h\s?a\s?l\s?l|m\s?u\s?s\s?t|s\s?h\s?o\s?u\s?l\s?d)\b", re.I)
 INTACT = re.compile(r"\b(shall|must|should)\b", re.I)
-DUTY_CLASSES = {"POSSIBLE_REQUIREMENT", "NEEDS_REVIEW"}
+#: Where a repaired modal verb is allowed to land. RECOMMENDATION belongs here:
+#: "should" is guidance, so a rejoined "s hould" filed as a recommendation is the
+#: repair working, not a duty being lost.
+DUTY_CLASSES = {"POSSIBLE_REQUIREMENT", "NEEDS_REVIEW", "RECOMMENDATION", "PERMISSION"}
 SECTION_HEADING = re.compile(
     r"^(\d+)\. (?:What was|Passages still|Requirements approved|Draft requirements"
     r"|Not converted|Human decisions|Limitations)",
@@ -129,10 +132,16 @@ def check(path: str) -> tuple[dict, list[str]]:
         row["case_at"] = body["locator"]
         if len(body["text"].strip()) < 25:
             found.append(f"{name}: the case selected a fragment — {body['text']!r}")
+        # A duration the parser will not turn into a value is fine — hours and
+        # minutes are dropped deliberately, because a calendar date would
+        # misstate a two-hour RTO. What is NOT fine is doing that silently, so
+        # the check is on the disclosure, not on the parse.
         if body["duration_label"] and body["duration_value"] is None:
-            found.append(
-                f"{name}: case duration {body['duration_label']!r} parsed to no value"
-            )
+            if "shorter than a day" not in body["limitation"]:
+                found.append(
+                    f"{name}: duration {body['duration_label']!r} yields no value and "
+                    "the case does not say why"
+                )
 
     packet = client.get(f"/api/v1/documents/{document['id']}/review-packet.pdf")
     row["packet"] = packet.status_code

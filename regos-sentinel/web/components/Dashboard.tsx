@@ -540,6 +540,13 @@ export function Dashboard({
      upload lane never asks, and inventing an entity is the same class of mistake
      as inventing a deadline. When a document is open the subhead names the
      document, which is the one thing on this page we can actually stand behind. */
+  /** One line, cut on a word. A queue item states the decision, not the source. */
+  const trim = (text: string, limit = 130) => {
+    const clean = text.replace(/\s+/g, " ").trim();
+    if (clean.length <= limit) return clean;
+    return clean.slice(0, clean.lastIndexOf(" ", limit)).replace(/[,;:.]$/, "") + "…";
+  };
+
   const profileLine = openDocument ? (
     <p className="cmd-sub">
       {openDocument.filename} · {openDocument.scope.page_count} page
@@ -817,11 +824,14 @@ export function Dashboard({
             <IconDecision /> Also waiting for you
             <span className="todo-badge">{rest.length}</span>
           </p>
+          {/* One line each. These notes carry the full passage text, and five of
+              them put 379 words on the dashboard — a queue you have to read is
+              not a queue. The whole wording is one click away on the row. */}
           <TodoList
             items={rest.map((item) => ({
               id: item.id,
               title: item.title,
-              note: item.support ? `${item.reason} — ${item.support}` : item.reason,
+              note: trim(item.support ? `${item.reason} — ${item.support}` : item.reason),
               tone: item.tone === "fail" ? ("fail" as const) : ("review" as const),
               actionLabel: item.actionLabel,
               onAction: item.onAction,
@@ -1030,103 +1040,15 @@ export function Dashboard({
             </p>
           )}
 
-          <section className="b-kpis b-kpis--compact">
-            <div className="b-kpi">
-              <span className="b-kpi-value">{activeDoc.passages.length}</span>
-              <span className="b-kpi-label">Passages extracted</span>
-            </div>
-            <div className={activeDoc.scope.passages_needing_review > 0 ? "b-kpi b-kpi--attention" : "b-kpi"}>
-              <span className="b-kpi-value">{activeDoc.scope.passages_needing_review}</span>
-              <span className="b-kpi-label">Waiting on you</span>
-            </div>
-            <div className="b-kpi">
-              <span className="b-kpi-value">{activeDoc.passages.filter((item) => item.reviewed_by).length}</span>
-              <span className="b-kpi-label">Passages you have read</span>
-            </div>
-            <div className="b-kpi">
-              <span className="b-kpi-value">{activeDoc.requirements.length}</span>
-              <span className="b-kpi-label">Approvals recorded</span>
-            </div>
-            <div className="b-kpi">
-              <span className="b-kpi-value">
-                {activeDoc.scope.pages_read}
-                <span className="b-kpi-of">/{activeDoc.scope.page_count}</span>
-              </span>
-              <span className="b-kpi-label">Pages read</span>
-            </div>
-          </section>
+          {/* The KPI row that used to live here is gone. Since the stat row at
+              the top of this page became document-scoped, "Waiting on you" and
+              "Pages read" were printed twice on one screen, five inches apart,
+              from the same numbers. A figure repeated is a figure a reader has
+              to reconcile. */}
 
-          <div>
-            <p className="b-label">
-              <IconGauge /> Deadline clarity — read by Avadhi, the RegOS deadline reader. Its
-              version is fixed, so the same document always scores the same.
-            </p>
-            {docScore ? (
-              <div className="stack-s b-modelread">
-                <StatRow>
-                  <Stat
-                    size="l"
-                    label="Deadline clarity"
-                    value={
-                      docScore.deadline_clarity === null
-                        ? "—"
-                        : `${Math.round(docScore.deadline_clarity * 100)}%`
-                    }
-                    tone={docScore.blocked_durations > 0 ? "review" : undefined}
-                    context={
-                      docScore.deadline_clarity === null
-                        ? "not computable — no timing language in this document"
-                        : `${docScore.with_timing_language} of ${docScore.passages_total} passages carry timing wording`
-                    }
-                  />
-                </StatRow>
-                <SegBar
-                  segments={Object.entries(docScore.timing_counts).map(([label, count]) => ({
-                    label: labelOf(label),
-                    count,
-                    tone: label === "PERIOD_AND_TRIGGER" ? "ok" : label === "NO_TIMING" ? "neutral" : "review",
-                  }))}
-                  ariaLabel={Object.entries(docScore.timing_counts)
-                    .map(([label, count]) => `${count} ${labelOf(label).toLowerCase()}`)
-                    .join(", ")}
-                />
-                <p className="b-verdict">
-                  {docScore.with_timing_language === 0
-                    ? `The model read all ${docScore.passages_total} passages — none carries timing language, so no deadline can honestly be computed here. That is the answer, not an error.`
-                    : docScore.blocked_durations > 0
-                      ? `${docScore.blocked_durations} ${docScore.blocked_durations === 1 ? "passage states" : "passages state"} a period with no stated start, so no lawful due date can be worked out. That gap is the one you have to close.`
-                      : `${docScore.timing_counts.PERIOD_AND_TRIGGER} ${docScore.timing_counts.PERIOD_AND_TRIGGER === 1 ? "passage gives" : "passages give"} a date that can be worked out; nothing states a period without its clock-start.`}
-                </p>
-                <Disclosure summary="How each passage was counted">
-                  <div className="b-score-rows">
-                    {Object.entries(docScore.timing_counts).map(([label, count]) => (
-                      <Meter
-                        key={label}
-                        label={labelOf(label)}
-                        value={count}
-                        max={docScore.passages_total || 1}
-                        tone={label === "PERIOD_AND_TRIGGER" ? "ok" : label === "NO_TIMING" ? "neutral" : "review"}
-                        valueLabel={String(count)}
-                      />
-                    ))}
-                  </div>
-                  <p className="meta">How this is worked out: {plainPhrase(docScore.clarity_formula)}.</p>
-                  <p className="meta">{plainPhrase(docScore.limitation)}</p>
-                  <p className="meta">
-                    The Cyber Capability Index is scored only against the demo SEBI documents —
-                    no score is invented for your document.
-                  </p>
-                </Disclosure>
-              </div>
-            ) : docScoreState === "loading" ? (
-              <Skeleton kind="stat" />
-            ) : (
-              <Empty
-                title="No score yet"
-                hint="It appears once Avadhi, the deadline reader, has read this document."
-              />
-            )}
-          </div>
+          {/* Deadline clarity is not repeated here either. The document tab
+              carries the full read with its scope note, and the intelligence
+              rail states it in words on every tab. */}
 
           <div>
             <p className="b-label"><IconAgents /> Assistants on this document</p>

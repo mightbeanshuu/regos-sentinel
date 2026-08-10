@@ -24,14 +24,15 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/Users/mac/Desktop/02-Hackathons/sebi hackathon/regos-sentinel/services/api")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault("REGOS_OFFLINE", "1")
 
 from app.documents import build_uploaded_document  # noqa: E402
 
-CORPUS = "/Users/mac/Desktop/02-Hackathons/sebi hackathon/real-pdfs"
-OUT = "/private/tmp/claude-501/-Users-mac/4bd6c69f-edc7-4723-ac39-5e91379c427e/scratchpad/candidates.jsonl"
+CORPUS = str(Path(__file__).resolve().parents[4] / "real-pdfs")
+OUT = str(Path(__file__).resolve().parents[1] / "candidates.jsonl")
 
 #: Deliberately broad. Anything that mentions time at all is a candidate; the
 #: reading decides what it means.

@@ -746,12 +746,21 @@ function DocumentDetail({
 }) {
   const [filter, setFilter] = useState<PassageClass | "ALL">("ALL");
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState(10);
   const scope = document.scope;
   const approved = document.state === "APPROVED";
 
   const visible = document.passages.filter(
     (passage) => filter === "ALL" || passage.classification === filter,
   );
+  /* A page of rows, not the whole document.
+     Rendering every passage put 10,814 words and 31,015 pixels on this tab for
+     a 38-page circular, and 2,260 rows for a 205-page one. Nobody reads a
+     document twice, and the list is a reference, not the thing you came for.
+     The count above says how many there are and the button says how many are
+     hidden, so this bounds the page without ever bounding the truth. */
+  const shown = visible.slice(0, pageSize);
+  const remaining = visible.length - shown.length;
 
   const classCounts = Object.fromEntries(
     CLASSIFICATIONS.map((value) => [
@@ -1051,7 +1060,7 @@ function DocumentDetail({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((passage) => {
+                  {shown.map((passage) => {
                     const passageApproved = document.requirements.some(
                       (item) => item.passage_id === passage.id,
                     );
@@ -1093,6 +1102,29 @@ function DocumentDetail({
                   })}
                 </tbody>
               </table>
+              {remaining > 0 && (
+                <p className="docreview-more">
+                  <span>
+                    Showing {shown.length} of {visible.length.toLocaleString()}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--quiet btn--small"
+                    onClick={() => setPageSize((size) => size + 100)}
+                  >
+                    Show {Math.min(100, remaining)} more
+                  </button>
+                  {remaining > 100 && (
+                    <button
+                      type="button"
+                      className="btn btn--quiet btn--small"
+                      onClick={() => setPageSize(visible.length)}
+                    >
+                      Show all {visible.length.toLocaleString()}
+                    </button>
+                  )}
+                </p>
+              )}
             </div>
 
             {drawerPassage && (
