@@ -19,6 +19,8 @@ from app import ocr
 from app.documents import (
     EXTRACTION_MODE_TEXT,
     EXTRACTION_MODE_TEXT_PLUS_OCR,
+    DocumentScope,
+    _limitations,
 )
 from app.main import create_app
 from app.ocr import OCR_ENDPOINT, local_ocr_available, ocr_available, ocr_pages
@@ -380,3 +382,67 @@ def test_no_readable_memory_limit_never_blocks_machine_reading(
 
     assert ocr.free_container_memory() is None
     assert ocr.machine_reading_affordable() is True
+
+
+def test_a_machine_read_that_is_not_words_is_not_offered_as_wording() -> None:
+    """The engine is accurate on prose and cannot decline on a diagram.
+
+    Measured on SEBI's own CSCRF framework: the OCR of page 116 (prose) scores
+    0.78, exactly what that page's own text layer scores, while the OCR of page 32
+    (a flowchart) scores 0.33 and reads "S=3]l osone z 3 Incident Recovery Plan a e
+    ||2228 Execution". Every fragment of that used to become a passage in a
+    compliance review — presented as wording read off a SEBI circular.
+    """
+    diagram = (
+        "S=3]l osone z 3 Incident Recovery Plan a e ||2228 Execution & & ||gsee a S "
+        "2EBE Incident Recovery s s S88 3 Co ea ea 2 3 i = BS ||\\2f382 ; fo} fo} 2SeSe"
+    )
+    prose = (
+        "REs shall establish and ensure that the patch management procedures include "
+        "the identification, categorisation and prioritisation of patches and updates. "
+        "An implementation timeframe for each category of patches shall be established "
+        "to apply them in a timely manner. All operating systems and applications shall "
+        "be updated with the latest patches on a regular basis."
+    )
+
+    assert ocr.legibility(diagram) < ocr.OCR_MIN_LEGIBILITY
+    assert ocr.legibility(prose) > ocr.OCR_MIN_LEGIBILITY
+    assert ocr.reads_as_prose(diagram) is False
+    assert ocr.reads_as_prose(prose) is True
+
+
+def test_a_short_read_is_not_judged_on_a_ratio() -> None:
+    """A caption is too small a sample for the ratio to mean anything."""
+    assert ocr.reads_as_prose("Annexure-B") is True
+    assert ocr.reads_as_prose("   ") is False
+
+
+def test_an_illegible_page_reads_differently_from_a_blank_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Three reasons a page went unread, and the reader needs to know which."""
+    noise = "S=3]l osone z 3 a e ||2228 & & ||gsee a S 2EBE s s S88 3 Co ea ea 2 3 i = BS ||\\2f382"
+    monkeypatch.setattr(ocr, "remote_ocr_available", lambda: False)
+    monkeypatch.setattr(ocr, "local_ocr_available", lambda: True)
+    monkeypatch.setattr(ocr, "_local_page", lambda payload, index: noise)
+
+    recovered, illegible = ocr.ocr_pages_detailed(scanned_pdf(), [2])
+
+    assert recovered == {}
+    assert illegible == [2]
+
+    scope = DocumentScope(
+        page_count=2,
+        pages_read=1,
+        pages_unreadable=[2],
+        passages_reviewed=3,
+        possible_requirements=1,
+        recommendations_not_converted=0,
+        permissions_not_converted=0,
+        background=2,
+        duplicates=0,
+        passages_needing_review=0,
+    )
+    lines = _limitations(scope, "circular.pdf", False, ocr_attempted=True, illegible_pages=[2])
+    assert any("did not read as words" in line for line in lines)
+    assert not any("returned no text" in line for line in lines)

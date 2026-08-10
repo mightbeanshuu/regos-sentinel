@@ -105,6 +105,13 @@
   --glass-shadow-2: 0 2px 10px oklch(0.22 0.030 258 / 0.07),
                     0 16px 34px -26px oklch(0.22 0.030 258 / 0.45);
 
+  /* The shimmer that travels across a loading skeleton. Tokenised because it is
+     a LIGHT fill, and a light fill that names its own colour survives the dark
+     reskin — 60% white sweeping across a near-black canvas. This is the first
+     thing a visitor sees while the hosted API wakes, so it is the worst possible
+     place for a flash. */
+  --skeleton-sheen: oklch(1 0 0 / 0.6);
+
   --glass-radius-1: 14px; /* ambient panel — parent */
   --glass-radius-2: 10px; /* raised instrument — child, always smaller than its parent */
 
@@ -4549,7 +4556,7 @@ body {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.6), transparent);
+  background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
   animation: skel-sheen 1.4s var(--ease) infinite;
 }
 @keyframes skel-sheen {

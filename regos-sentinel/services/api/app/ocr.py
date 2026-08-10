@@ -323,20 +323,77 @@ def _local_page(payload: bytes, index: int) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Legibility — is what came back words, or is it a picture of a diagram?
+# --------------------------------------------------------------------------- #
+
+#: The share of whitespace-separated tokens that have to look like words before a
+#: machine read is passed on as text a person should read.
+#:
+#: MEASURED, on SEBI's own 205-page CSCRF framework, not guessed:
+#:
+#:     OCR of page 32, a flowchart .............. 0.33
+#:     OCR of page 116, ordinary prose .......... 0.78
+#:     text layer of pages 61 / 90 / 116 / 118 .. 0.74 – 0.78
+#:
+#: The engine is accurate: on a page of prose its transcript scores exactly what
+#: the document's own text layer scores. What it cannot do is decline. Handed a
+#: diagram it returns "S=3]l osone z 3 Incident Recovery Plan a e ||2228 Execution",
+#: and every one of those fragments used to become a passage in a compliance
+#: review — text presented to a regulator as something read off their circular.
+#:
+#: 0.55 sits with margin either side of the two populations. Below it the page is
+#: reported unreadable, which is what it is, and the limitation says the read was
+#: attempted and came back illegible — a different fact from a blank page, and one
+#: that tells the reader the page is worth opening by hand.
+OCR_MIN_LEGIBILITY = float(os.environ.get("REGOS_OCR_MIN_LEGIBILITY", "0.55"))
+
+#: A page too short to judge is not tested; the ratio is meaningless on a caption.
+OCR_LEGIBILITY_MIN_TOKENS = 25
+
+
+def legibility(text: str) -> float:
+    """The share of tokens that look like words. 0.0 for empty text."""
+    tokens = [token for token in text.split() if token]
+    if not tokens:
+        return 0.0
+    wordish = [
+        token
+        for token in tokens
+        if len(token) >= 3 and sum(char.isalpha() for char in token) / len(token) >= 0.8
+    ]
+    return len(wordish) / len(tokens)
+
+
+def reads_as_prose(text: str) -> bool:
+    """Whether a machine read is worth showing a person as the page's wording."""
+    if len(text.split()) < OCR_LEGIBILITY_MIN_TOKENS:
+        return bool(text.strip())
+    return legibility(text) >= OCR_MIN_LEGIBILITY
+
+
+# --------------------------------------------------------------------------- #
 # The lane
 # --------------------------------------------------------------------------- #
 
 
-def ocr_pages(payload: bytes, page_indexes: List[int]) -> Dict[int, str]:
+def ocr_pages(
+    payload: bytes,
+    page_indexes: List[int],
+    _illegible: Optional[List[int]] = None,
+) -> Dict[int, str]:
     """Machine-read the named pages of an uploaded PDF. 1-based page indexes.
 
-    Returns only pages for which an engine returned text — a page that failed is
-    simply absent from the result, and the caller reports it unreadable. Any failure
-    at all degrades to returning what was recovered so far; this function never raises
-    into the upload path.
+    Returns only pages for which an engine returned text a person could read — a
+    page that failed, or that came back as noise, is simply absent from the result
+    and the caller reports it unreadable. Any failure at all degrades to returning
+    what was recovered so far; this function never raises into the upload path.
+
+    `_illegible` is filled in by `ocr_pages_detailed`; callers wanting that detail
+    should use that instead of passing it themselves.
     """
     remote = remote_ocr_available()
     local = local_ocr_available()
+    illegible = _illegible if _illegible is not None else []
     if not page_indexes or not (remote or local):
         return {}
     recovered: Dict[int, str] = {}
@@ -364,8 +421,26 @@ def ocr_pages(payload: bytes, page_indexes: List[int]) -> Dict[int, str]:
             with ThreadPoolExecutor(max_workers=OCR_WORKERS) as pool:
                 results = list(pool.map(read, bounded))
         for index, text in results:
-            if text.strip():
-                recovered[index] = text
+            if not text.strip():
+                continue
+            if not reads_as_prose(text):
+                # The engine read the page and what came back is not words. Passing
+                # it on would put "S=3]l osone z 3 ||2228" into a compliance review
+                # as wording extracted from a SEBI circular. The page stays
+                # unreadable, which is the truthful answer, and `illegible_pages`
+                # lets the caller say the read was attempted rather than absent.
+                illegible.append(index)
+                continue
+            recovered[index] = text
     except Exception:  # noqa: BLE001 — OCR must never take the upload down with it
         return recovered
     return recovered
+
+
+def ocr_pages_detailed(
+    payload: bytes, page_indexes: List[int]
+) -> tuple[Dict[int, str], List[int]]:
+    """`ocr_pages`, plus the pages whose read came back illegible rather than empty."""
+    pages: List[int] = []
+    recovered = ocr_pages(payload, page_indexes, _illegible=pages)
+    return recovered, sorted(pages)

@@ -516,6 +516,7 @@ def _limitations(
     filename: str,
     truncated: bool,
     ocr_attempted: bool = False,
+    illegible_pages: Optional[List[int]] = None,
 ) -> List[str]:
     lines = [
         "This document was supplied by the person using this demo. It has not been validated "
@@ -534,31 +535,44 @@ def _limitations(
             "page before it is relied on."
         )
     if scope.pages_unreadable:
-        pages = ", ".join(str(page) for page in scope.pages_unreadable)
-        if ocr_attempted:
+        # Three different reasons a page went unread, and they are not
+        # interchangeable. "OCR came back as noise" tells the reader there IS
+        # content on that page worth opening by hand; "OCR returned nothing" says
+        # the page is blank to every engine; "OCR was not run" says the capability
+        # exists and the server could not spare it, so the page is worth retrying.
+        illegible = [page for page in (illegible_pages or []) if page in scope.pages_unreadable]
+        if illegible:
+            named = ", ".join(str(page) for page in illegible)
             lines.append(
-                f"No text could be extracted from page(s) {pages}. Machine reading (OCR) was "
-                "attempted for them but returned no text, so they were not reviewed. No text "
-                "was invented for them."
+                f"Machine reading (OCR) was attempted on page(s) {named} and what came "
+                "back did not read as words — those pages are diagrams, tables or images "
+                "rather than prose. Nothing from them was added, because presenting an "
+                "unreliable transcript as the document's wording would be worse than "
+                "reporting the page unread. Open those pages against the original."
             )
-        elif not _machine_reading_affordable():
-            # A different sentence from "this build has no OCR", because it is a
-            # different fact: the engine is present and was not run, and saying so
-            # tells the reader the page is worth re-uploading later rather than
-            # permanently out of reach.
-            lines.append(
-                f"No text could be extracted from page(s) {pages}. Machine reading (OCR) "
-                "is available but was not run: this server did not have enough free "
-                "memory to read a page safely, and attempting it would have interrupted "
-                "every review in progress. Those pages were not reviewed and no text was "
-                "invented for them."
-            )
-        else:
-            lines.append(
-                f"No text could be extracted from page(s) {pages}. Those pages are likely "
-                "scanned images; this prototype does not perform OCR, so they were not "
-                "reviewed."
-            )
+        remaining = [page for page in scope.pages_unreadable if page not in set(illegible)]
+        if remaining:
+            pages = ", ".join(str(page) for page in remaining)
+            if ocr_attempted:
+                lines.append(
+                    f"No text could be extracted from page(s) {pages}. Machine reading (OCR) "
+                    "was attempted for them but returned no text, so they were not reviewed. "
+                    "No text was invented for them."
+                )
+            elif not _machine_reading_affordable():
+                lines.append(
+                    f"No text could be extracted from page(s) {pages}. Machine reading (OCR) "
+                    "is available but was not run: this server did not have enough free "
+                    "memory to read a page safely, and attempting it would have interrupted "
+                    "every review in progress. Those pages were not reviewed and no text was "
+                    "invented for them."
+                )
+            else:
+                lines.append(
+                    f"No text could be extracted from page(s) {pages}. Those pages are likely "
+                    "scanned images; this prototype does not perform OCR, so they were not "
+                    "reviewed."
+                )
     if scope.passages_not_in_english:
         lines.append(
             f"{scope.passages_not_in_english} passage(s) are not in English. SEBI publishes "
@@ -765,6 +779,7 @@ def approve_requirement(
 def merge_machine_read_text(
     document: UploadedDocument,
     page_texts: Dict[int, str],
+    illegible_pages: Optional[List[int]] = None,
 ) -> UploadedDocument:
     """Fold machine-read (OCR) text into a document, labelled as machine-read.
 
@@ -839,6 +854,7 @@ def merge_machine_read_text(
         document.filename,
         truncated,
         ocr_attempted=True,
+        illegible_pages=sorted(illegible_pages or []),
     )
     return document
 

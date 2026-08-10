@@ -83,7 +83,7 @@ from .models import (
     ScenarioOutcome,
     WorkspaceState,
 )
-from .ocr import ocr_available, ocr_pages
+from .ocr import ocr_available, ocr_pages_detailed
 from .oscal import generate_assessment_results, validate_assessment_results
 from .report import (
     render_before_after_report,
@@ -606,10 +606,14 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
                 # Machine reading stays after the workspace lock is released — a slow
                 # engine must never serialize every other request in the session. The
                 # merge itself is pure and reacquires the lock briefly.
-                recovered = ocr_pages(payload, document.scope.pages_unreadable)
+                recovered, illegible = ocr_pages_detailed(
+                    payload, document.scope.pages_unreadable
+                )
                 document = workspace.update(
                     document.id,
-                    lambda working, now: merge_machine_read_text(working, recovered),
+                    lambda working, now: merge_machine_read_text(
+                        working, recovered, illegible
+                    ),
                 )
             return document
 

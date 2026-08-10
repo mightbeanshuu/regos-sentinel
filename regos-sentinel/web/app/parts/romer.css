@@ -139,6 +139,8 @@
   --glass-shadow-1: 0 12px 32px -18px oklch(0 0 0 / 0.9);
   --glass-shadow-2: 0 8px 24px -16px oklch(0 0 0 / 0.85);
   --glass-highlight: inset 0 1px 0 oklch(1 0 0 / 0.05);
+  /* A whisper on near-black. 60% white here would strobe. */
+  --skeleton-sheen: oklch(1 0 0 / 0.06);
   --glass-blur-1: 18px;
   --glass-blur-2: 12px;
   --glass-saturate: 1.25;
