@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from .agents.crew import CATALOGUE as AGENT_CATALOGUE
 from .agents.orchestrator import (
@@ -582,25 +583,40 @@ def create_app(session_secret: Optional[str] = None) -> FastAPI:
                 ),
             )
         safe_name = os.path.basename(filename).strip()[:120] or "document.pdf"
-        try:
-            document = documents_for(request).add(safe_name, payload, authority.strip()[:120])
-        except DocumentRejected as error:
-            raise HTTPException(status_code=error.status_code, detail=error.message) from error
-        if document.scope.pages_unreadable and ocr_available():
-            # The network call runs here, after the workspace lock has been released —
-            # a slow OCR service must never serialize every other request in the
-            # session. The merge itself is pure and reacquires the lock briefly.
-            recovered = ocr_pages(payload, document.scope.pages_unreadable)
-            try:
-                document = documents_for(request).update(
+        workspace = documents_for(request)
+
+        # OFF THE EVENT LOOP, and this is the whole reason a 205-page document could
+        # not be uploaded to the hosted API.
+        #
+        # Reading a PDF is entirely CPU-bound: pypdf over 205 pages, 2,260 passages
+        # segmented and classified, then a page rasterised and handed to tesseract.
+        # Awaited directly, all of it ran on the event loop, so for the length of one
+        # upload this process could not answer anything at all — including /health.
+        # The platform health check then failed, the platform restarted the instance,
+        # and the upload died with it: a bare 502 after ~60 seconds, no traceback, and
+        # every other session in flight dropped alongside it. Locally it never showed,
+        # because locally nothing else is asking and nothing restarts the process.
+        #
+        # A worker thread costs nothing here and keeps the service answering while a
+        # long document is read. The workspace has its own lock, so concurrency inside
+        # it is unchanged.
+        def read_document_now() -> UploadedDocument:
+            document = workspace.add(safe_name, payload, authority.strip()[:120])
+            if document.scope.pages_unreadable and ocr_available():
+                # Machine reading stays after the workspace lock is released — a slow
+                # engine must never serialize every other request in the session. The
+                # merge itself is pure and reacquires the lock briefly.
+                recovered = ocr_pages(payload, document.scope.pages_unreadable)
+                document = workspace.update(
                     document.id,
                     lambda working, now: merge_machine_read_text(working, recovered),
                 )
-            except DocumentRejected as error:
-                raise HTTPException(
-                    status_code=error.status_code, detail=error.message
-                ) from error
-        return document
+            return document
+
+        try:
+            return await run_in_threadpool(read_document_now)
+        except DocumentRejected as error:
+            raise HTTPException(status_code=error.status_code, detail=error.message) from error
 
     @application.get("/api/v1/documents/{document_id}", response_model=UploadedDocument)
     def read_document(request: Request, document_id: str) -> UploadedDocument:
