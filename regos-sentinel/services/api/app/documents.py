@@ -504,6 +504,13 @@ def _document_state(document_passages: List[ExtractedPassage], unreadable_all: b
     return DocumentState.READY_FOR_REVIEW
 
 
+def _machine_reading_affordable() -> bool:
+    """Imported here, not at module scope: `app.ocr` imports this module."""
+    from .ocr import machine_reading_affordable
+
+    return machine_reading_affordable()
+
+
 def _limitations(
     scope: DocumentScope,
     filename: str,
@@ -533,6 +540,18 @@ def _limitations(
                 f"No text could be extracted from page(s) {pages}. Machine reading (OCR) was "
                 "attempted for them but returned no text, so they were not reviewed. No text "
                 "was invented for them."
+            )
+        elif not _machine_reading_affordable():
+            # A different sentence from "this build has no OCR", because it is a
+            # different fact: the engine is present and was not run, and saying so
+            # tells the reader the page is worth re-uploading later rather than
+            # permanently out of reach.
+            lines.append(
+                f"No text could be extracted from page(s) {pages}. Machine reading (OCR) "
+                "is available but was not run: this server did not have enough free "
+                "memory to read a page safely, and attempting it would have interrupted "
+                "every review in progress. Those pages were not reviewed and no text was "
+                "invented for them."
             )
         else:
             lines.append(

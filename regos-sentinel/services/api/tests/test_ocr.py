@@ -15,6 +15,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app import ocr
 from app.documents import (
     EXTRACTION_MODE_TEXT,
     EXTRACTION_MODE_TEXT_PLUS_OCR,
@@ -335,3 +336,47 @@ def test_an_ocr_error_response_yields_no_text_rather_than_garbage(
     )
 
     assert ocr_pages(scanned_pdf(), [2]) == {}
+
+
+def test_machine_reading_stands_down_when_the_box_cannot_afford_it(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A page render plus a tesseract process can be more memory than the box has.
+
+    When it is, the kernel does not fail the request — it kills the process, which
+    drops every other session in flight and returns a bare 502 with nothing in the
+    log. That is how SEBI's 205-page CSCRF framework became impossible to upload in
+    production while every local run passed: one page of 205 has no text layer.
+    Refusing to read that page is a far smaller harm, and it can be disclosed.
+    """
+    limit = tmp_path / "memory.max"
+    used = tmp_path / "memory.current"
+    limit.write_text("536870912")  # a 512 MB instance
+
+    monkeypatch.setattr(
+        ocr, "_cgroup_value",
+        lambda *paths: int(limit.read_text()) if "max" in paths[0] else int(used.read_text()),
+    )
+
+    used.write_text(str(500 * 1024 * 1024))  # 12 MB free
+    assert ocr.free_container_memory() == 12 * 1024 * 1024
+    assert ocr.machine_reading_affordable() is False
+    assert ocr.local_ocr_available() is False
+
+    used.write_text(str(100 * 1024 * 1024))  # 412 MB free
+    assert ocr.machine_reading_affordable() is True
+
+
+def test_no_readable_memory_limit_never_blocks_machine_reading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A guard that guesses a limit is worse than no guard.
+
+    On a laptop, or any host that does not put the process in a memory cgroup,
+    there is no limit to read — and refusing to OCR there would break a working
+    feature to defend against a constraint that does not exist.
+    """
+    monkeypatch.setattr(ocr, "_cgroup_value", lambda *paths: None)
+
+    assert ocr.free_container_memory() is None
+    assert ocr.machine_reading_affordable() is True

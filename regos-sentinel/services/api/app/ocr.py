@@ -52,9 +52,33 @@ OCR_LOCAL_BINARY = "tesseract"
 
 OCR_LOCAL_TIMEOUT_SECONDS = 25.0
 
-#: Rasterisation density for the local engine. ~200 DPI is the point where tesseract
-#: stops losing small print without the bitmap getting slow to move around.
-OCR_RENDER_SCALE = 200 / 72
+#: Rasterisation density for the local engine.
+#:
+#: 150, not 200, and it was 200 for a good reason — that is where tesseract stops
+#: losing small print. It came down because the hosted API could not afford it.
+#: Memory here scales with the square of the density: an A4 page is 11.6 MB of
+#: pixels at 200 DPI and 6.5 MB at 150, and tesseract's own working set is a
+#: multiple of whatever it is handed. On the 512 MB instance the API runs on,
+#: 200 DPI was enough to kill the process mid-request — SEBI's 205-page CSCRF
+#: framework has exactly one page without a text layer, and that one page made
+#: the whole document impossible to upload in production while every local run
+#: and all 28 documents in the corpus smoke passed.
+#:
+#: `REGOS_OCR_DPI` puts it back up where there is memory to spare.
+OCR_RENDER_DPI = max(72, int(os.environ.get("REGOS_OCR_DPI", "150")))
+OCR_RENDER_SCALE = OCR_RENDER_DPI / 72
+
+#: Container memory that must remain free before a page is rasterised at all.
+#:
+#: A page render plus a tesseract process is a few hundred megabytes in the worst
+#: case, and if the box cannot afford it the kernel does not fail the request — it
+#: kills the process, which drops every other session in flight and returns a bare
+#: 502 with nothing in the log. Refusing to read one page is a far smaller harm
+#: than that, and unlike the kill it can be said out loud: the page is reported
+#: unreadable and the document's limitations say machine reading was not attempted.
+OCR_MEMORY_HEADROOM_BYTES = int(
+    os.environ.get("REGOS_OCR_HEADROOM_BYTES", str(280 * 1024 * 1024))
+)
 
 #: A remote result shorter than this is treated as an incomplete read of the page —
 #: the local engine then reads the same page and the fuller transcript is kept.
@@ -94,15 +118,62 @@ def remote_ocr_available() -> bool:
     return bool(os.environ.get("OCR_SPACE_API_KEY"))
 
 
+def _cgroup_value(*paths: str) -> Optional[int]:
+    """One integer from a cgroup file, or None when it is absent or not a number."""
+    for path in paths:
+        try:
+            raw = open(path).read().strip()
+        except OSError:
+            continue
+        if raw in {"max", ""}:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            continue
+    return None
+
+
+def free_container_memory() -> Optional[int]:
+    """Bytes of the container's memory limit not currently in use.
+
+    None when there is no limit to read — a developer's laptop, or any host that
+    does not put the process in a memory cgroup. The caller then behaves exactly
+    as it did before this existed, because a guard that guesses a limit is worse
+    than no guard: it would refuse to read pages on machines with memory to spare.
+    """
+    limit = _cgroup_value(
+        "/sys/fs/cgroup/memory.max",  # cgroup v2
+        "/sys/fs/cgroup/memory/memory.limit_in_bytes",  # cgroup v1
+    )
+    if limit is None or limit > 1 << 60:  # an "unlimited" sentinel
+        return None
+    used = _cgroup_value(
+        "/sys/fs/cgroup/memory.current",
+        "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+    )
+    if used is None:
+        return None
+    return max(0, limit - used)
+
+
+def machine_reading_affordable() -> bool:
+    """Whether this box can spare the memory one page render needs."""
+    free = free_container_memory()
+    return free is None or free >= OCR_MEMORY_HEADROOM_BYTES
+
+
 def local_ocr_available() -> bool:
-    """Whether the in-process engine can run: binary on PATH and a rasteriser importable."""
+    """Whether the in-process engine can run: binary, rasteriser, and memory to spare."""
     if shutil.which(OCR_LOCAL_BINARY) is None:
         return False
     try:
         import pypdfium2  # noqa: F401 — availability probe only
     except ImportError:
         return False
-    return True
+    # Asked last, because it is the only one of the three that can change between
+    # one upload and the next.
+    return machine_reading_affordable()
 
 
 def ocr_available() -> bool:
