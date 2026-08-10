@@ -5,11 +5,55 @@
   "beatPadSeconds": 0.8,
   "beats": [
     {
+      "id": "hook",
+      "kind": "title",
+      "sentences": [
+        "SEBI's cyber framework tells a broker to close a high severity finding within one week.",
+        "It never says one week from when.",
+        "So there's no date you can actually work out. Being confident about it doesn't help."
+      ]
+    },
+    {
+      "id": "restart",
+      "kind": "clip",
+      "clip": "restart",
+      "clipStart": 4.0,
+      "label": "A blank start",
+      "sentences": [
+        "Open RegOS Sentinel cold and there's nothing in it.",
+        "No findings, no deadlines, no score, until somebody actually adds a document."
+      ]
+    },
+    {
+      "id": "upload",
+      "kind": "clip",
+      "clip": "upload",
+      "clipStart": 22.0,
+      "label": "Your own document",
+      "sentences": [
+        "So you point it at your own circular.",
+        "This one's a real SEBI circular on transmission of securities, from July.",
+        "Thirty eight pages, two hundred and seventeen passages, and a deadline score worked out from that file alone."
+      ]
+    },
+    {
+      "id": "upload_case",
+      "kind": "clip",
+      "clip": "upload_case",
+      "clipStart": 40.0,
+      "label": "The gap, in your own document",
+      "sentences": [
+        "Then it goes looking for one specific thing: a deadline you can't actually work out.",
+        "Page three. Monthly reports for a period of six months, and it never says six months from when.",
+        "Same defect as the opening, in a circular published three weeks ago."
+      ]
+    },
+    {
       "id": "fix_story",
       "kind": "fixstory",
       "label": "Caught, fixed, cleared",
       "sentences": [
-        "This is one paragraph from a SEBI circular published in July.",
+        "Here's that paragraph on its own.",
         "Six months of monthly reports. Six months from when? It doesn't say.",
         "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
         "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
@@ -18,12 +62,25 @@
       ]
     },
     {
-      "id": "hook",
-      "kind": "title",
+      "id": "fix_proof",
+      "kind": "clip",
+      "clip": "fix",
+      "clipStart": 46.0,
+      "label": "The same thing, on the live product",
       "sentences": [
-        "That's not a one-off.",
-        "SEBI's cyber framework tells a broker to close a high severity finding within one week, and never says one week from when.",
-        "So there's no date you can actually work out. Being confident about it doesn't help."
+        "And that's the live product doing it, not a drawing of it."
+      ]
+    },
+    {
+      "id": "dashboard",
+      "kind": "clip",
+      "clip": "dashboard",
+      "clipStart": 1.5,
+      "label": "Dashboard",
+      "sentences": [
+        "With a document in it, the desk opens on four numbers, and all four are counted from what's there.",
+        "Open decisions, deadlines worked out, evidence still current, checks run.",
+        "One decision is blocking, and the reason for it sits right next to it."
       ]
     },
     {
@@ -35,18 +92,6 @@
       "sentences": [
         "This is RegOS Sentinel.",
         "The bell shows what's genuinely waiting on a person, and the profile names the firm it belongs to."
-      ]
-    },
-    {
-      "id": "dashboard",
-      "kind": "clip",
-      "clip": "dashboard",
-      "clipStart": 1.5,
-      "label": "Dashboard",
-      "sentences": [
-        "The desk opens on four numbers, and all four are counted from what's actually there.",
-        "Open decisions, deadlines worked out, evidence still current, checks run.",
-        "One decision is blocking, and the reason for it sits right next to it."
       ]
     },
     {
@@ -169,40 +214,6 @@
       ]
     },
     {
-      "id": "upload",
-      "kind": "clip",
-      "clip": "upload",
-      "clipStart": 22.0,
-      "label": "Your own document",
-      "sentences": [
-        "None of this is a fixed demo path. Point it at your own circular.",
-        "This one's a real SEBI circular on transmission of securities, from July.",
-        "Thirty eight pages, two hundred and seventeen passages, and a deadline score worked out from that file alone."
-      ]
-    },
-    {
-      "id": "upload_case",
-      "kind": "clip",
-      "clip": "upload_case",
-      "clipStart": 40.0,
-      "label": "An honest empty result",
-      "sentences": [
-        "Then it goes looking for the same kind of gap inside your document.",
-        "Here it finds one. Page three says monthly reports for a period of six months, and never says six months from when.",
-        "Same defect as the opening, in a circular published three weeks ago."
-      ]
-    },
-    {
-      "id": "fix_proof",
-      "kind": "clip",
-      "clip": "fix",
-      "clipStart": 46.0,
-      "label": "The same thing, on the live product",
-      "sentences": [
-        "That paragraph from the opening \u2014 this is the live product doing it, not a drawing of it."
-      ]
-    },
-    {
       "id": "record",
       "kind": "clip",
       "clip": "record",
@@ -224,17 +235,6 @@
         "Four worked cases ship with it.",
         "Each has a cited source and an expected outcome, written down before it runs.",
         "One of them runs against a real SEBI advisory."
-      ]
-    },
-    {
-      "id": "restart",
-      "kind": "clip",
-      "clip": "restart",
-      "clipStart": 4.0,
-      "label": "A blank start",
-      "sentences": [
-        "And you can hand it to someone cold. It opens empty.",
-        "No findings, no deadlines, no score, until somebody actually adds a document."
       ]
     },
     {
