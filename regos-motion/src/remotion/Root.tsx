@@ -5,10 +5,19 @@ import {DEMO_VIDEO, RegOSDemoVideo} from './RegOSDemoVideo';
 import {PITCH} from './pitch/constants';
 import {RegOSFinalPitch} from './pitch/RegOSFinalPitch';
 import {GALLERY, RegOSVectorGallery} from './pitch/vector/RegOSVectorGallery';
+import {RegOSSiteDemo, SITE_DEMO} from './site/RegOSSiteDemo';
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id={SITE_DEMO.id}
+        component={RegOSSiteDemo}
+        durationInFrames={SITE_DEMO.durationInFrames}
+        fps={SITE_DEMO.fps}
+        width={SITE_DEMO.width}
+        height={SITE_DEMO.height}
+      />
       <Composition
         id={PITCH.id}
         component={RegOSFinalPitch}
