@@ -108,7 +108,9 @@ await clip("impact", async (page) => {
   await press(page, "^Approve final decision");
   await page.waitForTimeout(9000);
   await scrollTo(page, ".jr-tiles");
-  await page.waitForTimeout(6000);
+  await page.waitForTimeout(8000);
+  await page.mouse.wheel(0, 520);
+  await page.waitForTimeout(8000);
 });
 
 // ---- 7 · upload: a live SEBI circular, read on the spot -------------------
@@ -118,8 +120,20 @@ await clip("upload", async (page) => {
   await tab(page, 2);
   await page.waitForTimeout(2500);
   await addDocument(page);
+  // The film holds this beat for ~39s of narration, so the clip has to outlast
+  // it. The read itself got faster; the footage must not get shorter than the
+  // words over it.
+  await page.waitForTimeout(4000);
   await page.mouse.wheel(0, 420);
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(6000);
+  await page.mouse.wheel(0, 520);
+  await page.waitForTimeout(7000);
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(7000);
+  await page.mouse.wheel(0, -900);
+  await page.waitForTimeout(8000);
+  await page.mouse.wheel(0, 700);
+  await page.waitForTimeout(8000);
 });
 
 await browser.close();

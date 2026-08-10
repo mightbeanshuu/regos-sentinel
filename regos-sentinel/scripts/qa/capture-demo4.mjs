@@ -36,7 +36,9 @@ await clip("upload_case", async (page) => {
   await press(page, "Find the case in this document|Find the deadline gap");
   await page.waitForTimeout(18000);
   await page.mouse.wheel(0, 340);
-  await page.waitForTimeout(7000);
+  await page.waitForTimeout(9000);
+  await page.mouse.wheel(0, 420);
+  await page.waitForTimeout(9000);
 });
 
 // ---- 15 · the empty first screen, and the choice out of it ---------------
