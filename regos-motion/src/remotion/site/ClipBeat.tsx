@@ -8,6 +8,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import {MotionBlur} from './motion';
 import {BG, BRAND, INK_2, INK_3, LINE, LINE_2, MONO, SANS} from './tokens';
 
 /**
@@ -21,7 +22,26 @@ import {BG, BRAND, INK_2, INK_3, LINE, LINE_2, MONO, SANS} from './tokens';
  * motivate a real camera move here, and a large unmotivated zoom over a screen
  * recording is the clearest template tell in this whole format. It exists only
  * to keep the frame from feeling frozen under a long narration line.
+ *
+ * THE CAPTION SAFE AREA is the important thing in this file.
+ *
+ * Three independent passes over the rendered frames found the same defect in
+ * eight different places, and it was always the same defect: the caption plate
+ * is pinned near the bottom of the canvas, the footage runs all the way down
+ * behind it, and so a live sentence in the product gets sliced in half by the
+ * plate's edge — "WAITING ON YOU" rendering as "NG ON YOU", a legal disclaimer
+ * cut mid-word, a table row guillotined. Fixing those one at a time would mean
+ * re-framing every clip against a plate whose height depends on how long that
+ * beat's narration happens to be.
+ *
+ * So the frame itself is fixed instead: everything below FADE_TOP dissolves
+ * into the stage colour. Text no longer terminates at a hard edge because there
+ * is no hard edge — it recedes. One gradient closes the whole class, survives
+ * re-capture, and costs nothing to maintain.
  */
+
+/** Where the footage starts dissolving into the stage. Above the caption plate. */
+const FADE_TOP = 828;
 export const ClipBeat: React.FC<{
   clip: string;
   clipStart: number;
@@ -43,6 +63,21 @@ export const ClipBeat: React.FC<{
     easing: Easing.bezier(0.33, 0, 0.2, 1),
   });
 
+  /* The rig's entrance blurs on the axis it travels. Velocity is differentiated
+     from the same spring that drives the offset, so the smear peaks exactly at
+     the fastest frame and is gone the moment the rig settles. */
+  const enterAt = (f: number) =>
+    interpolate(spring({frame: f, fps, config: {damping: 200, mass: 0.7, stiffness: 90}}), [0, 1], [26, 0]);
+  const enterVelocity = Math.abs(enterAt(frame) - enterAt(frame - 1));
+
+  /* The label is an annotation, not part of the screenshot, so it arrives after
+     the rig has landed rather than baked into the same move. */
+  const labelIn = interpolate(frame, [14, 30], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
+  });
+
   return (
     <div
       style={{
@@ -54,7 +89,21 @@ export const ClipBeat: React.FC<{
         backgroundColor: BG,
       }}
     >
+      {/* Ambient light under the rig, so it sits in a room rather than on a void. */}
       <div
+        style={{
+          position: 'absolute',
+          width: 1760,
+          height: 700,
+          borderRadius: '50%',
+          background: `radial-gradient(ellipse at center, ${BRAND}09, transparent 68%)`,
+          filter: 'blur(70px)',
+          opacity,
+        }}
+      />
+
+      <MotionBlur
+        velocity={enterVelocity}
         style={{
           width: '88%',
           maxWidth: 1720,
@@ -82,11 +131,20 @@ export const ClipBeat: React.FC<{
               backgroundColor: '#101114',
             }}
           >
+            {/* Flat #3a3c40 on a #101114 bar read as a smudge rather than window
+                controls. A rim and a highlight give them a shape at 1920. */}
             <span style={{display: 'flex', gap: 7}}>
-              {['#3a3c40', '#3a3c40', '#3a3c40'].map((dot, index) => (
+              {[0, 1, 2].map((index) => (
                 <span
                   key={index}
-                  style={{width: 11, height: 11, borderRadius: 999, backgroundColor: dot}}
+                  style={{
+                    width: 11,
+                    height: 11,
+                    borderRadius: 999,
+                    backgroundColor: '#4a4d52',
+                    border: '1px solid #5b5f66',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14)',
+                  }}
                 />
               ))}
             </span>
@@ -116,6 +174,9 @@ export const ClipBeat: React.FC<{
                   letterSpacing: '0.09em',
                   textTransform: 'uppercase',
                   color: INK_2,
+                  opacity: labelIn,
+                  transform: `translateY(${interpolate(labelIn, [0, 1], [-8, 0])}px)`,
+                  display: 'inline-block',
                 }}
               >
                 {label}
@@ -130,7 +191,21 @@ export const ClipBeat: React.FC<{
             style={{display: 'block', width: '100%', height: 'auto'}}
           />
         </div>
-      </div>
+      </MotionBlur>
+
+      {/* The caption safe area. Everything below FADE_TOP recedes into the stage,
+          so no live sentence is ever cut off at the plate's edge. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: FADE_TOP,
+          bottom: 0,
+          background: `linear-gradient(to bottom, transparent, ${BG} 62%)`,
+          pointerEvents: 'none',
+        }}
+      />
 
       {/* A hairline that says the film is real footage, not a mock. */}
       <div

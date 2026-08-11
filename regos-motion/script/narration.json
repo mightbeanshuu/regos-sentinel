@@ -179,9 +179,7 @@
     },
     {
       "id": "assistants",
-      "kind": "clip",
-      "clip": "assistants",
-      "clipStart": 12.0,
+      "kind": "assistants",
       "label": "AI assistants",
       "sentences": [
         "Four assistants read the same corpus, and each one has a single job.",
@@ -203,9 +201,7 @@
     },
     {
       "id": "ask",
-      "kind": "clip",
-      "clip": "ask",
-      "clipStart": 5.0,
+      "kind": "ask",
       "label": "Ask RegOS",
       "sentences": [
         "You can ask it something in plain English.",
@@ -244,7 +240,8 @@
         "RegOS Sentinel.",
         "It shows its work.",
         "And it stops where the source stops."
-      ]
+      ],
+      "captions": false
     }
   ]
 }

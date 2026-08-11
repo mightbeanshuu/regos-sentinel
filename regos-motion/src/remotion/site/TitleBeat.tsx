@@ -2,20 +2,47 @@ import React from 'react';
 import {Easing, interpolate, useCurrentFrame} from 'remotion';
 import {BG, BRAND, INK, INK_3, LINE, SANS} from './tokens';
 
-/** The shield, drawn rather than imported, so it scales and themes with the film. */
+/**
+ * The shield, drawn rather than imported, so it scales and themes with the film.
+ *
+ * It used to carry `vectorEffect="non-scaling-stroke"`, which pins the stroke to
+ * 1.6 DEVICE pixels no matter how large the mark is drawn. At 92px on a 24-unit
+ * viewBox that is a 3.8x scale-up, so the outline rendered as a 1.6px hairline —
+ * on the very first and very last frames of the film, the logo read as a faint
+ * scratch rather than a mark. The stroke now scales with the glyph, and a soft
+ * lime bloom sits under it so it reads as lit rather than drawn on.
+ */
 const Shield: React.FC<{size: number; progress: number}> = ({size, progress}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path
-      d="M12 2.6 4.6 5.4v5.9c0 4.6 3.1 8.4 7.4 9.6 4.3-1.2 7.4-5 7.4-9.6V5.4Z"
-      stroke={BRAND}
-      strokeWidth={1.6}
-      strokeLinejoin="round"
-      pathLength={1}
-      strokeDasharray={1}
-      strokeDashoffset={1 - progress}
-      vectorEffect="non-scaling-stroke"
+  <div style={{position: 'relative', width: size, height: size}}>
+    <div
+      style={{
+        position: 'absolute',
+        inset: '-42%',
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${BRAND}22, transparent 68%)`,
+        filter: 'blur(18px)',
+        opacity: progress,
+      }}
     />
-  </svg>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{position: 'relative', filter: `drop-shadow(0 0 ${size * 0.13}px ${BRAND}59)`}}
+    >
+      <path
+        d="M12 2.6 4.6 5.4v5.9c0 4.6 3.1 8.4 7.4 9.6 4.3-1.2 7.4-5 7.4-9.6V5.4Z"
+        stroke={BRAND}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        pathLength={1}
+        strokeDasharray={1}
+        strokeDashoffset={1 - progress}
+      />
+    </svg>
+  </div>
 );
 
 /**
@@ -28,8 +55,18 @@ const Shield: React.FC<{size: number; progress: number}> = ({size, progress}) =>
 export const TitleBeat: React.FC<{
   variant: 'hook' | 'close';
   durationInFrames: number;
-}> = ({variant, durationInFrames}) => {
+  lines?: {startFrame: number}[];
+}> = ({variant, durationInFrames, lines = []}) => {
   const frame = useCurrentFrame();
+
+  /* The close card speaks its own three lines, so it shows them as they are
+     said rather than presenting the finished card and letting a caption plate
+     repeat it underneath. `lit` is 0 before a line starts and 1 shortly after. */
+  const lit = (index: number, fallback: number) =>
+    interpolate(frame, [lines[index]?.startFrame ?? fallback, (lines[index]?.startFrame ?? fallback) + 14], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    });
 
   const draw = interpolate(frame, [6, 40], [0, 1], {
     extrapolateLeft: 'clamp',
@@ -137,7 +174,8 @@ export const TitleBeat: React.FC<{
                 textWrap: 'balance',
               }}
             >
-              Decision support that shows its work — and stops where the source stops.
+              <span style={{opacity: lit(1, 40)}}>Decision support that shows its work</span>
+              <span style={{opacity: lit(2, 80)}}> — and stops where the source stops.</span>
             </p>
           </>
         )}

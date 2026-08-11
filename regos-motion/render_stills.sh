@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd "/Users/mac/Desktop/sebi hackathon/regos-motion"
+cd "/Users/mac/Desktop/02-Hackathons/sebi hackathon/regos-motion"
 npx remotion still RegOSIdeaDeck out/stills_v2/S00.png --frame=140
 npx remotion still RegOSIdeaDeck out/stills_v2/S01.png --frame=488
 npx remotion still RegOSIdeaDeck out/stills_v2/S02.png --frame=956

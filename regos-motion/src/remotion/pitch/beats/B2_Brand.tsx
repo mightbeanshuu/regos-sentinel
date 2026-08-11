@@ -4,6 +4,7 @@ import {Shield} from '../../system/icons';
 import {FONT_IBM_SANS, FONT_SORA} from '../../system/fonts';
 import {CAPTIONS, ROYAL, TAGLINE, TEAL, WHITE} from '../constants';
 import {CaptionBar, StillImage, VoidField} from '../shared';
+import {AIAgentCard} from '../vector/AIAgentCard';
 
 // Section 14 logo intro, scaled to this beat (420f @60fps).
 export const B2_Brand: React.FC = () => {
@@ -53,6 +54,12 @@ export const B2_Brand: React.FC = () => {
 
   const TILE = 132;
 
+  // after the mark settles, dock it up + smaller so the AI-agent moment leads
+  const dock = interpolate(frame, [246, 286], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
   // crisp app-icon PNG crossfades in at settle for premium fidelity
   const iconCross = interpolate(frame, [176, 214], [0, 1], {
     extrapolateLeft: 'clamp',
@@ -76,8 +83,8 @@ export const B2_Brand: React.FC = () => {
             position: 'absolute',
             height: 760,
             width: 'auto',
-            transform: `translateY(${monoRise + 40}px)`,
-            opacity: monoOpacity,
+            transform: `translateY(${monoRise + 40 - 120 * dock}px)`,
+            opacity: monoOpacity * (1 - dock),
             filter: 'drop-shadow(0 30px 80px rgba(27,63,184,0.5))',
           }}
         />
@@ -91,13 +98,13 @@ export const B2_Brand: React.FC = () => {
             height: 620,
             borderRadius: '50%',
             background: `radial-gradient(circle, ${ROYAL}44 0%, transparent 62%)`,
-            opacity: interpolate(frame % 90, [0, 45, 90], [0.7, 1, 0.7]),
+            opacity: interpolate(frame % 90, [0, 45, 90], [0.7, 1, 0.7]) * (1 - 0.65 * dock),
           }}
         />
       </AbsoluteFill>
 
       <AbsoluteFill style={{alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{transform: `translateX(-${groupShift}px)`, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        <div style={{transform: `translateX(-${groupShift}px) translateY(${-320 * dock}px) scale(${1 - 0.42 * dock})`, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <div style={{display: 'flex', alignItems: 'center', gap: GAP}}>
             {/* Tile + shield */}
             <div
@@ -191,6 +198,13 @@ export const B2_Brand: React.FC = () => {
           </div>
         </div>
       </AbsoluteFill>
+
+      {/* AI Agent moment — RegOS explains itself, in its own voice */}
+      {frame > 250 && (
+        <AbsoluteFill style={{transform: `translateY(${60 - 40 * dock}px)`}}>
+          <AIAgentCard startFrame={262} />
+        </AbsoluteFill>
+      )}
 
       <CaptionBar text={CAPTIONS.brand} delay={250} />
     </AbsoluteFill>

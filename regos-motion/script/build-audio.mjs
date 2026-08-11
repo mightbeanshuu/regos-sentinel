@@ -73,6 +73,11 @@ for (const beat of spec.beats) {
     clip: beat.clip ?? null,
     clipStart: beat.clipStart ?? 0,
     label: beat.label ?? null,
+    // A beat may suppress the caption plate when its own artwork already sets
+    // the words — the close card being the only one, since the caption would
+    // otherwise render "RegOS Sentinel." directly beneath a headline reading
+    // RegOS Sentinel.
+    captions: beat.captions !== false,
     startFrame: cursorFrames,
     durationFrames,
     lines,

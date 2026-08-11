@@ -8,6 +8,7 @@
       "clip": null,
       "clipStart": 0,
       "label": null,
+      "captions": true,
       "startFrame": 0,
       "durationFrames": 385,
       "lines": [
@@ -37,6 +38,7 @@
       "clip": "restart",
       "clipStart": 4,
       "label": "A blank start",
+      "captions": true,
       "startFrame": 385,
       "durationFrames": 278,
       "lines": [
@@ -60,6 +62,7 @@
       "clip": "upload",
       "clipStart": 22,
       "label": "Your own document",
+      "captions": true,
       "startFrame": 663,
       "durationFrames": 431,
       "lines": [
@@ -89,6 +92,7 @@
       "clip": "upload_case",
       "clipStart": 40,
       "label": "The gap, in your own document",
+      "captions": true,
       "startFrame": 1094,
       "durationFrames": 475,
       "lines": [
@@ -118,6 +122,7 @@
       "clip": null,
       "clipStart": 0,
       "label": "Caught, fixed, cleared",
+      "captions": true,
       "startFrame": 1569,
       "durationFrames": 858,
       "lines": [
@@ -165,6 +170,7 @@
       "clip": "fix",
       "clipStart": 46,
       "label": "The same thing, on the live product",
+      "captions": true,
       "startFrame": 2427,
       "durationFrames": 112,
       "lines": [
@@ -182,6 +188,7 @@
       "clip": "dashboard",
       "clipStart": 1.5,
       "label": "Dashboard",
+      "captions": true,
       "startFrame": 2539,
       "durationFrames": 455,
       "lines": [
@@ -211,6 +218,7 @@
       "clip": "chrome",
       "clipStart": 3,
       "label": "The workspace",
+      "captions": true,
       "startFrame": 2994,
       "durationFrames": 236,
       "lines": [
@@ -234,6 +242,7 @@
       "clip": null,
       "clipStart": 0,
       "label": "How it works",
+      "captions": true,
       "startFrame": 3230,
       "durationFrames": 378,
       "lines": [
@@ -263,6 +272,7 @@
       "clip": "source",
       "clipStart": 2,
       "label": "The source",
+      "captions": true,
       "startFrame": 3608,
       "durationFrames": 339,
       "lines": [
@@ -292,6 +302,7 @@
       "clip": "verify",
       "clipStart": 8,
       "label": "Live source check",
+      "captions": true,
       "startFrame": 3947,
       "durationFrames": 301,
       "lines": [
@@ -321,6 +332,7 @@
       "clip": "blocked",
       "clipStart": 8,
       "label": "The gap",
+      "captions": true,
       "startFrame": 4248,
       "durationFrames": 353,
       "lines": [
@@ -350,6 +362,7 @@
       "clip": "decide",
       "clipStart": 12,
       "label": "A named decision",
+      "captions": true,
       "startFrame": 4601,
       "durationFrames": 534,
       "lines": [
@@ -385,6 +398,7 @@
       "clip": "impact",
       "clipStart": 26,
       "label": "What changes",
+      "captions": true,
       "startFrame": 5135,
       "durationFrames": 389,
       "lines": [
@@ -414,6 +428,7 @@
       "clip": "impact",
       "clipStart": 36,
       "label": "The record",
+      "captions": true,
       "startFrame": 5524,
       "durationFrames": 310,
       "lines": [
@@ -439,10 +454,11 @@
     },
     {
       "id": "assistants",
-      "kind": "clip",
-      "clip": "assistants",
-      "clipStart": 12,
+      "kind": "assistants",
+      "clip": null,
+      "clipStart": 0,
       "label": "AI assistants",
+      "captions": true,
       "startFrame": 5834,
       "durationFrames": 413,
       "lines": [
@@ -472,6 +488,7 @@
       "clip": "limits",
       "clipStart": 4,
       "label": "What it will not do",
+      "captions": true,
       "startFrame": 6247,
       "durationFrames": 388,
       "lines": [
@@ -497,10 +514,11 @@
     },
     {
       "id": "ask",
-      "kind": "clip",
-      "clip": "ask",
-      "clipStart": 5,
+      "kind": "ask",
+      "clip": null,
+      "clipStart": 0,
       "label": "Ask RegOS",
+      "captions": true,
       "startFrame": 6635,
       "durationFrames": 360,
       "lines": [
@@ -530,6 +548,7 @@
       "clip": "record",
       "clipStart": 2.5,
       "label": "Full record",
+      "captions": true,
       "startFrame": 6995,
       "durationFrames": 298,
       "lines": [
@@ -559,6 +578,7 @@
       "clip": "scenarios",
       "clipStart": 4,
       "label": "Worked cases",
+      "captions": true,
       "startFrame": 7293,
       "durationFrames": 303,
       "lines": [
@@ -588,6 +608,7 @@
       "clip": null,
       "clipStart": 0,
       "label": null,
+      "captions": false,
       "startFrame": 7596,
       "durationFrames": 167,
       "lines": [

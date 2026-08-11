@@ -14,9 +14,11 @@ import {Shield} from '../system/icons';
 import {
   AMBIGUOUS,
   BLACK,
+  DEEP,
   NAVY_LINE,
   NAVY_PANEL,
   OFFWHITE,
+  ROYAL,
   SLATE,
   TEAL,
   TRUTH_LABEL,
@@ -84,21 +86,85 @@ export const VoidField: React.FC<{plate?: boolean}> = ({plate = true}) => {
   );
 };
 
-/** Near-black product stage — code-native SignalFieldSVG (stage variant). */
-export const SignalField: React.FC<{intensity?: number}> = ({intensity = 1}) => {
+/** Deterministic sparkle particles in the top glow (NeuraFlow-style). */
+const GlowParticles: React.FC<{count?: number}> = ({count = 46}) => {
+  const frame = useCurrentFrame();
+  const rnd = (s: number) => {
+    const x = Math.sin(s * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  };
   return (
-    <AbsoluteFill style={{background: BLACK, overflow: 'hidden'}}>
+    <>
+      {Array.from({length: count}, (_, i) => {
+        // concentrate in the upper-center glow cone
+        const cx = 0.5 + (rnd(i + 1) - 0.5) * 0.62;
+        const cy = 0.02 + rnd(i + 7) * 0.5;
+        const tw = 0.25 + 0.75 * Math.abs(Math.sin((frame + i * 33) / 26));
+        const size = 1 + rnd(i + 3) * 2;
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: `${cx * 100}%`,
+              top: `${cy * 100}%`,
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              background: i % 4 === 0 ? TEAL : '#BFD2FF',
+              opacity: tw * 0.5,
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
+
+/** Premium product stage — deep-blue glow bloom + sparkles + signal lines. */
+export const SignalField: React.FC<{intensity?: number}> = ({intensity = 1}) => {
+  const frame = useCurrentFrame();
+  const bloom = 0.85 + 0.15 * Math.sin(frame / 80);
+  return (
+    <AbsoluteFill style={{background: '#05070F', overflow: 'hidden'}}>
+      {/* deep radial glow bloom from top-center */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `radial-gradient(ellipse 70% 58% at 50% -8%, ${ROYAL}88 0%, ${DEEP}44 34%, transparent 66%)`,
+          opacity: bloom * intensity,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: `radial-gradient(ellipse 34% 30% at 50% 2%, ${TEAL}22 0%, transparent 60%)`,
+          opacity: 0.8 * intensity,
+        }}
+      />
       {HAS.signal && <VideoPlate assetKey="signal" />}
       {!HAS.signal && (
-        <SignalFieldSVG tone="dark" variant="stage" focal={[0.5, 0.12]} intensity={intensity} seed={19} />
+        <SignalFieldSVG tone="dark" variant="stage" focal={[0.5, 0.08]} intensity={0.7 * intensity} seed={19} />
       )}
+      <GlowParticles />
+      {/* strong edge vignette so the dashboard reads as floating in space */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'radial-gradient(ellipse 82% 82% at 50% 42%, transparent 46%, rgba(3,5,12,0.72) 100%)',
+        }}
+      />
       {/* bottom vignette for caption legibility */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(to bottom, rgba(4,8,20,0.35) 0%, transparent 22%, transparent 62%, rgba(4,8,20,0.72) 100%)',
+            'linear-gradient(to bottom, rgba(3,5,12,0.35) 0%, transparent 24%, transparent 60%, rgba(3,5,12,0.78) 100%)',
         }}
       />
     </AbsoluteFill>

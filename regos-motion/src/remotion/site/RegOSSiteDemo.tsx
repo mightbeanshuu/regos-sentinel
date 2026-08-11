@@ -1,6 +1,8 @@
 import React from 'react';
 import {AbsoluteFill, Audio, interpolate, Sequence, staticFile, useCurrentFrame} from 'remotion';
 import timing from '../../../script/timing.json';
+import {AskBeat} from './AskBeat';
+import {AssistantsBeat} from './AssistantsBeat';
 import {Captions} from './Captions';
 import {ClipBeat} from './ClipBeat';
 import {FixStoryBeat} from './FixStoryBeat';
@@ -78,10 +80,15 @@ export const RegOSSiteDemo: React.FC = () => {
             <PipelineBeat durationInFrames={beat.durationFrames} />
           ) : beat.kind === 'fixstory' ? (
             <FixStoryBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
+          ) : beat.kind === 'ask' ? (
+            <AskBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
+          ) : beat.kind === 'assistants' ? (
+            <AssistantsBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
           ) : (
             <TitleBeat
               variant={beat.id === 'hook' ? 'hook' : 'close'}
               durationInFrames={beat.durationFrames}
+              lines={beat.lines}
             />
           )}
 
@@ -97,8 +104,9 @@ export const RegOSSiteDemo: React.FC = () => {
             </Sequence>
           ))}
 
-          {/* Captions sit outside the product rig so they stay sharp and level. */}
-          <Captions lines={beat.lines} />
+          {/* Captions sit outside the product rig so they stay sharp and level.
+              A beat whose own artwork already carries the words opts out. */}
+          {beat.captions === false ? null : <Captions lines={beat.lines} />}
         </Sequence>
       ))}
 

@@ -43,15 +43,15 @@ export const B3_Ingest: React.FC = () => {
   const {fps} = useVideoConfig();
 
   const docEnter = springUI(Math.max(0, frame - 10), fps);
-  const scanY = interpolate(frame, [70, 320], [0, 360], {
+  // rows compile as the guided camera walks down the list (see ROW_T below)
+  const ROW_T = (i: number) => 150 + i * 48;
+  const scanY = interpolate(frame, [150, 520], [0, 360], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  const classified = SEGMENTS.filter(
-    (_, i) => frame > 90 + i * 26 + 20,
-  ).length;
-  const counter = Math.min(19, Math.round(interpolate(frame, [90, 360], [0, 19], {
+  const classified = SEGMENTS.filter((_, i) => frame > ROW_T(i) + 16).length;
+  const counter = Math.min(19, Math.round(interpolate(frame, [150, 500], [0, 19], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   })));
@@ -61,8 +61,13 @@ export const B3_Ingest: React.FC = () => {
       <SignalField />
       <SectionKicker index="01" step="Ingest" concept="Coverage Ledger" />
       <CameraRig
-        scale={[[0, 1.0], [70, 1.0], [190, 1.07], [560, 1.07], [640, 1.11], [780, 1.11]]}
-        origin="66% 54%"
+        // Guided tour: establish → zoom into §3.1 (left) → pan right to reveal its
+        // "Compiled obligation" status → pull to full-row scale → walk down the list
+        // as each obligation compiles → zoom out to the whole ledger.
+        scale={[[0, 1.0], [120, 1.0], [178, 1.4], [236, 1.4], [300, 1.15], [520, 1.15], [600, 1.0], [780, 1.0]]}
+        origin="50% 32%"
+        panX={[[0, 0], [178, 150], [236, -300], [300, 0], [520, 0], [600, 0], [780, 0]]}
+        panY={[[0, 0], [178, 250], [300, 250], [520, -280], [600, 0], [780, 0]]}
         style={{alignItems: 'center', justifyContent: 'center', paddingTop: 24, display: 'flex'}}
       >
         <BrowserChrome
@@ -164,8 +169,16 @@ export const B3_Ingest: React.FC = () => {
                 </div>
               </div>
               {SEGMENTS.map((seg, i) => {
-                const enter = springSnappy(Math.max(0, frame - 90 - i * 26), fps);
+                const enter = springSnappy(Math.max(0, frame - ROW_T(i)), fps);
                 const meta = STATE_META[seg.state];
+                // focus highlight travels down the list as each row compiles
+                const focus = interpolate(
+                  frame,
+                  [ROW_T(i), ROW_T(i) + 8, ROW_T(i) + 42, ROW_T(i) + 60],
+                  [0, 1, 1, 0],
+                  {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'},
+                );
+                const accent = seg.state === 'ambiguous' ? AMBIGUOUS : TEAL;
                 return (
                   <div
                     key={seg.clause}
@@ -176,10 +189,17 @@ export const B3_Ingest: React.FC = () => {
                       padding: '11px 16px',
                       marginBottom: 7,
                       background: NAVY_PANEL_2,
-                      border: `1px solid ${seg.state === 'ambiguous' ? AMBIGUOUS : NAVY_LINE}`,
+                      border: `1px solid ${
+                        focus > 0.02
+                          ? accent
+                          : seg.state === 'ambiguous'
+                            ? AMBIGUOUS
+                            : NAVY_LINE
+                      }`,
                       borderRadius: 8,
+                      boxShadow: focus > 0.02 ? `0 0 26px ${accent}${Math.round(focus * 42).toString(16).padStart(2, '0')}` : 'none',
                       opacity: enter,
-                      transform: `translateX(${(1 - enter) * 26}px)`,
+                      transform: `translateX(${(1 - enter) * 26}px) scale(${1 + focus * 0.014})`,
                     }}
                   >
                     <span style={{fontFamily: FONT_IBM_SANS, fontSize: 12, fontWeight: 700, color: SLATE, width: 44}}>

@@ -107,8 +107,8 @@ export const SaaSBrowser: React.FC<{
           filter: blur > 0.15 ? `blur(${blur}px)` : 'none',
           borderRadius: 14,
           overflow: 'hidden',
-          border: `1px solid ${NAVY_LINE}`,
-          boxShadow: `0 ${shadowY}px ${shadowSpread}px rgba(4,8,20,${shadowAlpha})`,
+          border: `1px solid rgba(120,150,220,0.28)`,
+          boxShadow: `0 ${shadowY}px ${shadowSpread}px rgba(3,6,18,${shadowAlpha}), 0 0 130px rgba(27,63,184,${0.30 * opacity}), inset 0 1px 0 rgba(255,255,255,0.10)`,
         }}
       >
         {/* ——— chrome bar ——— */}
