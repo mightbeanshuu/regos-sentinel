@@ -1,6 +1,6 @@
 {
-  "fps": 30,
-  "totalFrames": 7748,
+  "fps": 60,
+  "totalFrames": 16748,
   "beats": [
     {
       "id": "hook",
@@ -10,25 +10,25 @@
       "label": null,
       "captions": true,
       "startFrame": 0,
-      "durationFrames": 397,
+      "durationFrames": 794,
       "lines": [
         {
           "text": "SEBI's cyber framework tells a broker to close a high severity finding within one week.",
           "src": "audio/hook-0.wav",
           "startFrame": 0,
-          "durationFrames": 163
+          "durationFrames": 326
         },
         {
           "text": "It never says one week from when.",
           "src": "audio/hook-1.wav",
-          "startFrame": 172,
-          "durationFrames": 51
+          "startFrame": 344,
+          "durationFrames": 101
         },
         {
           "text": "So there's no date you can actually work out. Being confident about it doesn't help.",
           "src": "audio/hook-2.wav",
-          "startFrame": 231,
-          "durationFrames": 142
+          "startFrame": 462,
+          "durationFrames": 283
         }
       ]
     },
@@ -39,20 +39,20 @@
       "clipStart": 4,
       "label": "A blank start",
       "captions": true,
-      "startFrame": 397,
-      "durationFrames": 266,
+      "startFrame": 794,
+      "durationFrames": 532,
       "lines": [
         {
           "text": "Open RegOS Sentinel cold and there's nothing in it.",
           "src": "audio/restart-0.wav",
           "startFrame": 0,
-          "durationFrames": 86
+          "durationFrames": 173
         },
         {
           "text": "No findings, no deadlines, no score, until somebody actually adds a document.",
           "src": "audio/restart-1.wav",
-          "startFrame": 95,
-          "durationFrames": 147
+          "startFrame": 191,
+          "durationFrames": 293
         }
       ]
     },
@@ -63,26 +63,26 @@
       "clipStart": 22,
       "label": "Your own document",
       "captions": true,
-      "startFrame": 663,
-      "durationFrames": 415,
+      "startFrame": 1326,
+      "durationFrames": 830,
       "lines": [
         {
           "text": "So you point it at your own circular.",
           "src": "audio/upload-0.wav",
           "startFrame": 0,
-          "durationFrames": 54
+          "durationFrames": 108
         },
         {
           "text": "This one's a real SEBI circular on transmission of securities, from July.",
           "src": "audio/upload-1.wav",
-          "startFrame": 63,
-          "durationFrames": 135
+          "startFrame": 126,
+          "durationFrames": 270
         },
         {
           "text": "Thirty eight pages, two hundred and seventeen passages, and a deadline score worked out from that file alone.",
           "src": "audio/upload-2.wav",
-          "startFrame": 207,
-          "durationFrames": 184
+          "startFrame": 414,
+          "durationFrames": 367
         }
       ]
     },
@@ -93,26 +93,26 @@
       "clipStart": 40,
       "label": "The gap, in your own document",
       "captions": true,
-      "startFrame": 1078,
-      "durationFrames": 474,
+      "startFrame": 2156,
+      "durationFrames": 947,
       "lines": [
         {
           "text": "Then it goes looking for one specific thing: a deadline you can't actually work out.",
           "src": "audio/upload_case-0.wav",
           "startFrame": 0,
-          "durationFrames": 137
+          "durationFrames": 274
         },
         {
           "text": "Page three. Monthly reports for a period of six months, and it never says six months from when.",
           "src": "audio/upload_case-1.wav",
-          "startFrame": 146,
-          "durationFrames": 179
+          "startFrame": 292,
+          "durationFrames": 358
         },
         {
           "text": "Same defect as the opening, in a circular published three weeks ago.",
           "src": "audio/upload_case-2.wav",
-          "startFrame": 334,
-          "durationFrames": 116
+          "startFrame": 668,
+          "durationFrames": 231
         }
       ]
     },
@@ -123,44 +123,44 @@
       "clipStart": 0,
       "label": "Caught, fixed, cleared",
       "captions": true,
-      "startFrame": 1552,
-      "durationFrames": 830,
+      "startFrame": 3103,
+      "durationFrames": 1660,
       "lines": [
         {
           "text": "Here's that paragraph on its own.",
           "src": "audio/fix_story-0.wav",
           "startFrame": 0,
-          "durationFrames": 52
+          "durationFrames": 103
         },
         {
           "text": "Six months of monthly reports. Six months from when? It doesn't say.",
           "src": "audio/fix_story-1.wav",
-          "startFrame": 61,
-          "durationFrames": 124
+          "startFrame": 121,
+          "durationFrames": 248
         },
         {
           "text": "RegOS reads it, gets the same answer twice over, and stops there. Fifty percent, and a case for a person.",
           "src": "audio/fix_story-2.wav",
-          "startFrame": 194,
-          "durationFrames": 197
+          "startFrame": 388,
+          "durationFrames": 393
         },
         {
           "text": "Now the same clause with the start date written in. That edit is ours, not SEBI's, and the page says so.",
           "src": "audio/fix_story-3.wav",
-          "startFrame": 399,
-          "durationFrames": 188
+          "startFrame": 799,
+          "durationFrames": 376
         },
         {
           "text": "A hundred percent. Nothing to raise.",
           "src": "audio/fix_story-4.wav",
-          "startFrame": 596,
-          "durationFrames": 66
+          "startFrame": 1193,
+          "durationFrames": 132
         },
         {
           "text": "It isn't hunting for something to flag. It's looking for one thing, and that thing is gone.",
           "src": "audio/fix_story-5.wav",
-          "startFrame": 671,
-          "durationFrames": 135
+          "startFrame": 1342,
+          "durationFrames": 269
         }
       ]
     },
@@ -171,14 +171,14 @@
       "clipStart": 46,
       "label": "The same thing, on the live product",
       "captions": true,
-      "startFrame": 2382,
-      "durationFrames": 115,
+      "startFrame": 4763,
+      "durationFrames": 230,
       "lines": [
         {
           "text": "And that's the live product doing it, not a drawing of it.",
           "src": "audio/fix_proof-0.wav",
           "startFrame": 0,
-          "durationFrames": 91
+          "durationFrames": 182
         }
       ]
     },
@@ -189,26 +189,26 @@
       "clipStart": 1,
       "label": "Dashboard",
       "captions": true,
-      "startFrame": 2497,
-      "durationFrames": 462,
+      "startFrame": 4993,
+      "durationFrames": 924,
       "lines": [
         {
           "text": "With a document in it, the desk opens on four numbers, and all four are counted from what's there.",
           "src": "audio/dashboard-0.wav",
           "startFrame": 0,
-          "durationFrames": 170
+          "durationFrames": 340
         },
         {
           "text": "Open decisions, deadlines worked out, evidence still current, checks run.",
           "src": "audio/dashboard-1.wav",
-          "startFrame": 179,
-          "durationFrames": 131
+          "startFrame": 358,
+          "durationFrames": 263
         },
         {
           "text": "One decision is blocking, and the reason for it sits right next to it.",
           "src": "audio/dashboard-2.wav",
-          "startFrame": 319,
-          "durationFrames": 118
+          "startFrame": 639,
+          "durationFrames": 237
         }
       ]
     },
@@ -219,20 +219,20 @@
       "clipStart": 3,
       "label": "The workspace",
       "captions": true,
-      "startFrame": 2959,
-      "durationFrames": 251,
+      "startFrame": 5917,
+      "durationFrames": 502,
       "lines": [
         {
           "text": "This is RegOS Sentinel.",
           "src": "audio/chrome-0.wav",
           "startFrame": 0,
-          "durationFrames": 41
+          "durationFrames": 82
         },
         {
           "text": "The bell shows what's genuinely waiting on a person, and the profile names the firm it belongs to.",
           "src": "audio/chrome-1.wav",
-          "startFrame": 50,
-          "durationFrames": 177
+          "startFrame": 100,
+          "durationFrames": 354
         }
       ]
     },
@@ -243,26 +243,56 @@
       "clipStart": 0,
       "label": "How it works",
       "captions": true,
-      "startFrame": 3210,
-      "durationFrames": 365,
+      "startFrame": 6419,
+      "durationFrames": 731,
       "lines": [
         {
           "text": "Before it asks you to trust anything, it shows you what it does.",
           "src": "audio/howitworks-0.wav",
           "startFrame": 0,
-          "durationFrames": 114
+          "durationFrames": 228
         },
         {
           "text": "Fetch the SEBI source, read it, compare it to the firm's control, record a decision.",
           "src": "audio/howitworks-1.wav",
-          "startFrame": 123,
-          "durationFrames": 148
+          "startFrame": 246,
+          "durationFrames": 297
         },
         {
           "text": "And then stop, wherever the source stops.",
           "src": "audio/howitworks-2.wav",
-          "startFrame": 280,
-          "durationFrames": 61
+          "startFrame": 561,
+          "durationFrames": 122
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "kind": "model",
+      "clip": null,
+      "clipStart": 0,
+      "label": "The model",
+      "captions": true,
+      "startFrame": 7150,
+      "durationFrames": 1253,
+      "lines": [
+        {
+          "text": "The reading itself is a classifier we trained, on three hundred and eighty-eight sentences of real SEBI wording.",
+          "src": "audio/model-0.wav",
+          "startFrame": 0,
+          "durationFrames": 380
+        },
+        {
+          "text": "It weighs what actually decides the answer. A length of time with nothing to start it counts for more than almost anything else.",
+          "src": "audio/model-1.wav",
+          "startFrame": 398,
+          "durationFrames": 417
+        },
+        {
+          "text": "And a fixed rule reads the same sentence separately. Where the two disagree, the disagreement is what you get shown.",
+          "src": "audio/model-2.wav",
+          "startFrame": 834,
+          "durationFrames": 371
         }
       ]
     },
@@ -273,26 +303,26 @@
       "clipStart": 2,
       "label": "The source",
       "captions": true,
-      "startFrame": 3575,
-      "durationFrames": 328,
+      "startFrame": 8403,
+      "durationFrames": 655,
       "lines": [
         {
           "text": "Everything starts at the source.",
           "src": "audio/source-0.wav",
           "startFrame": 0,
-          "durationFrames": 51
+          "durationFrames": 101
         },
         {
           "text": "The exact passage, the page, the question number, and a fingerprint of the file it came from.",
           "src": "audio/source-1.wav",
-          "startFrame": 60,
-          "durationFrames": 160
+          "startFrame": 119,
+          "durationFrames": 321
         },
         {
           "text": "Nothing's summarised, and nothing's made up.",
           "src": "audio/source-2.wav",
-          "startFrame": 229,
-          "durationFrames": 75
+          "startFrame": 458,
+          "durationFrames": 149
         }
       ]
     },
@@ -303,26 +333,26 @@
       "clipStart": 8,
       "label": "Live source check",
       "captions": true,
-      "startFrame": 3903,
-      "durationFrames": 294,
+      "startFrame": 9058,
+      "durationFrames": 588,
       "lines": [
         {
           "text": "A saved copy is only good as of the day you saved it.",
           "src": "audio/verify-0.wav",
           "startFrame": 0,
-          "durationFrames": 87
+          "durationFrames": 173
         },
         {
           "text": "So you can check that fingerprint against the page SEBI is serving right now.",
           "src": "audio/verify-1.wav",
-          "startFrame": 96,
-          "durationFrames": 127
+          "startFrame": 191,
+          "durationFrames": 255
         },
         {
           "text": "Either way, you get a receipt.",
           "src": "audio/verify-2.wav",
-          "startFrame": 232,
-          "durationFrames": 38
+          "startFrame": 464,
+          "durationFrames": 75
         }
       ]
     },
@@ -333,26 +363,26 @@
       "clipStart": 8,
       "label": "The gap",
       "captions": true,
-      "startFrame": 4197,
-      "durationFrames": 377,
+      "startFrame": 9646,
+      "durationFrames": 755,
       "lines": [
         {
           "text": "Now it reads the passage against the firm's own control.",
           "src": "audio/blocked-0.wav",
           "startFrame": 0,
-          "durationFrames": 90
+          "durationFrames": 180
         },
         {
           "text": "The period's there. The starting point isn't.",
           "src": "audio/blocked-1.wav",
-          "startFrame": 99,
-          "durationFrames": 79
+          "startFrame": 198,
+          "durationFrames": 158
         },
         {
           "text": "So it won't work out a due date. It leaves the clock blocked and puts the gap in front of a person.",
           "src": "audio/blocked-2.wav",
-          "startFrame": 187,
-          "durationFrames": 166
+          "startFrame": 374,
+          "durationFrames": 332
         }
       ]
     },
@@ -363,32 +393,32 @@
       "clipStart": 12,
       "label": "A named decision",
       "captions": true,
-      "startFrame": 4574,
-      "durationFrames": 554,
+      "startFrame": 10401,
+      "durationFrames": 1107,
       "lines": [
         {
           "text": "The decision belongs to a named officer, and the order it happens in matters.",
           "src": "audio/decide-0.wav",
           "startFrame": 0,
-          "durationFrames": 122
+          "durationFrames": 243
         },
         {
           "text": "You can't record a reading until every section the answer leans on has been opened and fingerprinted.",
           "src": "audio/decide-1.wav",
-          "startFrame": 131,
-          "durationFrames": 171
+          "startFrame": 261,
+          "durationFrames": 343
         },
         {
           "text": "Then your own reading gets time stamped, before the tool shows you what it thinks.",
           "src": "audio/decide-2.wav",
-          "startFrame": 311,
-          "durationFrames": 125
+          "startFrame": 622,
+          "durationFrames": 250
         },
         {
           "text": "That's what keeps it a judgement instead of a rubber stamp.",
           "src": "audio/decide-3.wav",
-          "startFrame": 445,
-          "durationFrames": 84
+          "startFrame": 890,
+          "durationFrames": 169
         }
       ]
     },
@@ -399,26 +429,26 @@
       "clipStart": 26,
       "label": "What changes",
       "captions": true,
-      "startFrame": 5128,
-      "durationFrames": 385,
+      "startFrame": 11508,
+      "durationFrames": 771,
       "lines": [
         {
           "text": "Once the clock start is on record, the date works out and the checks pass.",
           "src": "audio/impact-0.wav",
           "startFrame": 0,
-          "durationFrames": 121
+          "durationFrames": 241
         },
         {
           "text": "One broad three month control splits into the two rules the source actually described.",
           "src": "audio/impact-1.wav",
-          "startFrame": 130,
-          "durationFrames": 144
+          "startFrame": 259,
+          "durationFrames": 288
         },
         {
           "text": "A week for missing patches, three months for the rest.",
           "src": "audio/impact-2.wav",
-          "startFrame": 283,
-          "durationFrames": 79
+          "startFrame": 565,
+          "durationFrames": 157
         }
       ]
     },
@@ -429,26 +459,26 @@
       "clipStart": 36,
       "label": "The record",
       "captions": true,
-      "startFrame": 5513,
-      "durationFrames": 316,
+      "startFrame": 12279,
+      "durationFrames": 631,
       "lines": [
         {
           "text": "All of it downloads as one report.",
           "src": "audio/proof-0.wav",
           "startFrame": 0,
-          "durationFrames": 56
+          "durationFrames": 112
         },
         {
           "text": "The decision, who made it, what it rests on, and the check codes tying them together.",
           "src": "audio/proof-1.wav",
-          "startFrame": 65,
-          "durationFrames": 151
+          "startFrame": 130,
+          "durationFrames": 302
         },
         {
           "text": "A regulator can redo every one of them.",
           "src": "audio/proof-2.wav",
-          "startFrame": 225,
-          "durationFrames": 67
+          "startFrame": 450,
+          "durationFrames": 133
         }
       ]
     },
@@ -459,26 +489,26 @@
       "clipStart": 0,
       "label": "AI assistants",
       "captions": true,
-      "startFrame": 5829,
-      "durationFrames": 425,
+      "startFrame": 12910,
+      "durationFrames": 850,
       "lines": [
         {
           "text": "Four assistants read the same corpus, and each one has a single job.",
           "src": "audio/assistants-0.wav",
           "startFrame": 0,
-          "durationFrames": 122
+          "durationFrames": 244
         },
         {
           "text": "They work through fixed steps, and every step is recorded as it runs.",
           "src": "audio/assistants-1.wav",
-          "startFrame": 131,
-          "durationFrames": 125
+          "startFrame": 262,
+          "durationFrames": 250
         },
         {
           "text": "Then a tamper check recalculates the lot, so an edited step can't slip through.",
           "src": "audio/assistants-2.wav",
-          "startFrame": 265,
-          "durationFrames": 136
+          "startFrame": 530,
+          "durationFrames": 273
         }
       ]
     },
@@ -489,26 +519,26 @@
       "clipStart": 4,
       "label": "What it will not do",
       "captions": true,
-      "startFrame": 6254,
-      "durationFrames": 408,
+      "startFrame": 13760,
+      "durationFrames": 816,
       "lines": [
         {
           "text": "Each check tells you what it can't do, right where it tells you what it does.",
           "src": "audio/limits-0.wav",
           "startFrame": 0,
-          "durationFrames": 123
+          "durationFrames": 246
         },
         {
           "text": "It searches a pinned set of excerpts. It doesn't browse the web.",
           "src": "audio/limits-1.wav",
-          "startFrame": 132,
-          "durationFrames": 101
+          "startFrame": 264,
+          "durationFrames": 203
         },
         {
           "text": "If a pointer leads somewhere nobody has committed, it says so instead of guessing.",
           "src": "audio/limits-2.wav",
-          "startFrame": 243,
-          "durationFrames": 141
+          "startFrame": 485,
+          "durationFrames": 283
         }
       ]
     },
@@ -519,26 +549,26 @@
       "clipStart": 0,
       "label": "Ask RegOS",
       "captions": true,
-      "startFrame": 6662,
-      "durationFrames": 351,
+      "startFrame": 14576,
+      "durationFrames": 702,
       "lines": [
         {
           "text": "You can ask it something in plain English.",
           "src": "audio/ask-0.wav",
           "startFrame": 0,
-          "durationFrames": 60
+          "durationFrames": 121
         },
         {
           "text": "The answer comes back quoted from SEBI, with the locator attached.",
           "src": "audio/ask-1.wav",
-          "startFrame": 69,
-          "durationFrames": 113
+          "startFrame": 139,
+          "durationFrames": 226
         },
         {
           "text": "Word for word. And if the corpus doesn't have it, you get nothing rather than a guess.",
           "src": "audio/ask-2.wav",
-          "startFrame": 191,
-          "durationFrames": 136
+          "startFrame": 383,
+          "durationFrames": 271
         }
       ]
     },
@@ -549,26 +579,26 @@
       "clipStart": 2.5,
       "label": "Full record",
       "captions": true,
-      "startFrame": 7013,
-      "durationFrames": 272,
+      "startFrame": 15278,
+      "durationFrames": 543,
       "lines": [
         {
           "text": "It all lands in one ledger.",
           "src": "audio/record-0.wav",
           "startFrame": 0,
-          "durationFrames": 44
+          "durationFrames": 89
         },
         {
           "text": "Who decided what, when, on what evidence, under which fingerprint.",
           "src": "audio/record-1.wav",
-          "startFrame": 53,
-          "durationFrames": 97
+          "startFrame": 107,
+          "durationFrames": 195
         },
         {
           "text": "This is the thing an inspection actually asks you for.",
           "src": "audio/record-2.wav",
-          "startFrame": 160,
-          "durationFrames": 88
+          "startFrame": 320,
+          "durationFrames": 176
         }
       ]
     },
@@ -579,26 +609,26 @@
       "clipStart": 4,
       "label": "Worked cases",
       "captions": true,
-      "startFrame": 7285,
-      "durationFrames": 310,
+      "startFrame": 15821,
+      "durationFrames": 621,
       "lines": [
         {
           "text": "Four worked cases ship with it.",
           "src": "audio/scenarios-0.wav",
           "startFrame": 0,
-          "durationFrames": 53
+          "durationFrames": 105
         },
         {
           "text": "Each has a cited source and an expected outcome, written down before it runs.",
           "src": "audio/scenarios-1.wav",
-          "startFrame": 62,
-          "durationFrames": 135
+          "startFrame": 123,
+          "durationFrames": 271
         },
         {
           "text": "One of them runs against a real SEBI advisory.",
           "src": "audio/scenarios-2.wav",
-          "startFrame": 206,
-          "durationFrames": 80
+          "startFrame": 412,
+          "durationFrames": 160
         }
       ]
     },
@@ -609,26 +639,26 @@
       "clipStart": 0,
       "label": null,
       "captions": false,
-      "startFrame": 7595,
-      "durationFrames": 153,
+      "startFrame": 16442,
+      "durationFrames": 306,
       "lines": [
         {
           "text": "RegOS Sentinel.",
           "src": "audio/close-0.wav",
           "startFrame": 0,
-          "durationFrames": 28
+          "durationFrames": 56
         },
         {
           "text": "It shows its work.",
           "src": "audio/close-1.wav",
-          "startFrame": 37,
-          "durationFrames": 29
+          "startFrame": 74,
+          "durationFrames": 58
         },
         {
           "text": "And it stops where the source stops.",
           "src": "audio/close-2.wav",
-          "startFrame": 75,
-          "durationFrames": 54
+          "startFrame": 150,
+          "durationFrames": 107
         }
       ]
     }

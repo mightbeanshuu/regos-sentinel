@@ -105,6 +105,16 @@
       ]
     },
     {
+      "id": "model",
+      "kind": "model",
+      "label": "The model",
+      "sentences": [
+        "The reading itself is a classifier we trained, on three hundred and eighty-eight sentences of real SEBI wording.",
+        "It weighs what actually decides the answer. A length of time with nothing to start it counts for more than almost anything else.",
+        "And a fixed rule reads the same sentence separately. Where the two disagree, the disagreement is what you get shown."
+      ]
+    },
+    {
       "id": "source",
       "kind": "clip",
       "clip": "source",

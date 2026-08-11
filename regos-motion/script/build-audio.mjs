@@ -23,7 +23,12 @@ const AUDIO = join(ROOT, "public", "audio");
 const TMP = join(ROOT, ".audio-tmp");
 
 const spec = JSON.parse(readFileSync(join(HERE, "narration.json"), "utf8"));
-const FPS = 30;
+/* 60, not 30. Every phase in the film is derived from a frame number that is
+   itself derived from a measured audio duration in seconds, so changing this
+   re-times the whole film consistently — nothing downstream hard-codes a frame
+   count. At 60 the camera pushes and the velocity-derived motion blur have
+   twice the samples to work with, which is where the difference actually shows. */
+const FPS = 60;
 
 /**
  * Resolve the configured voice to the best tier of it actually installed.

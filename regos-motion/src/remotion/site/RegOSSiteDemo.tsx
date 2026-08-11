@@ -6,6 +6,7 @@ import {AssistantsBeat} from './AssistantsBeat';
 import {Captions} from './Captions';
 import {ClipBeat} from './ClipBeat';
 import {FixStoryBeat} from './FixStoryBeat';
+import {ModelBeat} from './ModelBeat';
 import {PipelineBeat} from './PipelineBeat';
 import {TitleBeat} from './TitleBeat';
 import {BG, BRAND, LINE} from './tokens';
@@ -82,6 +83,8 @@ export const RegOSSiteDemo: React.FC = () => {
             <FixStoryBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
           ) : beat.kind === 'ask' ? (
             <AskBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
+          ) : beat.kind === 'model' ? (
+            <ModelBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
           ) : beat.kind === 'assistants' ? (
             <AssistantsBeat durationInFrames={beat.durationFrames} lines={beat.lines} />
           ) : (

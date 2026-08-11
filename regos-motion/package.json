@@ -11,7 +11,7 @@
     "render:deck": "remotion render RegOSIdeaDeck out/RegOS_Sentinel_IdeaDeck.mp4 --codec h264",
     "render:video": "remotion render RegOSDemoVideo out/RegOS_Sentinel_Demo_172s.mp4 --codec h264",
     "upgrade": "remotion upgrade",
-    "render:site": "remotion render RegOSSiteDemo out/RegOS_Sentinel_SiteDemo_259s.mp4 --codec h264"
+    "render:site": "remotion render RegOSSiteDemo out/RegOS_Sentinel_SiteDemo.mp4 --codec h264 --crf 17 --concurrency 4"
   },
   "repository": {
     "type": "git",
