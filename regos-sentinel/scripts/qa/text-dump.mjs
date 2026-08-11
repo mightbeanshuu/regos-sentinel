@@ -4,6 +4,11 @@ import { writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
+
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+const APP = new URL("/app", BASE).toString();
 const TABS = ["dashboard", "review", "upload", "assistants", "record"];
 
 function chromePath() {
@@ -24,7 +29,7 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 900 
 const page = await context.newPage();
 let report = "";
 
-await page.goto(BASE, { waitUntil: "networkidle" });
+await page.goto(APP, { waitUntil: "networkidle" });
 for (const tab of TABS) {
   // The tab ids in the app are dashboard/guided/document/agents/audit, so match by
   // position — the same fallback drive.mjs relies on.

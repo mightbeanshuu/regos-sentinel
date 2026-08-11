@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "out", "landing-shots");
 mkdirSync(OUT, { recursive: true });
-const URL = process.argv[2] ?? "http://localhost:3400/landing";
+const URL = process.argv[2] ?? "http://localhost:3400/";
 const SECTIONS = ["gap", "how", "refusal", "assistants", "record"];
 
 const browser = await chromium.launch({
@@ -54,7 +54,16 @@ for (const [name, width, height] of [
     await page.screenshot({ path: `${OUT}/${name}-0${index + 1}-${id}.png` });
   }
 
-  // Anything still transparent after its section has been seen is a real bug.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(1100);
+  await page.screenshot({ path: `${OUT}/${name}-06-foot.png` });
+
+  /* This check runs LAST, after the scroll to the bottom, because `.lp-foot` is
+     in its selector and SECTIONS does not include the footer. Run before that
+     scroll and it reports the footer's own reveal as a failure every time — the
+     element was simply never given the chance to intersect. Anything still
+     transparent once every section INCLUDING the footer has been on screen is a
+     real bug. */
   const unrevealed = await page.evaluate(() =>
     [...document.querySelectorAll(".lp-section, .lp-foot")]
       .flatMap((section) => [...section.querySelectorAll("*")])
@@ -67,9 +76,6 @@ for (const [name, width, height] of [
   console.log(`  still invisible after scroll: ${unrevealed.length}`);
   unrevealed.slice(0, 4).forEach((entry) => console.log(`    ${entry}`));
 
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(1100);
-  await page.screenshot({ path: `${OUT}/${name}-06-foot.png` });
   await page.close();
 }
 

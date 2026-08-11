@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  /* The landing page was promoted from /landing to / on 2026-08-11, and the
+     product moved to /app. Links to /landing are already in the wild — in the
+     submission pack and in chat — so they redirect rather than 404. Permanent,
+     because the move is. */
+  async redirects() {
+    return [{ source: "/landing", destination: "/", permanent: true }];
+  },
   async rewrites() {
     if (process.env.VERCEL) {
       return [];

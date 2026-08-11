@@ -25,6 +25,11 @@ import { fileURLToPath } from "node:url";
 const args = process.argv.slice(2);
 const CAPTURE_BOOT = args.includes("--capture-boot");
 const BASE = args.find((arg) => !arg.startsWith("--")) ?? "http://127.0.0.1:3000";
+
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+const APP = new URL("/app", BASE).toString();
 // fileURLToPath, not .pathname — the repo path contains a space.
 const OUT = fileURLToPath(new URL("./out/", import.meta.url));
 mkdirSync(OUT, { recursive: true });
@@ -82,7 +87,7 @@ if (CAPTURE_BOOT) {
       reducedMotion: "no-preference",
     });
     const page = await context.newPage();
-    const response = await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const response = await page.goto(APP, { waitUntil: "domcontentloaded" });
     const observed = await page.waitForFunction(
       () => document.querySelector(".boot") || document.querySelector("main"),
       { timeout: 4000 },
@@ -160,7 +165,7 @@ for (const vp of VIEWPORTS) {
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(APP, { waitUntil: "networkidle" });
   // Confirm the CSS viewport actually followed (headless can clamp).
   const real = await page.evaluate(() => window.innerWidth);
   if (real !== vp.width) add(vp.name, "-", "viewport-clamped", `innerWidth ${real} != ${vp.width}`);
@@ -351,7 +356,7 @@ for (const vp of VIEWPORTS) {
 {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(APP, { waitUntil: "networkidle" });
   const focus = await page.evaluate(() => {
     const out = { noOutline: [], count: 0 };
     const els = [...document.querySelectorAll("a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])")]
@@ -375,7 +380,7 @@ for (const vp of VIEWPORTS) {
 {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const page = await context.newPage();
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(APP, { waitUntil: "networkidle" });
   const moving = await page.evaluate(() => {
     const bad = [];
     for (const el of document.querySelectorAll("body *")) {

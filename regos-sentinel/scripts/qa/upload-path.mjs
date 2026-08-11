@@ -30,6 +30,11 @@ import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 const BASE = args.find((a) => a.startsWith("http")) ?? "http://localhost:3000";
+
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+const APP = new URL("/app", BASE).toString();
 const PDF = args.find((a) => a.endsWith(".pdf"))
   ?? fileURLToPath(new URL("../../../real-pdfs/cscrf-framework.pdf", import.meta.url));
 // fileURLToPath, not .pathname — the repo path contains a space.
@@ -70,7 +75,7 @@ page.on("console", (m) => {
   if (m.type() === "error") add("js-error", m.text().slice(0, 200));
 });
 
-await page.goto(BASE, { waitUntil: "networkidle" });
+await page.goto(APP, { waitUntil: "networkidle" });
 await page.waitForTimeout(2000);
 
 // The Romer shell has no [role=tab]; navigation is .romer-nav-item, by name.

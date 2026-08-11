@@ -22,6 +22,11 @@ import { fileURLToPath } from "node:url";
 
 export const BASE = process.argv[2] ?? "https://regos-sentinel.vercel.app";
 
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+export const APP = new URL("/app", BASE).toString();
+
 // fileURLToPath, not .pathname — the repo path contains a space, and
 // `new URL(...).pathname` URL-encodes it into a directory that does not exist.
 export const OUT = fileURLToPath(
@@ -81,7 +86,7 @@ export function clipper(browser) {
       acceptDownloads: true,
     });
     const page = await ctx.newPage();
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(APP, { waitUntil: "networkidle" });
     await page.waitForSelector(".romer", { timeout: 90000 });
     await page.addStyleTag({ content: HIDE_SCROLLBAR });
     await page.waitForTimeout(1500);

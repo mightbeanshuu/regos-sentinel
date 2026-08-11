@@ -2,6 +2,11 @@ import { chromium } from "playwright-core";
 import { execSync } from "node:child_process";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
+
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+const APP = new URL("/app", BASE).toString();
 const OUT = process.argv[3] ?? "/private/tmp/claude-501/-Users-mac/fb15fd09-79cc-4070-9797-8bb80396a457/scratchpad/scenario.png";
 
 function chromePath() {
@@ -16,7 +21,7 @@ function chromePath() {
 
 const browser = await chromium.launch({ headless: true, executablePath: chromePath() || undefined });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.goto(BASE, { waitUntil: "networkidle" });
+await page.goto(APP, { waitUntil: "networkidle" });
 await page.waitForTimeout(1000);
 
 // Tab 2 = "Review a requirement".

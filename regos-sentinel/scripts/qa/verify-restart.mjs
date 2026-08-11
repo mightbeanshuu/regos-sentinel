@@ -8,6 +8,11 @@ import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
+
+/* The product moved from / to /app when the landing page was promoted
+   (2026-08-11). Resolving against BASE keeps a bare origin working and is
+   idempotent if someone passes the /app URL explicitly. */
+const APP = new URL("/app", BASE).toString();
 const OUT = fileURLToPath(new URL("./out/", import.meta.url));
 
 function chromePath() {
@@ -28,7 +33,7 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 900 
 const page = await context.newPage();
 const fail = [];
 
-await page.goto(BASE, { waitUntil: "networkidle" });
+await page.goto(APP, { waitUntil: "networkidle" });
 await page.waitForTimeout(1200);
 
 /* ---- 1 · Placeholder rotation ------------------------------------------- */

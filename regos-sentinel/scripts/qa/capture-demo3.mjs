@@ -9,7 +9,7 @@
 import { renameSync } from "node:fs";
 import { join } from "node:path";
 
-import { BASE, OUT, enterDemo, launch } from "./demo-lib.mjs";
+import { APP, OUT, enterDemo, launch } from "./demo-lib.mjs";
 
 const browser = await launch();
 const HIDE = `::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}
@@ -21,7 +21,7 @@ const ctx = await browser.newContext({
   recordVideo: { dir: OUT, size: { width: 1920, height: 1080 } },
 });
 const page = await ctx.newPage();
-await page.goto(BASE, { waitUntil: "networkidle" });
+await page.goto(APP, { waitUntil: "networkidle" });
 await page.waitForSelector(".romer", { timeout: 90000 });
 await page.addStyleTag({ content: HIDE });
 await page.waitForTimeout(1500);
