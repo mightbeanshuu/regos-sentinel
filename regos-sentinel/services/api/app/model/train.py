@@ -32,14 +32,33 @@ FOLDS = 6
 #: Everything the shipped model trains on.
 #:
 #: `second_pull.py` — 406 hand-labelled sentences from 109 more circulars — is
-#: deliberately NOT here. Adding it moved document-held-out accuracy 0.839 ->
-#: 0.721 and URGENCY_ONLY recall 0.74 -> 0.18, and the reason is not volume or
-#: class balance (both were tried). It is a rubric conflict, and the measurement
-#: that isolates it is in that file's docstring: each corpus predicts ITSELF at
-#: 89-94% and the OTHER at 65-69%. Two internally coherent labelling standards
-#: disagree, and no amount of extra data resolves a disagreement about what the
-#: labels mean. Reconciling them is real work with a real cost; until it is done,
-#: the corpus that produced the reviewed weights is the one that trains.
+#: deliberately NOT here, and RUBRIC.md now records why in a way the earlier
+#: note got wrong.
+#:
+#: The earlier diagnosis was "a rubric conflict: two internally coherent
+#: labelling standards disagree". Counting the disputed families does not support
+#: that. On commencement clauses the two corpora agree far more than they differ
+#: (OLD labels 7 of 9 PERIOD_AND_TRIGGER, NEW 12 of 21) and both are internally
+#: mixed; on vague periodicity both are mixed the same way. What actually differs
+#: is the MIX: a breadth-first harvest over 109 circulars collects far more prose
+#: ABOUT duties — FAQ questions, recitals, citations, past-tense reporting — than
+#: a targeted pull does, and the same timing word means different things either
+#: side of that line. The model had no feature for it, so 406 extra rows taught
+#: it that "periodic" means NO_TIMING and URGENCY_ONLY recall fell to 0.18.
+#:
+#: That part is now fixed. The five features RUBRIC.md implies — `interrogative`,
+#: `citation_frame`, `definition_frame`, `reported_past`, `timing_without_duty` —
+#: recover URGENCY_ONLY on the combined corpus from 0.1802 to 0.6889, which is
+#: the evidence that the mechanism was the missing distinction and not the
+#: labels. They also improve this corpus on its own: document-held-out 0.8391 ->
+#: 0.8423, and PERIOD_ONLY — the defect the product exists to catch — 0.9324 ->
+#: 0.9459.
+#:
+#: The combined corpus still loses, and is still not wired in: document-held-out
+#: 0.7289 against 0.8423, with PERIOD_ONLY falling to 0.6496. The remaining work
+#: is the part that cannot be automated — reading all 406 rows against the
+#: written rubric and relabelling them. Locating a family by pattern is fine;
+#: changing a label without reading the sentence is not.
 ALL_EXAMPLES: List[Example] = list(EXAMPLES) + list(REAL_EXAMPLES)
 
 

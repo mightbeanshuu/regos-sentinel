@@ -119,6 +119,50 @@ _FROM_TIME_TO_TIME = "from time to time"
 
 _IMPERATIVE = ("shall", "must", "are to be", "need to")
 
+#: RUBRIC.md turns on one question the feature set could not previously express:
+#: does the sentence IMPOSE a duty, or talk ABOUT one? The same timing word takes
+#: different labels either side of that line — "reviews shall be carried out
+#: periodically" is URGENCY_ONLY, "what is the periodicity of VAPT?" is NO_TIMING
+#: — so without these the model can only learn the word, and a corpus with more
+#: prose about duties than duties teaches it the wrong answer. That is what
+#: happened when `second_pull.py` was first added: URGENCY_ONLY recall fell to
+#: 0.18 because breadth-first harvesting over 109 circulars collects FAQ
+#: questions, recitals and citations far faster than it collects obligations.
+#:
+#: A question. SEBI's FAQs are full of them and they impose nothing.
+_INTERROGATIVE = re.compile(
+    r"\?|^\s*(?:what|whether|can|how|why|when|where|which|who|is|are|does|do|should|shall)\b"
+    r"[^.?]{0,120}\?",
+    re.IGNORECASE,
+)
+
+#: Pointing at an instrument rather than stating a duty. These sentences carry
+#: dates and periods constantly — they are the instrument's coordinates, not a
+#: deadline.
+_CITATION_FRAME = re.compile(
+    r"\bin terms of\b|\bvide\b|\bas specified in\b|\bread with\b|\bplease refer\b"
+    r"|\brefer to\b|\bcircular no\b|\bin exercise of (?:the )?powers conferred\b"
+    r"|\b(?:regulation|clause|paragraph|para|chapter|section|annexure)\s+\d"
+    r"|\bmaster circular\b",
+    re.IGNORECASE,
+)
+
+#: Reporting what already happened. "Transfer of securities was discontinued with
+#: effect from April 01, 2019" states a real date and creates no obligation.
+_REPORTED_PAST = re.compile(
+    r"\b(?:was|were|has been|have been|had been|has issued|have issued|has also"
+    r"|was made|were made|has mandated|had)\b",
+    re.IGNORECASE,
+)
+
+#: Defining a term. "Periodic reports does not include research reports" is about
+#: vocabulary.
+_DEFINITION_FRAME = re.compile(
+    r"\bdoes not include\b|\bshall mean\b|\bmeans\b|\bis defined as\b"
+    r"|\bdefinition of\b|\brefers to\b",
+    re.IGNORECASE,
+)
+
 #: Act-now urgency is a different linguistic animal from vague recurrence: "remediate
 #: immediately" mandates a response; "on a periodic basis" gestures at a rhythm. Both
 #: are URGENCY_ONLY, but the strong form co-occurs with duties while recurrent words
@@ -226,6 +270,27 @@ def features(text: str) -> Dict[str, float]:
         found["within"] = 1.0
     if _RECURRENCE.search(padded):
         found["recurrence"] = 1.0
+    # RUBRIC.md question 1: does this impose a duty, or talk about one? Each of
+    # these says "talks about", and the interactions below are where the work is
+    # actually done — a timing word inside a question or a citation is the shape
+    # that used to be learned as urgency.
+    talks_about = False
+    if _INTERROGATIVE.search(text):
+        found["interrogative"] = 1.0
+        talks_about = True
+    if _CITATION_FRAME.search(padded):
+        found["citation_frame"] = 1.0
+        talks_about = True
+    if _DEFINITION_FRAME.search(padded):
+        found["definition_frame"] = 1.0
+        talks_about = True
+    # Past tense only counts as reporting when nothing in the sentence commands.
+    # "REs shall ensure that backups have been tested" is still a duty.
+    if _REPORTED_PAST.search(padded) and not imperative:
+        found["reported_past"] = 1.0
+        talks_about = True
+    if talks_about and (urgency or periodicity or duration or absolute_date):
+        found["timing_without_duty"] = 1.0
     return found
 
 
@@ -249,6 +314,11 @@ FEATURE_NAMES: Tuple[str, ...] = (
     "ceiling_language",
     "within",
     "recurrence",
+    "interrogative",
+    "citation_frame",
+    "definition_frame",
+    "reported_past",
+    "timing_without_duty",
     "unit:minute", "unit:hour", "unit:day", "unit:week", "unit:month", "unit:year",
     "unit:business day", "unit:calendar day", "unit:trading day", "unit:working day",
 )

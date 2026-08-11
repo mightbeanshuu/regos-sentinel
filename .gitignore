@@ -68,3 +68,9 @@ Thumbs.db
 
 # no-slash form so a node_modules SYMLINK is ignored too (a dir-only pattern misses it)
 node_modules
+
+# Deck build artefacts. The GIFs are cut from the screen recordings in
+# regos-motion/public/capture (themselves untracked), and the previews are
+# rasterised from the pptx — all three are reproducible from build_deck.py.
+deck-assets/gif/
+deck-assets/preview/
