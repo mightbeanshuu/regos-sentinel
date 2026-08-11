@@ -21,12 +21,62 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
 const AUDIO = join(ROOT, "public", "audio");
 const TMP = join(ROOT, ".audio-tmp");
-rmSync(AUDIO, { recursive: true, force: true });
-mkdirSync(AUDIO, { recursive: true });
-mkdirSync(TMP, { recursive: true });
 
 const spec = JSON.parse(readFileSync(join(HERE, "narration.json"), "utf8"));
 const FPS = 30;
+
+/**
+ * Resolve the configured voice to the best tier of it actually installed.
+ *
+ * macOS exposes the same narrator at up to three qualities — "Isha (Premium)",
+ * "Isha (Enhanced)", plain "Isha" — and only the compact one ships by default;
+ * the neural tiers are an opt-in download. Pinning the exact string in
+ * narration.json would mean the config is wrong both before the download and
+ * after, depending on which tier landed. So the config names the PERSON and
+ * this picks the best available body for them.
+ *
+ * Falling back to compact silently would be the worst outcome: the build would
+ * succeed, the film would re-time around a robotic take, and nothing would say
+ * why it still sounded synthetic. So a fallback is loud, and a voice that is
+ * not installed at all stops the build with the download path.
+ */
+const resolveVoice = (wanted) => {
+  const installed = execFileSync("say", ["-v", "?"], { encoding: "utf8" })
+    .split("\n")
+    .map((row) => row.match(/^(.+?)\s{2,}\S+\s+#/))
+    .filter(Boolean)
+    .map(([, name]) => name.trim());
+
+  const base = wanted.replace(/\s*\((Premium|Enhanced)\)\s*$/, "");
+  for (const tier of ["Premium", "Enhanced"]) {
+    const hit = installed.find((name) => name === `${base} (${tier})`);
+    if (hit) return hit;
+  }
+  const compact = installed.find((name) => name === base);
+  if (compact) {
+    console.warn(
+      `\n  ! Only the COMPACT "${base}" is installed — the robotic tier.\n` +
+        `    System Settings > Accessibility > Spoken Content > System Voice >\n` +
+        `    Manage Voices, then download "${base}" and re-run this.\n`,
+    );
+    return compact;
+  }
+  console.error(`\nNo voice named "${base}" is installed on this machine.`);
+  console.error("System Settings > Accessibility > Spoken Content > System Voice >");
+  console.error(`Manage Voices > English, then download "${base}".`);
+  console.error("\n`node script/voice-audition.mjs` lists what you do have.\n");
+  process.exit(1);
+};
+
+/* Resolve BEFORE anything destructive. The wipe used to sit at the top of the
+   file, which meant a voice that was configured but not yet downloaded deleted
+   the working narration track and only then exited — losing a good take to a
+   preflight check. Nothing is removed until there is a voice to rebuild with. */
+const VOICE = resolveVoice(spec.voice);
+
+rmSync(AUDIO, { recursive: true, force: true });
+mkdirSync(AUDIO, { recursive: true });
+mkdirSync(TMP, { recursive: true });
 
 const durationOf = (file) =>
   Number(
@@ -47,7 +97,7 @@ for (const beat of spec.beats) {
     const aiff = join(TMP, `${name}.aiff`);
     const wav = join(AUDIO, `${name}.wav`);
 
-    execFileSync("say", ["-v", spec.voice, "-r", String(spec.rate), "-o", aiff, text]);
+    execFileSync("say", ["-v", VOICE, "-r", String(spec.rate), "-o", aiff, text]);
     // 48k mono PCM — what Remotion mixes without resampling surprises.
     execFileSync("ffmpeg", [
       "-v", "error", "-y", "-i", aiff, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wav,
@@ -113,7 +163,7 @@ const timing = { fps: FPS, totalFrames: cursorFrames, beats };
 writeFileSync(join(HERE, "timing.json"), `${JSON.stringify(timing, null, 2)}\n`);
 rmSync(TMP, { recursive: true, force: true });
 
-console.log(`voice: ${spec.voice} @ ${spec.rate} wpm`);
+console.log(`voice: ${VOICE} @ ${spec.rate} wpm`);
 for (const beat of beats) {
   console.log(
     `  ${beat.id.padEnd(12)} ${(beat.durationFrames / FPS).toFixed(1)}s` +
