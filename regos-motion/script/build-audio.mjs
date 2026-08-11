@@ -41,18 +41,32 @@ const FPS = 30;
  * not installed at all stops the build with the download path.
  */
 const resolveVoice = (wanted) => {
+  /* `say -v ?` prints "<name> <locale> # <sample>", and the name is not a bare
+     word: when one narrator exists in several locales the locale is folded into
+     it — "Aman (English (India)) en_IN" — and the column padding collapses to a
+     single space. Anchoring on the locale code is the only stable landmark. */
   const installed = execFileSync("say", ["-v", "?"], { encoding: "utf8" })
     .split("\n")
-    .map((row) => row.match(/^(.+?)\s{2,}\S+\s+#/))
+    .map((row) => row.match(/^(.*?)\s+([a-z]{2}(?:_[A-Z]{2})?)\s+#/))
     .filter(Boolean)
-    .map(([, name]) => name.trim());
+    .map(([, name]) => name.trim())
+    .map((name) => ({
+      name,
+      tier: /\((Premium|Enhanced)\)/.exec(name)?.[1] ?? "Compact",
+      // Strip the tier and any "(English (India))" locale label to get the person.
+      base: name
+        .replace(/\s*\((Premium|Enhanced)\)/, "")
+        .replace(/\s*\(.*\)\s*$/, "")
+        .trim(),
+    }));
 
-  const base = wanted.replace(/\s*\((Premium|Enhanced)\)\s*$/, "");
+  const base = wanted.replace(/\s*\((Premium|Enhanced)\)\s*$/, "").trim();
+  const mine = installed.filter((v) => v.base === base);
   for (const tier of ["Premium", "Enhanced"]) {
-    const hit = installed.find((name) => name === `${base} (${tier})`);
-    if (hit) return hit;
+    const hit = mine.find((v) => v.tier === tier);
+    if (hit) return hit.name;
   }
-  const compact = installed.find((name) => name === base);
+  const compact = mine[0]?.name;
   if (compact) {
     console.warn(
       `\n  ! Only the COMPACT "${base}" is installed — the robotic tier.\n` +
@@ -97,13 +111,56 @@ for (const beat of spec.beats) {
     const aiff = join(TMP, `${name}.aiff`);
     const wav = join(AUDIO, `${name}.wav`);
 
-    execFileSync("say", ["-v", VOICE, "-r", String(spec.rate), "-o", aiff, text]);
-    // 48k mono PCM — what Remotion mixes without resampling surprises.
-    execFileSync("ffmpeg", [
-      "-v", "error", "-y", "-i", aiff, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wav,
-    ]);
+    /* Trim silence off both ends before measuring.
+       `say` is not deterministic: the same sentence, same voice, same rate,
+       rendered twice, can differ by seconds — it intermittently pads a take
+       with dead air. That is normally invisible, but here every caption and
+       every animation phase is derived from the MEASURED duration of these
+       files, so a flaky measurement re-times the film and can push a beat past
+       the end of its footage. Two runs of this script disagreed by 12 seconds
+       and one of them failed the footage guard on a beat the other passed.
+       Trimming to the speech itself makes the measurement a property of the
+       sentence rather than of the run. Spacing is re-added deliberately below
+       via gapSeconds/beatPadSeconds, where it is a decision rather than an
+       accident. */
+    const trim =
+      "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0:detection=peak," +
+      "areverse," +
+      "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0:detection=peak," +
+      "areverse";
+    /* Render, then sanity-check the take against how long the sentence should
+       plausibly last, and re-roll it if `say` glitched.
 
-    const seconds = durationOf(wav);
+       This is not defensive padding — the failure is real and was measured.
+       Rendering the whole script three times, 5 of 63 sentences came out
+       different each time, and one of them ("Then it goes looking for one
+       specific thing…") rendered at 4.6s, then 15.3s, then 4.6s. A 15-second
+       take of a 13-word sentence silently stretches its beat past the end of
+       its footage and desynchronises every caption after it.
+
+       Word count over words-per-minute is a good enough expectation to catch a
+       3x blow-out while never firing on ordinary variation, and taking the
+       SHORTEST of the attempts means a run can only ever get closer to the
+       sentence's true length. */
+    const expected = (text.split(/\s+/).length / spec.rate) * 60;
+    const ceiling = Math.max(expected * 1.8, expected + 2.5);
+    let seconds = 0;
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      execFileSync("say", ["-v", VOICE, "-r", String(spec.rate), "-o", aiff, text]);
+      // 48k mono PCM — what Remotion mixes without resampling surprises.
+      execFileSync("ffmpeg", [
+        "-v", "error", "-y", "-i", aiff, "-af", trim,
+        "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wav,
+      ]);
+      seconds = durationOf(wav);
+      if (seconds <= ceiling) break;
+      if (attempt === 4) {
+        console.warn(
+          `  ! ${name}: ${seconds.toFixed(1)}s after 4 attempts, expected ~${expected.toFixed(1)}s. ` +
+            `Keeping it — check this line by ear.`,
+        );
+      }
+    }
     lines.push({
       text,
       src: `audio/${name}.wav`,

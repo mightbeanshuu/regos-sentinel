@@ -1,5 +1,5 @@
 {
-  "voice": "Isha",
+  "voice": "Aman",
   "rate": 168,
   "gapSeconds": 0.3,
   "beatPadSeconds": 0.8,
@@ -75,7 +75,7 @@
       "id": "dashboard",
       "kind": "clip",
       "clip": "dashboard",
-      "clipStart": 1.5,
+      "clipStart": 1.0,
       "label": "Dashboard",
       "sentences": [
         "With a document in it, the desk opens on four numbers, and all four are counted from what's there.",
