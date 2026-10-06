@@ -73,6 +73,7 @@ ORDER_SPOOFING       150     150     450       0    100.0 % 100.0 %
 FRONT_RUNNING        150     150     300       0    100.0 % 100.0 %
 
 Throughput: ~6.1M events/s on 1M events (5.3M events/s on 5M), 65-67 bytes allocated per event
+            2.28M events/s on the GitHub Actions ubuntu-latest runner (4 vCPU), same tape, same seed
 Resident state stays bounded by the 30 s window (~3-6k trades) however long the tape is
 End to end over HTTP into SQLite (JSON + ledger + commit): ~33-41k events/s
 ```
