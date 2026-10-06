@@ -1,0 +1,7 @@
+**/bin
+**/obj
+**/node_modules
+**/*.db*
+src/Surveillance.Api/wwwroot
+tests
+tools

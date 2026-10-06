@@ -113,6 +113,16 @@ All entity, finding, vendor, task, and evidence records are marked `synthetic: t
 data. The prototype is decision support: it does not provide legal advice, submit filings, or
 write to regulated production systems.
 
+## Surveillance Desk (.NET 8 service)
+
+[`services/surveillance`](services/surveillance/README.md) acts on one obligation RegOS reads from the rulebook:
+NSE/SURV/48818 requires trading members to raise their own surveillance alerts and dispose of each within 45 days.
+The service consumes the order/trade log from Kafka and detects wash trades between KYC-linked accounts, order
+spoofing and front-running, following the definitions in the NSE/INVG/65921 guidance note. It stores alerts in
+SQL Server and enforces the 45-day clock, the delay-reason rule and an audit trail in its API. Built with C#,
+ASP.NET Core, EF Core, Confluent.Kafka, React + TypeScript and xUnit; CI runs its tests against real SQL Server
+2022 and Kafka containers.
+
 ## Three-line local quickstart
 
 ```bash
