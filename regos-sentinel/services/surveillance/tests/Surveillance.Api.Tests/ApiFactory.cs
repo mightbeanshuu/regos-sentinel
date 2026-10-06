@@ -22,6 +22,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     public static readonly string? SqlServer = Environment.GetEnvironmentVariable("SURV_SQLSERVER");
     private readonly SqliteConnection _sqlite = new("DataSource=:memory:");
     private readonly string _sqlServerDb = $"surv_test_{Guid.NewGuid():N}";
+    private string? _sqlServerConn;
     private readonly Dictionary<string, string?> _settings;
 
     public ApiFactory(Dictionary<string, string?>? settings = null)
@@ -45,8 +46,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             s.RemoveAll<DbContextOptions<SurveillanceDbContext>>();
             if (OnSqlServer)
             {
-                var cs = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(SqlServer) { InitialCatalog = _sqlServerDb }.ConnectionString;
-                s.AddDbContext<SurveillanceDbContext>(o => o.UseSqlServer(cs));
+                _sqlServerConn = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(SqlServer) { InitialCatalog = _sqlServerDb }.ConnectionString;
+                s.AddDbContext<SurveillanceDbContext>(o => o.UseSqlServer(_sqlServerConn));
             }
             else
             {
@@ -60,13 +61,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && OnSqlServer)
-        {
-            using var scope = Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<SurveillanceDbContext>().Database.EnsureDeleted();
-        }
+        // The factory disposes its own service provider first, so the per-test database is dropped with a context
+        // built here, after pooled connections are cleared (otherwise SQL Server reports the database "in use").
         base.Dispose(disposing);
-        if (disposing) _sqlite.Dispose();
+        if (!disposing) return;
+        _sqlite.Dispose();
+        if (_sqlServerConn is null) return;
+        Microsoft.Data.SqlClient.SqlConnection.ClearAllPools();
+        using var db = new SurveillanceDbContext(new DbContextOptionsBuilder<SurveillanceDbContext>().UseSqlServer(_sqlServerConn).Options);
+        db.Database.EnsureDeleted();
     }
 }
 
